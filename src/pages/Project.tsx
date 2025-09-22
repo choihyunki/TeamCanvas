@@ -1,11 +1,9 @@
-import React from 'react';
+import React from "react";
+import { useParams } from "react-router-dom";
 
-function Project() {
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <h1 className="text-2xl font-bold">Project Page</h1>
-    </div>
-  );
-}
+const Project = () => {
+  const { id } = useParams();
+  return <h1>Project Page - Project ID: {id}</h1>;
+};
 
 export default Project;
