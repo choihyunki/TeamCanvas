@@ -24,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 </button>
             
                 <img
-                    src={process.env.PUBLIC_URL + "/DropIn Logo.png"}
+                    src={process.env.PUBLIC_URL + "/DropInLogo.png"}
                     alt="Drop In Logo"
                     style={{ height: "40px" }} // Adjust the size as needed
                 />
