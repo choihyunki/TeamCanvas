@@ -1,13 +1,15 @@
 import React from "react";
 
-const MemberList: React.FC = () => {
-  // 더미 데이터 (DB 연동 전)
-  const members = [
-    { id: 1, name: "현기" },
-    { id: 2, name: "민수" },
-    { id: 3, name: "지은" },
-  ];
+interface Member {
+  id: number;
+  name: string;
+}
 
+interface Props {
+  members: Member[];
+}
+
+const MemberList: React.FC<Props> = ({ members }) => {
   return (
     <div
       style={{
@@ -19,13 +21,23 @@ const MemberList: React.FC = () => {
         height: "100%",
       }}
     >
-      <h3 style={{ margin: "0 0 10px 0", fontWeight: "bold", fontSize: "18px" }}>
+      <h3
+        style={{
+          margin: "0 0 10px 0",
+          fontWeight: "bold",
+          fontSize: "18px",
+        }}
+      >
         멤버 리스트
       </h3>
 
       {members.map((member) => (
         <div
           key={member.id}
+          draggable
+          onDragStart={(e) =>
+            e.dataTransfer.setData("memberId", member.id.toString())
+          }
           style={{
             display: "flex",
             alignItems: "center",
@@ -33,15 +45,11 @@ const MemberList: React.FC = () => {
             borderRadius: "16px",
             background: "#e0f7fa", // 파스텔톤 블루
             boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-            cursor: "pointer",
+            cursor: "grab", // ✅ 드래그 가능한 느낌
             transition: "0.2s",
           }}
-          onMouseEnter={(e) =>
-            ((e.currentTarget.style.background = "#b2ebf2"))
-          }
-          onMouseLeave={(e) =>
-            ((e.currentTarget.style.background = "#e0f7fa"))
-          }
+          onMouseEnter={(e) => (e.currentTarget.style.background = "#b2ebf2")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "#e0f7fa")}
         >
           {/* 아바타 (이니셜 원형) */}
           <div
