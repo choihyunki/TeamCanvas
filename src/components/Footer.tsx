@@ -1,7 +1,13 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <footer
       style={{
@@ -25,18 +31,46 @@ const Footer: React.FC = () => {
           justifyContent: "center",
         }}
       >
-        <Link to="/help" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        <a
+          href="/help"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/help");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           도움말
-        </Link>
-        <Link to="/contact" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        </a>
+        <a
+          href="/contact"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/contact");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           문의하기
-        </Link>
-        <Link to="/terms" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        </a>
+        <a
+          href="/terms"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/terms");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           서비스 약관
-        </Link>
-        <Link to="/privacy" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        </a>
+        <a
+          href="/privacy"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/privacy");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           개인정보처리방침
-        </Link>
+        </a>
       </nav>
     </footer>
   );

@@ -5,10 +5,25 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+    const getPublicPath = (filename: string, extension: string = "png") => 
+        process.env.PUBLIC_URL + `/${filename}.${extension}`;
+
+    const iconSize = "32px"; 
+    const iconGap = "25px"; 
+
+    const iconStyle: React.CSSProperties = {
+        width: iconSize,
+        height: iconSize,
+        cursor: "pointer",
+        padding: "0",
+        border: "none",
+        backgroundColor: "transparent",
+    };
+
     return (
         <header
             style={{
-                height: "60px",
+                height: "50px",
                 borderBottom: "1px solid #ddd",
                 display: "flex",
                 alignItems: "center",
@@ -18,22 +33,46 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             }}
         >
             <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-      
-                <button onClick={onMenuClick} style={{ fontSize: "20px" }}>
+                {/* 햄버거 버튼 */}
+                <button 
+                    onClick={onMenuClick} 
+                    style={{ fontSize: "20px", background: 'none', border: 'none', cursor: 'pointer', lineHeight: '1' }}
+                >
                     ☰
                 </button>
             
                 <img
-                    src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+                    src={getPublicPath("DropInLogo", "png")} 
                     alt="Drop In Logo"
-                    style={{ height: "40px" }} // Adjust the size as needed
+                    style={{ height: "40px" }}
                 />
             </div>
 
-            <nav style={{ display: "flex", gap: "15px" }}>
-                <button>알림</button>
-                <button>설정</button>
-                <button>프로필</button>
+            <nav style={{ display: "flex", gap: iconGap }}>
+                
+                <button style={iconStyle}>
+                    <img 
+                        src={getPublicPath("Bell", "jpg")} 
+                        alt="알림" 
+                        style={{ width: "100%", height: "100%", verticalAlign: 'middle' }}
+                    />
+                </button>
+            
+                <button style={iconStyle}>
+                    <img 
+                        src={getPublicPath("Setting", "jpg")} 
+                        alt="설정" 
+                        style={{ width: "100%", height: "100%", verticalAlign: 'middle' }}
+                    />
+                </button>
+
+                <button style={iconStyle}>
+                    <img 
+                        src={getPublicPath("Profile", "jpg")} 
+                        alt="프로필" 
+                        style={{ width: "100%", height: "100%", verticalAlign: 'middle' }}
+                    />
+                </button>
             </nav>
         </header>
     );

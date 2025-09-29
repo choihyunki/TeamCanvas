@@ -1,9 +1,5 @@
 import React from "react";
-
-interface Member {
-  id: number;
-  name: string;
-}
+import { Member } from "../types/Member"; // 공통 타입 import
 
 interface Props {
   members: Member[];
@@ -41,41 +37,68 @@ const MemberList: React.FC<Props> = ({ members }) => {
           style={{
             display: "flex",
             alignItems: "center",
+            gap: "16px",
             padding: "12px",
             borderRadius: "16px",
-            background: "#e0f7fa", // 파스텔톤 블루
+            background: "#e0f7fa",
             boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
-            cursor: "grab", // ✅ 드래그 가능한 느낌
+            cursor: "grab",
             transition: "0.2s",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.background = "#b2ebf2")}
           onMouseLeave={(e) => (e.currentTarget.style.background = "#e0f7fa")}
         >
-          {/* 아바타 (이니셜 원형) */}
+          {/* 아바타 + 이름 */}
+          <div style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+            <div
+              style={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                background: "#80deea",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontWeight: "bold",
+                marginRight: "10px",
+                fontSize: "16px",
+              }}
+            >
+              {member.name.charAt(0)}
+            </div>
+            <div style={{ fontSize: "16px", fontWeight: "500", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {member.name}
+            </div>
+          </div>
+          {/* 역할 */}
           <div
             style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "50%",
-              background: "#80deea",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: "bold",
-              marginRight: "10px",
-              fontSize: "16px",
+              flex: 1,
+              textAlign: "center",
+              color: "#000",
+              fontSize: "14px",
+              fontWeight: 400,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
-            {member.name.charAt(0)}
+            {member.role}
           </div>
-
-          {/* 이름 */}
-          <div style={{ fontSize: "16px", fontWeight: "500" }}>
-            {member.name}
-          </div>
+          {/* 온라인 상태 원 */}
+          <div
+            title={member.isOnline ? "온라인" : "오프라인"}
+            style={{
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              backgroundColor: member.isOnline ? "#4caf50" : "#9e9e9e",
+              marginLeft: "8px",
+            }}
+          />
         </div>
-      ))}
+))}
     </div>
   );
 };
