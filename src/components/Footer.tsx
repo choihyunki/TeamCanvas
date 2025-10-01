@@ -1,34 +1,74 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 
 const Footer: React.FC = () => {
+  const navigate = useNavigate();
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+  };
+
   return (
     <footer
       style={{
-        height: "50px",
         borderTop: "1px solid #ddd",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 20px",
         backgroundColor: "#f1f1f1",
         fontSize: "14px",
         color: "#666",
+        padding: "20px 10px",
+        textAlign: "center",
       }}
     >
-      <div>© 2025 Drop In. All rights reserved.</div>
+      <div style={{ marginBottom: "10px" }}>
+        © 2025 Drop In. All rights reserved.
+      </div>
 
-      {/* 우측 링크 */}
-      <nav style={{ display: "flex", gap: "15px" }}>
-        <a href="/help" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+      <nav
+        style={{
+          display: "flex",
+          gap: "15px",
+          flexWrap: "wrap",
+          justifyContent: "center",
+        }}
+      >
+        <a
+          href="/help"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/help");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           도움말
         </a>
-        <a href="/contact" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        <a
+          href="/contact"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/contact");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           문의하기
         </a>
-        <a href="/terms" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        <a
+          href="/terms"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/terms");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           서비스 약관
         </a>
-        <a href="/privacy" style={{ textDecoration: "none", color: "#2b6cb0" }}>
+        <a
+          href="/privacy"
+          onClick={(e) => {
+            e.preventDefault();
+            handleNavigate("/privacy");
+          }}
+          style={{ textDecoration: "none", color: "#2b6cb0", cursor: "pointer" }}
+        >
           개인정보처리방침
         </a>
       </nav>
