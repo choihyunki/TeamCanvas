@@ -17,7 +17,9 @@ import PrivacyPage from "./pages/Privacy";
 
 import { AuthProvider, useAuth } from "./context/AuthContext"; // 로그인 상태관리 추가
 
-const ProtectedRoute: React.FC<{ element: JSX.Element }> = ({ element }) => {
+const ProtectedRoute: React.FC<{ element: React.ReactElement }> = ({
+  element,
+}) => {
   const { isAuthenticated } = useAuth();
   return isAuthenticated ? element : <Navigate to="/" replace />;
 };
