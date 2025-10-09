@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
-// ✅ 모든 CSS 코드를 컴포넌트 내부에 문자열로 정의합니다.
 const css = `
   /* 전체 페이지 배경 */
   .login-page {
@@ -175,15 +175,22 @@ const css = `
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const { login } = useAuth();
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = () => {
-    console.log("로그인 시도:", { username, password });
-    navigate('/main');
+    // 임시 토큰 (실제 API 붙이기 전까지 테스트용)
+    const fakeToken = "test-token-1234";
+
+    // AuthContext에 로그인 상태 저장
+    login(fakeToken);
+
+    // 메인 페이지로 이동
+    navigate("/main");
   };
-  
+
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
@@ -203,7 +210,12 @@ const Login: React.FC = () => {
         <div className="form-panel">
           <div className="form-container">
             <h2>로그인</h2>
-            <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }}>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLogin();
+              }}
+            >
               <div className="input-group">
                 <input
                   type="text"
@@ -216,15 +228,19 @@ const Login: React.FC = () => {
               </div>
               <div className="input-group">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   placeholder="비밀번호"
                   className="input-field"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
-                <button type="button" onClick={togglePasswordVisibility} className="password-toggle-btn">
-                  {showPassword ? '숨기기' : '보이기'}
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="password-toggle-btn"
+                >
+                  {showPassword ? "숨기기" : "보이기"}
                 </button>
               </div>
               <button type="submit" className="login-btn">
@@ -235,14 +251,16 @@ const Login: React.FC = () => {
             <div className="social-login">
               <p>또는 소셜 계정으로 로그인</p>
               <button className="social-btn">
-                <img src="https://img.icons8.com/color/16/000000/google-logo.png" alt="Google"/>
+                <img
+                  src="https://img.icons8.com/color/16/000000/google-logo.png"
+                  alt="Google"
+                />
                 Google 계정으로 로그인
               </button>
             </div>
 
             <div className="links">
-              <a href="/forgot-password">비밀번호 찾기</a>
-              |
+              <a href="/forgot-password">비밀번호 찾기</a>|
               <a href="/register">회원가입</a>
             </div>
           </div>
