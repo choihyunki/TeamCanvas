@@ -1,272 +1,135 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-
-const css = `
-  /* 전체 페이지 배경 */
-  .login-page {
-    display: flex;
-    min-height: 100vh;
-    font-family: 'Arial', sans-serif;
-    overflow: hidden; /* 애니메이션이 화면을 벗어나지 않도록 */
-  }
-
-  /* 왼쪽 브랜딩 패널 */
-  .branding-panel {
-    width: 50%;
-    background: linear-gradient(-45deg, #4f46e5, #818cf8, #3b82f6, #60a5fa);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    padding: 40px;
-    box-sizing: border-box;
-  }
-
-  .branding-panel img {
-    width: 180px;
-    margin-bottom: 20px;
-  }
-
-  .branding-panel h1 {
-    font-size: 36px;
-    margin-bottom: 10px;
-  }
-
-  .branding-panel p {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  /* 그라데이션 애니메이션 */
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  /* 오른쪽 폼 패널 */
-  .form-panel {
-    width: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f0f2f5;
-  }
-
-  .form-container {
-    background-color: #fff;
-    padding: 50px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 420px;
-    box-sizing: border-box;
-  }
-
-  .form-container h2 {
-    margin-top: 0;
-    margin-bottom: 25px;
-    color: #333;
-    text-align: center;
-    font-size: 28px;
-  }
-
-  /* 입력 필드 스타일 */
-  .input-group {
-    position: relative;
-    margin-bottom: 25px;
-  }
-
-  .input-field {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 16px;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .input-field:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  /* 비밀번호 보이기/숨기기 버튼 */
-  .password-toggle-btn {
-    position: absolute;
-    top: 50%;
-    right: 15px;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #888;
-    font-size: 14px;
-  }
-
-  /* 로그인 버튼 */
-  .login-btn {
-    width: 100%;
-    padding: 14px;
-    background-color: #4f46e5;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-
-  .login-btn:hover {
-    background-color: #4338ca;
-  }
-
-  /* 소셜 로그인 버튼 */
-  .social-login {
-    margin-top: 25px;
-    text-align: center;
-  }
-
-  .social-login p {
-      color: #888;
-      margin-bottom: 15px;
-  }
-
-  .social-btn {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background-color: #fff;
-      cursor: pointer;
-      margin-bottom: 10px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: background-color 0.2s;
-  }
-
-  .social-btn:hover {
-      background-color: #f7f7f7;
-  }
-  
-  /* 하단 링크 */
-  .links {
-    margin-top: 20px;
-    font-size: 14px;
-    text-align: center;
-  }
-
-  .links a {
-    color: #4f46e5;
-    text-decoration: none;
-    margin: 0 10px;
-  }
-`;
+import React, { useState, useRef,useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // 임시 토큰 (실제 API 붙이기 전까지 테스트용)
-    const fakeToken = "test-token-1234";
+  // ✅ 드래그 앤 드롭 관련 상태 추가
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDropped, setIsDropped] = useState(false);
+  const [isFormFilled, setIsFormFilled] = useState(false);
 
-    // AuthContext에 로그인 상태 저장
-    login(fakeToken);
+  const draggableButtonRef = useRef<HTMLButtonElement>(null);
 
-    // 메인 페이지로 이동
-    navigate("/main");
+  // ✅ 아이디/비밀번호 입력 시 폼 채움 상태 업데이트
+  const handleInputChange = () => {
+    if (username.trim() !== '' && password.trim() !== '') {
+      setIsFormFilled(true);
+    } else {
+      setIsFormFilled(false);
+    }
   };
 
-  const togglePasswordVisibility = () => {
-    setShowPassword(!showPassword);
+  useEffect(handleInputChange, [username, password]);
+
+  // ✅ 드래그 이벤트 핸들러
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    setIsDragging(true);
+    // 드래그 데이터 설정 (필요 시)
+    e.dataTransfer.setData('text/plain', 'login');
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  // ✅ 드롭 존 이벤트 핸들러
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); // 드롭을 허용하기 위해 필수
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isFormFilled) return; // 폼이 채워지지 않으면 드롭 무시
+
+    setIsDropped(true);
+    console.log("로그인 시도...");
+
+    // ✅ 드롭 성공 애니메이션 후 페이지 이동
+    setTimeout(() => {
+      navigate('/main');
+    }, 800); // 0.8초 후 이동
+  };
+
+  // 동적 스타일
+  const dropzoneStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '20px',
+    marginTop: '20px',
+    border: `2px dashed ${isDragging ? '#4f46e5' : '#ccc'}`,
+    borderRadius: '8px',
+    textAlign: 'center',
+    color: '#aaa',
+    transition: 'border-color 0.3s, background-color 0.3s',
+    backgroundColor: isDropped ? '#eef2ff' : 'transparent',
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: '12px 24px',
+    backgroundColor: isFormFilled ? '#2b6cb0' : '#a0aec0',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '18px',
+    fontWeight: 'bold',
+    cursor: isFormFilled ? 'grab' : 'not-allowed',
+    transition: 'all 0.3s ease',
+    opacity: isDragging ? 0.5 : 1,
+    transform: isDropped ? 'scale(0.9)' : 'scale(1)',
   };
 
   return (
-    <>
-      {/* ✅ 정의한 CSS 문자열을 <style> 태그로 렌더링 */}
-      <style>{css}</style>
-      <div className="login-page">
-        {/* 1. 왼쪽 브랜딩 영역 */}
-        <div className="branding-panel">
-          <img src="/DropInLogo.png" alt="Drop In Logo" />
-          <p>당신의 프로젝트를 한 곳에서, 손쉽게.</p>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
+      <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', textAlign: 'center', width: '420px' }}>
+        <img src="/DropInLogo.png" alt="Drop In Logo" style={{ width: '120px', marginBottom: '20px' }} />
+        <h2 style={{ marginBottom: '25px', color: '#333' }}>로그인</h2>
+
+        {/* 아이디 입력 */}
+        <input
+          type="text"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '20px' }}
+        />
+        {/* 비밀번호 입력 */}
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '10px' }}
+        />
+
+        {/* ✅ 드래그 가능한 버튼 */}
+        <button
+          ref={draggableButtonRef}
+          draggable={isFormFilled}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          style={buttonStyle}
+        >
+          {isDropped ? '환영합니다!' : (isFormFilled ? '↓ 아래로 드롭하여 로그인' : '정보를 입력하세요')}
+        </button>
+
+        {/* ✅ 드롭 존 */}
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          style={dropzoneStyle}
+        >
+          {isDropped ? '로그인 성공!' : '이곳에 버튼을 놓으세요'}
         </div>
 
-        {/* 2. 오른쪽 로그인 폼 영역 */}
-        <div className="form-panel">
-          <div className="form-container">
-            <h2>로그인</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleLogin();
-              }}
-            >
-              <div className="input-group">
-                <input
-                  type="text"
-                  placeholder="아이디"
-                  className="input-field"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="비밀번호"
-                  className="input-field"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={togglePasswordVisibility}
-                  className="password-toggle-btn"
-                >
-                  {showPassword ? "숨기기" : "보이기"}
-                </button>
-              </div>
-              <button type="submit" className="login-btn">
-                로그인
-              </button>
-            </form>
-
-            <div className="social-login">
-              <p>또는 소셜 계정으로 로그인</p>
-              <button className="social-btn">
-                <img
-                  src="https://img.icons8.com/color/16/000000/google-logo.png"
-                  alt="Google"
-                />
-                Google 계정으로 로그인
-              </button>
-            </div>
-
-            <div className="links">
-              <a href="/forgot-password">비밀번호 찾기</a>|
-              <a href="/register">회원가입</a>
-            </div>
-          </div>
+        <div style={{ marginTop: '20px', fontSize: '14px' }}>
+          <a href="/register" style={{ color: '#2b6cb0', textDecoration: 'none' }}>
+            회원가입
+          </a>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

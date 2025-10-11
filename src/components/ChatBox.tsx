@@ -30,8 +30,6 @@ const initialMessages: Message[] = [
   { type: 'user', id: 4, user: { name: '박민수', avatarInitial: '박' }, text: 'API 명세서 초안을 작성했습니다. 검토 부탁드려요.', time: '오후 07:30', isMe: false },
   { type: 'date', id: 5, date: '2025년 10월 11일' },
   { type: 'user', id: 6, user: { name: '나', avatarInitial: '나' }, text: '파일.pdf', time: '오전 03:53', isMe: true },
-  { type: 'user', id: 7, user: { name: '나', avatarInitial: '나' }, text: '21312421414', time: '오전 03:53', isMe: true },
-  { type: 'user', id: 8, user: { name: '나', avatarInitial: '나' }, text: '3213131314', time: '오전 03:54', isMe: true },
 ];
 
 const ChatBox: React.FC = () => {
