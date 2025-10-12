@@ -82,6 +82,7 @@ const SlideoutSidebar: React.FC<Props> = ({ isOpen, onClose, projects, friends }
                 key={friend.id}
                 draggable
                 onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", friend.id.toString());
                   e.dataTransfer.setData("friendId", friend.id.toString());
                   e.dataTransfer.setData("friendName", friend.name);
                 }}

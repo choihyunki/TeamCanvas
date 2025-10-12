@@ -1,10 +1,13 @@
 import React, { useState, useRef, useEffect } from "react";
 import MemberCard from "./MemberCard";
 import ProgressBar from "./ProgressBar";
+// ✅ 1. 각 타입을 올바른 파일 경로에서 가져오도록 수정합니다.
 import { Member } from "../types/Member";
 import { RoleColumn, ProjectMember } from "../types/Project";
 
-// --- 타입 정의 ---
+// ✅ 2. 이 파일 내에 있던 중복 타입 정의를 모두 삭제했습니다.
+
+// --- Props 타입 정의 ---
 interface Props {
   columns: RoleColumn[];
   members: Member[];
@@ -15,6 +18,7 @@ interface Props {
   onAddColumn: (columnName: string) => void;
   onDeleteColumn: (columnId: number) => void;
   onDeleteMember: (columnId: number, memberId: number) => void;
+  onInviteFriend: (columnId: number, friendId: string, friendName: string) => void;
 }
 
 interface EditingMemberInfo {
@@ -35,6 +39,7 @@ const TaskBoard: React.FC<Props> = ({
   onAddColumn,
   onDeleteColumn,
   onDeleteMember,
+  onInviteFriend,
 }) => {
   const [showModal, setShowModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -44,6 +49,7 @@ const TaskBoard: React.FC<Props> = ({
   const [editingMember, setEditingMember] = useState<EditingMemberInfo | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const taskBoardRef = useRef<HTMLDivElement>(null);
+  const [draggedOverColumnId, setDraggedOverColumnId] = useState<number | null>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -67,7 +73,7 @@ const TaskBoard: React.FC<Props> = ({
     setError("");
     setShowModal(false);
   };
-  
+
   const openDeleteConfirm = (col: RoleColumn) => {
     setColumnToDelete(col);
     setShowDeleteConfirm(true);
@@ -83,17 +89,31 @@ const TaskBoard: React.FC<Props> = ({
 
   const handleDrop = (destinationColumnId: number, e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    const memberId = parseInt(e.dataTransfer.getData("memberId"), 10);
-    const sourceColumnIdStr = e.dataTransfer.getData("sourceColumnId");
-    if (!isNaN(memberId)) {
-      if (sourceColumnIdStr) {
-        onMoveMember(memberId, parseInt(sourceColumnIdStr, 10), destinationColumnId);
-      } else {
-        onAddMemberToColumn(destinationColumnId, memberId);
-      }
+    setDraggedOverColumnId(null);
+
+    const memberId = e.dataTransfer.getData("memberId");
+    const sourceColumnId = e.dataTransfer.getData("sourceColumnId");
+    const friendId = e.dataTransfer.getData("friendId");
+    const friendName = e.dataTransfer.getData("friendName");
+
+    if (sourceColumnId && memberId) {
+      onMoveMember(parseInt(memberId, 10), parseInt(sourceColumnId, 10), destinationColumnId);
+    } else if (friendId && friendName) {
+      onInviteFriend(destinationColumnId, friendId, friendName);
+    } else if (memberId) {
+      onAddMemberToColumn(destinationColumnId, parseInt(memberId, 10));
     }
   };
   
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>, columnId: number) => {
+    e.preventDefault();
+    setDraggedOverColumnId(columnId);
+  };
+
+  const handleDragLeave = () => {
+    setDraggedOverColumnId(null);
+  };
+
   const handleMemberDragStart = (e: React.DragEvent, memberId: number, sourceColumnId: number) => {
     e.dataTransfer.setData("memberId", memberId.toString());
     e.dataTransfer.setData("sourceColumnId", sourceColumnId.toString());
@@ -104,15 +124,13 @@ const TaskBoard: React.FC<Props> = ({
     if (!taskBoardRef.current) return;
 
     const buttonRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const containerRect = taskBoardRef.current.getBoundingClientRect(); // 컨테이너의 좌표
+    const containerRect = taskBoardRef.current.getBoundingClientRect();
     const popoverWidth = 220;
 
     setEditingMember({
       columnId,
       memberId,
-      // (버튼의 top 좌표 - 컨테이너의 top 좌표) = 컨테이너 내부에서의 상대적 top
       top: buttonRect.bottom - containerRect.top + 5,
-      // (버튼의 left 좌표 - 컨테이너의 left 좌표) 로 상대적 위치를 잡고 중앙 정렬
       left: (buttonRect.left - containerRect.left) + (buttonRect.width / 2) - (popoverWidth / 2),
     });
   };
@@ -138,7 +156,22 @@ const TaskBoard: React.FC<Props> = ({
               const completedMembers = col.members.filter((m) => m.status === "작업완료").length;
               const progress = col.members.length > 0 ? (completedMembers / col.members.length) * 100 : 0;
               return (
-                <div key={col.id} onDragOver={(e) => e.preventDefault()} onDrop={(e) => handleDrop(col.id, e)} style={{ minHeight: "300px", background: "#f1f3f5", borderRadius: "12px", display: "flex", flexDirection: "column", padding: "10px", border: "1px solid #ddd" }}>
+                <div 
+                  key={col.id} 
+                  onDragOver={(e) => handleDragOver(e, col.id)} 
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(col.id, e)} 
+                  style={{ 
+                    minHeight: "300px", 
+                    background: "#f1f3f5", 
+                    borderRadius: "12px", 
+                    display: "flex", 
+                    flexDirection: "column", 
+                    padding: "10px", 
+                    border: draggedOverColumnId === col.id ? '2px dashed #4f46e5' : '1px solid #ddd',
+                    transition: 'border 0.2s',
+                  }}
+                >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', padding: '0 5px' }}>
                     <h4 style={{ margin: 0 }}>{col.name} ({col.members.length})</h4>
                     <button onClick={() => openDeleteConfirm(col)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '22px', color: '#aaa' }}>&times;</button>
@@ -182,7 +215,7 @@ const TaskBoard: React.FC<Props> = ({
                       })
                     ) : (
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', color: '#aaa', border: '2px dashed #e0e0e0', borderRadius: '8px', padding: '10px' }}>
-                        멤버를 드래그하여<br/>역할에 배정하세요.
+                        멤버나 친구를 드래그하여<br/>역할에 배정하세요.
                       </div>
                     )}
                   </div>
@@ -193,7 +226,6 @@ const TaskBoard: React.FC<Props> = ({
         )}
       </div>
 
-      {/* ✅ 2. 누락되었던 모달 JSX 코드 전체 복원 */}
       {showModal && (
         <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }} onClick={() => setShowModal(false)}>
           <div style={{ background: "#fff", padding: "20px", borderRadius: "12px", width: "300px", boxShadow: "0 8px 25px rgba(0,0,0,0.2)" }} onClick={(e) => e.stopPropagation()}>
