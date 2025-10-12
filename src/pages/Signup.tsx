@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import axiosInstance from "../api/AxiosInstance";
+import axiosInstance from "../api/AxiosInstance"; // ✅ axiosInstance 사용
 
 const css = `
-  .login-page {
+  /* --- 기존 CSS 그대로 유지 --- */
+  .signup-page {
     display: flex;
     min-height: 100vh;
     font-family: 'Arial', sans-serif;
@@ -105,7 +105,7 @@ const css = `
     font-size: 14px;
   }
 
-  .login-btn {
+  .signup-btn {
     width: 100%;
     padding: 14px;
     background-color: #4f46e5;
@@ -118,40 +118,10 @@ const css = `
     transition: background-color 0.3s ease;
   }
 
-  .login-btn:hover {
+  .signup-btn:hover {
     background-color: #4338ca;
   }
 
-  .social-login {
-    margin-top: 25px;
-    text-align: center;
-  }
-
-  .social-login p {
-      color: #888;
-      margin-bottom: 15px;
-  }
-
-  .social-btn {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background-color: #fff;
-      cursor: pointer;
-      margin-bottom: 10px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: background-color 0.2s;
-  }
-
-  .social-btn:hover {
-      background-color: #f7f7f7;
-  }
-  
   .links {
     margin-top: 20px;
     font-size: 14px;
@@ -165,36 +135,44 @@ const css = `
   }
 `;
 
-const Login: React.FC = () => {
+const Signup: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth();
   const [email, setEmail] = useState("");
+  const [name, setName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-  // ✅ 백엔드 로그인 연동
-  const handleLogin = async (e: React.FormEvent) => {
+  // ✅ AxiosInstance 기반 회원가입 요청
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
+
+    if (password !== confirmPassword) {
+      setError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
 
     try {
-      const response = await axiosInstance.post("/api/users/login", {
+      const response = await axiosInstance.post("/api/users/signup", {
         email,
         password,
+        name,
       });
 
-      const { token } = response.data;
-
-      // ✅ AuthContext에 저장 (24시간 JWT)
-      login(token, email.split("@")[0]);
-      navigate("/main");
+      if (response.status === 200) {
+        setSuccess("회원가입이 완료되었습니다! 로그인 페이지로 이동합니다.");
+        setTimeout(() => navigate("/"), 2000);
+      }
     } catch (err: any) {
-      console.error("로그인 실패:", err);
+      console.error("회원가입 에러:", err);
       if (err.response?.status === 400) {
-        setError("이메일 또는 비밀번호가 잘못되었습니다.");
+        setError("이미 존재하는 이메일입니다.");
       } else {
-        setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        setError("서버 오류가 발생했습니다.");
       }
     }
   };
@@ -202,19 +180,31 @@ const Login: React.FC = () => {
   return (
     <>
       <style>{css}</style>
-      <div className="login-page">
+      <div className="signup-page">
         {/* 왼쪽 DropIn 브랜딩 */}
         <div className="branding-panel">
           <img src="/DropInLogo.png" alt="Drop In Logo" />
-          <h1>Drop In</h1>
-          <p>당신의 프로젝트를 한 곳에서, 손쉽게.</p>
+          <h1>Welcome to Drop In</h1>
+          <p>팀워크와 효율의 새로운 시작.</p>
         </div>
 
-        {/* 오른쪽 로그인 폼 */}
+        {/* 오른쪽 회원가입 폼 */}
         <div className="form-panel">
           <div className="form-container">
-            <h2>로그인</h2>
-            <form onSubmit={handleLogin}>
+            <h2>회원가입</h2>
+
+            <form onSubmit={handleSignup}>
+              <div className="input-group">
+                <input
+                  type="text"
+                  placeholder="이름"
+                  className="input-field"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+
               <div className="input-group">
                 <input
                   type="email"
@@ -225,6 +215,7 @@ const Login: React.FC = () => {
                   required
                 />
               </div>
+
               <div className="input-group">
                 <input
                   type={showPassword ? "text" : "password"}
@@ -242,28 +233,32 @@ const Login: React.FC = () => {
                   {showPassword ? "숨기기" : "보이기"}
                 </button>
               </div>
+
+              <div className="input-group">
+                <input
+                  type="password"
+                  placeholder="비밀번호 확인"
+                  className="input-field"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+
               {error && (
                 <p style={{ color: "red", textAlign: "center" }}>{error}</p>
               )}
-              <button type="submit" className="login-btn">
-                로그인
+              {success && (
+                <p style={{ color: "green", textAlign: "center" }}>{success}</p>
+              )}
+
+              <button type="submit" className="signup-btn">
+                회원가입
               </button>
             </form>
 
-            <div className="social-login">
-              <p>또는 소셜 계정으로 로그인</p>
-              <button className="social-btn">
-                <img
-                  src="https://img.icons8.com/color/16/000000/google-logo.png"
-                  alt="Google"
-                />
-                Google 계정으로 로그인
-              </button>
-            </div>
-
             <div className="links">
-              <a href="/forgot-password">비밀번호 찾기</a>|
-              <a href="/register">회원가입</a>
+              <a href="/">이미 계정이 있으신가요? 로그인</a>
             </div>
           </div>
         </div>
@@ -272,4 +267,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Signup;

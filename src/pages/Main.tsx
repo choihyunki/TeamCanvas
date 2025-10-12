@@ -1,57 +1,76 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
+import axiosInstance from "../api/AxiosInstance";
+import { Navigate, useNavigate } from "react-router-dom";
 
 interface Project {
   id: number;
   name: string;
+  chatRoomId?: number;
+  members?: string[];
   description?: string;
-  members: string[];
 }
 
 const Main: React.FC = () => {
   const { logout } = useAuth();
-
-  // ✅ 임시 프로젝트 데이터
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 101,
-      name: "TeamCanvas 개발 프로젝트",
-      description: "React + Spring Boot 기반 협업툴 개발",
-      members: ["현기", "철수", "영희"],
-    },
-  ]);
-
+  const navigate = useNavigate();
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ 프로젝트 선택
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
+  /** ✅ 내 프로젝트 불러오기 */
+  const fetchProjects = async () => {
+    try {
+      const res = await axiosInstance.get("/api/projects/my");
+      if (Array.isArray(res.data)) {
+        setProjects(res.data);
+      } else {
+        setProjects([]);
+      }
+    } catch (err) {
+      console.error("❌ 프로젝트 목록 불러오기 실패:", err);
+      setProjects([]);
+    }
   };
 
-  // ✅ 새 프로젝트 생성 (모달 확인 시)
-  const handleCreateProject = () => {
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  /** ✅ 프로젝트 선택 */
+  const handleSelectProject = (project: Project) => {
+    setSelectedProject(project);
+    navigate(`/project/${project.id}`); // ✅ 상세 페이지 이동
+  };
+
+  /** ✅ 새 프로젝트 생성 */
+  const handleCreateProject = async () => {
     if (newProjectName.trim() === "") {
       setError("프로젝트 이름을 입력해주세요!");
       return;
     }
 
-    const newProject: Project = {
-      id: Date.now(),
-      name: newProjectName.trim(),
-      description: "새로 생성된 프로젝트입니다.",
-      members: ["현기"],
-    };
+    try {
+      const { data: created } = await axiosInstance.post("/api/projects", {
+        name: newProjectName.trim(),
+      });
 
-    setProjects((prev) => [...prev, newProject]);
-    setSelectedProject(newProject);
-    setNewProjectName("");
-    setError("");
-    setShowModal(false);
+      // ✅ 새 프로젝트 자동 반영 및 선택
+      setProjects((prev) => [...prev, created]);
+      setSelectedProject(created);
+
+      // ✅ UI 정리
+      setNewProjectName("");
+      setError("");
+      setShowModal(false);
+    } catch (err) {
+      console.error("❌ 프로젝트 생성 실패:", err);
+      setError("프로젝트 생성 중 오류가 발생했습니다.");
+    }
   };
 
   return (
@@ -74,7 +93,7 @@ const Main: React.FC = () => {
           boxSizing: "border-box",
         }}
       >
-        {/* 🧩 왼쪽: 프로젝트 리스트 */}
+        {/* ✅ 왼쪽 프로젝트 리스트 */}
         <aside
           style={{
             width: "25%",
@@ -87,19 +106,10 @@ const Main: React.FC = () => {
             flexDirection: "column",
             gap: "10px",
             boxSizing: "border-box",
-            position: "relative",
           }}
         >
-          {/* 리스트 헤더 */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: "10px",
-            }}
-          >
-            <h3 style={{ margin: 0, fontWeight: "bold" }}>내 프로젝트</h3>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <h3>내 프로젝트</h3>
             <button
               onClick={() => setShowModal(true)}
               style={{
@@ -112,28 +122,32 @@ const Main: React.FC = () => {
                 fontSize: "20px",
                 lineHeight: "1",
                 cursor: "pointer",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
               }}
-              title="새 프로젝트 만들기"
             >
               +
             </button>
           </div>
 
-          {/* 프로젝트 목록 */}
+          {/* ✅ 프로젝트 리스트 or 안내 메시지 */}
           {projects.length === 0 ? (
             <div
-              style={{
-                color: "#777",
-                textAlign: "center",
-                marginTop: "40px",
-                lineHeight: "1.6",
-              }}
+              style={{ textAlign: "center", color: "#666", marginTop: "20px" }}
             >
-              참여 중인 프로젝트가 없습니다.
-              <p style={{ color: "#4f46e5", fontWeight: "bold" }}>
-                새로운 프로젝트를 생성해보세요!
-              </p>
+              <p>현재 참여 중인 프로젝트가 없습니다.</p>
+              <button
+                onClick={() => setShowModal(true)}
+                style={{
+                  marginTop: "10px",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  border: "none",
+                  padding: "8px 16px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                ➕ 새 프로젝트 만들기
+              </button>
             </div>
           ) : (
             projects.map((proj) => (
@@ -150,7 +164,7 @@ const Main: React.FC = () => {
                   background:
                     selectedProject?.id === proj.id ? "#eef2ff" : "#fff",
                   cursor: "pointer",
-                  transition: "0.2s",
+                  transition: "all 0.2s ease",
                 }}
               >
                 <strong>{proj.name}</strong>
@@ -159,19 +173,16 @@ const Main: React.FC = () => {
                     margin: "4px 0 0",
                     fontSize: "13px",
                     color: "#666",
-                    overflow: "hidden",
-                    whiteSpace: "nowrap",
-                    textOverflow: "ellipsis",
                   }}
                 >
-                  {proj.description}
+                  {proj.description || "설명이 없습니다."}
                 </p>
               </div>
             ))
           )}
         </aside>
 
-        {/* 🧩 오른쪽: 프로젝트 상세 미리보기 */}
+        {/* ✅ 오른쪽 프로젝트 상세 */}
         <section
           style={{
             flex: 1,
@@ -179,54 +190,26 @@ const Main: React.FC = () => {
             borderRadius: "10px",
             boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
             padding: "20px",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: projects.length === 0 ? "center" : "flex-start",
           }}
         >
-          {projects.length === 0 ? (
-            <p style={{ color: "#666" }}>
-              프로젝트를 생성하면 이곳에서 상세 정보를 확인할 수 있습니다.
-            </p>
-          ) : selectedProject ? (
+          {selectedProject ? (
             <>
-              <h2 style={{ marginTop: 0 }}>{selectedProject.name}</h2>
-              <p style={{ color: "#555", marginBottom: "20px" }}>
-                {selectedProject.description}
-              </p>
-              <div>
-                <h4 style={{ marginBottom: "10px" }}>팀원</h4>
-                <ul style={{ paddingLeft: "20px", margin: 0 }}>
-                  {selectedProject.members.map((m, i) => (
-                    <li key={i}>{m}</li>
-                  ))}
-                </ul>
-              </div>
-
-              <button
-                onClick={() => alert("프로젝트 페이지로 이동 (/project)")}
-                style={{
-                  marginTop: "30px",
-                  padding: "12px 24px",
-                  background: "#4f46e5",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "8px",
-                  cursor: "pointer",
-                }}
-              >
-                상세 페이지로 이동 →
-              </button>
+              <h2>{selectedProject.name}</h2>
+              <p>{selectedProject.description || "설명 없음"}</p>
+              <h4>팀원</h4>
+              <ul>
+                {(selectedProject.members || []).map((m, i) => (
+                  <li key={i}>{m}</li>
+                ))}
+              </ul>
             </>
           ) : (
-            <p style={{ color: "#777" }}>왼쪽에서 프로젝트를 선택해주세요.</p>
+            <p>왼쪽에서 프로젝트를 선택하세요.</p>
           )}
         </section>
       </main>
 
-      {/* ✅ 모달창 (프로젝트 생성) */}
+      {/* ✅ 프로젝트 생성 모달 */}
       {showModal && (
         <div
           onClick={() => setShowModal(false)}
@@ -240,7 +223,6 @@ const Main: React.FC = () => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 1000,
           }}
         >
           <div
@@ -250,12 +232,10 @@ const Main: React.FC = () => {
               borderRadius: "12px",
               padding: "25px",
               width: "320px",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+              boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
             }}
           >
-            <h3 style={{ marginTop: 0, marginBottom: "15px" }}>
-              새 프로젝트 만들기
-            </h3>
+            <h3>새 프로젝트 만들기</h3>
             <input
               type="text"
               placeholder="프로젝트 이름을 입력하세요"
@@ -270,26 +250,18 @@ const Main: React.FC = () => {
                 border: "1px solid #ccc",
                 borderRadius: "6px",
                 marginBottom: "10px",
-                boxSizing: "border-box",
               }}
-              onKeyDown={(e) => e.key === "Enter" && handleCreateProject()}
             />
-            {error && (
-              <p
-                style={{ color: "red", fontSize: "13px", marginBottom: "10px" }}
-              >
-                {error}
-              </p>
-            )}
+            {error && <p style={{ color: "red" }}>{error}</p>}
             <div style={{ textAlign: "right" }}>
               <button
                 onClick={() => setShowModal(false)}
                 style={{
-                  padding: "8px 14px",
+                  marginRight: "8px",
                   background: "#f3f4f6",
                   border: "1px solid #ccc",
                   borderRadius: "6px",
-                  marginRight: "8px",
+                  padding: "8px 16px",
                   cursor: "pointer",
                 }}
               >
@@ -298,13 +270,12 @@ const Main: React.FC = () => {
               <button
                 onClick={handleCreateProject}
                 style={{
-                  padding: "8px 14px",
                   background: "#4f46e5",
                   color: "#fff",
                   border: "none",
                   borderRadius: "6px",
+                  padding: "8px 16px",
                   cursor: "pointer",
-                  fontWeight: 600,
                 }}
               >
                 생성

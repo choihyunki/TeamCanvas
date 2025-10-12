@@ -14,6 +14,7 @@ import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
 import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
+import Signup from "./pages/Signup";
 
 import { AuthProvider, useAuth } from "./context/AuthContext"; // 로그인 상태관리 추가
 
@@ -37,10 +38,8 @@ function App() {
             path="/main"
             element={<ProtectedRoute element={<MainPage />} />}
           />
-          <Route
-            path="/project"
-            element={<ProtectedRoute element={<ProjectPage />} />}
-          />
+          <Route path="/register" element={<Signup />} />
+          <Route path="/project/:id" element={<ProjectPage />} />
 
           {/* 푸터 관련 페이지 */}
           <Route path="/help" element={<HelpPage />} />
