@@ -1,16 +1,13 @@
 {
   "files": {
-    "main.css": "/TeamCanvas/static/css/main.f855e6bc.css",
-    "main.js": "/TeamCanvas/static/js/main.92fb4f0d.js",
-    "static/js/453.96453769.chunk.js": "/TeamCanvas/static/js/453.96453769.chunk.js",
-    "static/media/logo.svg": "/TeamCanvas/static/media/logo.6ce24c58023cc2f8fd88fe9d219db6c6.svg",
-    "index.html": "/TeamCanvas/index.html",
-    "main.f855e6bc.css.map": "/TeamCanvas/static/css/main.f855e6bc.css.map",
-    "main.92fb4f0d.js.map": "/TeamCanvas/static/js/main.92fb4f0d.js.map",
-    "453.96453769.chunk.js.map": "/TeamCanvas/static/js/453.96453769.chunk.js.map"
+    "main.css": "/static/css/main.4e34ac89.css",
+    "main.js": "/static/js/main.d739d843.js",
+    "index.html": "/index.html",
+    "main.4e34ac89.css.map": "/static/css/main.4e34ac89.css.map",
+    "main.d739d843.js.map": "/static/js/main.d739d843.js.map"
   },
   "entrypoints": [
-    "static/css/main.f855e6bc.css",
-    "static/js/main.92fb4f0d.js"
+    "static/css/main.4e34ac89.css",
+    "static/js/main.d739d843.js"
   ]
 }
