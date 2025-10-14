@@ -187,7 +187,14 @@ const Project: React.FC = () => {
         friends={friends}
       />
 
-      <div style={{ display: "flex", flex: 1, overflow: "hidden", position: "relative" }}>
+      <div style={{
+        display: "flex",
+        flex: 1,
+        overflow: "hidden",
+        position: "relative",
+        marginLeft: isSlideoutOpen ? '280px' : '0px',
+        transition: 'margin-left 0.3s ease-in-out',
+      }}>
         <aside style={{ width: isLeftSidebarCollapsed ? "0px" : "15%", minWidth: isLeftSidebarCollapsed ? "0px" : "220px", padding: isLeftSidebarCollapsed ? "0" : "10px", borderRight: isLeftSidebarCollapsed ? "none" : "1px solid #ddd", transition: "all 0.3s ease-in-out", overflow: "hidden", boxSizing: "border-box", background: "#fff" }}>
           <MemberList
             members={members}
@@ -204,8 +211,6 @@ const Project: React.FC = () => {
             position: "relative",
             display: 'flex',
             flexDirection: 'column',
-            marginLeft: isSlideoutOpen ? '280px' : '0px',
-            transition: 'margin-left 0.3s ease-in-out',
           }}
         >
           <button onClick={toggleLeftSidebar} style={{ position: "absolute", left: isLeftSidebarCollapsed ? 10 : -10, top: "50%", transform: "translateY(-50%)", zIndex: 10, background: "#fff", border: "1px solid #ddd", borderRadius: "50%", width: "24px", height: "24px", cursor: "pointer", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }}>

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
@@ -12,12 +13,16 @@ interface Project {
 
 const Main: React.FC = () => {
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
+  const handleNavigateToProject = (projectId: number) => {
+    navigate(`/project/${projectId}`);
+  };
   // ✅ 임시 프로젝트 데이터
   const [projects, setProjects] = useState<Project[]>([
     {
       id: 101,
-      name: "TeamCanvas 개발 프로젝트",
+      name: "DropIn 개발 프로젝트",
       description: "React + Spring Boot 기반 협업툴 개발",
       members: ["현기", "철수", "영희"],
     },
@@ -206,7 +211,7 @@ const Main: React.FC = () => {
               </div>
 
               <button
-                onClick={() => alert("프로젝트 페이지로 이동 (/project)")}
+                onClick={() => handleNavigateToProject(selectedProject.id)}
                 style={{
                   marginTop: "30px",
                   padding: "12px 24px",

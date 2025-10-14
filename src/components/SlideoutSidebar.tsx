@@ -22,23 +22,6 @@ interface Props {
 const SlideoutSidebar: React.FC<Props> = ({ isOpen, onClose, projects, friends }) => {
   return (
     <>
-      {/* 사이드바가 열렸을 때 배경을 어둡게 처리하는 오버레이 */}
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100%",
-          height: "100%",
-          backgroundColor: "rgba(0, 0, 0, 0.5)",
-          opacity: isOpen ? 1 : 0,
-          visibility: isOpen ? "visible" : "hidden",
-          transition: "opacity 0.3s ease",
-          zIndex: 100,
-        }}
-      />
-      {/* 실제 슬라이드 바 */}
       <div
         style={{
           position: "fixed",
@@ -50,14 +33,35 @@ const SlideoutSidebar: React.FC<Props> = ({ isOpen, onClose, projects, friends }
           boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
           transform: isOpen ? "translateX(0)" : "translateX(-100%)",
           transition: "transform 0.3s ease-in-out",
-          zIndex: 101,
+          zIndex: 101, 
           display: "flex",
           flexDirection: "column",
           padding: "20px",
           boxSizing: "border-box",
         }}
       >
-        <h2 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '15px' }}>내 워크스페이스</h2>
+        <button
+          onClick={onClose}
+          aria-label="메뉴 닫기"
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            background: 'none',
+            border: 'none',
+            fontSize: '1.5rem', 
+            color: '#555',
+            cursor: 'pointer',
+            padding: 0,
+            lineHeight: 1,
+          }}
+        >
+          &#9776; 
+        </button>
+
+        <h2 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '15px', textAlign: 'center' }}>
+          내 워크스페이스
+        </h2>
 
         {/* 내 프로젝트 목록 */}
         <div style={{ marginBottom: '30px' }}>

@@ -1,5 +1,5 @@
-import React from "react";
-import { Member } from "../types/Member"; // 타입 파일 경로는 프로젝트에 맞게 확인해주세요.
+import React, { useState } from "react"; // ⭐️ [추가] useState 훅을 가져옵니다.
+import { Member } from "../types/Member";
 
 interface Props {
   member: Member;
@@ -9,40 +9,48 @@ interface Props {
 }
 
 const MemberCard: React.FC<Props> = ({ member, memo, children, onDragStart }) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const cardStyle: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 15px",
+    borderRadius: "8px",
+    background: isHovered ? "#eff6ff" : "#dbeafe", // 기본 배경색 변경, 호버 시 더 연하게
+    border: "1px solid #bfdbfe",
+    boxShadow: isHovered ? "0 4px 8px rgba(0,0,0,0.08)" : "none",
+    cursor: onDragStart ? "grab" : "default",
+    width: "100%",
+    boxSizing: 'border-box',
+    transition: "all 0.2s ease-in-out",
+    transform: isHovered ? "translateY(-2px)" : "none",
+  };
+
   return (
     <div
       draggable={!!onDragStart}
       onDragStart={onDragStart}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        padding: "8px 12px",
-        borderRadius: "12px",
-        background: "#e0f7fa",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-        cursor: onDragStart ? "grab" : "default",
-        width: "100%",
-        boxSizing: 'border-box',
-      }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={cardStyle}
     >
-      {/* ✅ 1. 왼쪽: 아바타와 이름 (flex 속성 제거) */}
       <div style={{
         display: "flex",
         alignItems: "center",
-        minWidth: 0, // 자식 요소가 부모를 넘어설 때 줄어들도록 함
+        minWidth: 0,
       }}>
-        <div style={{ position: 'relative', marginRight: '8px', flexShrink: 0 }}>
+        <div style={{ position: 'relative', marginRight: '10px', flexShrink: 0 }}>
           <div
             style={{
               width: "32px",
               height: "32px",
               borderRadius: "50%",
-              background: "#80deea",
+              background: "#e9ecef",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#fff",
+              color: "#495057",
               fontWeight: "bold",
               fontSize: "14px",
             }}
@@ -57,7 +65,7 @@ const MemberCard: React.FC<Props> = ({ member, memo, children, onDragStart }) =>
               width: '10px',
               height: '10px',
               borderRadius: '50%',
-              backgroundColor: member.isOnline ? '#4caf50' : '#9e9e9e',
+              backgroundColor: member.isOnline ? '#28a745' : '#adb5bd',
               border: '2px solid white',
             }}
             title={member.isOnline ? "온라인" : "오프라인"}
@@ -66,34 +74,34 @@ const MemberCard: React.FC<Props> = ({ member, memo, children, onDragStart }) =>
         <div
           style={{
             fontSize: "15px",
-            fontWeight: "500",
-            whiteSpace: "nowrap", // 이름은 한 줄로 표시
+            fontWeight: "600", // ⭐️ [수정] 이름을 조금 더 굵게
+            whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            // ✅ 이름이 길 경우를 대비해 최대 너비 설정
             maxWidth: '100px',
+            color: '#212529',
           }}
         >
           {member.name}
         </div>
       </div>
-      
-      {/* ✅ 2. 중앙: 메모 (남는 공간을 모두 차지) */}
+
+      {/* 2. 중앙: 메모 */}
       <div style={{
-        flex: 1, // 남는 공간을 모두 차지하도록 설정
+        flex: 1,
         textAlign: 'center',
         fontSize: '14px',
-        color: '#4A5568',
-        fontStyle: 'italic',
+        color: '#6c757d',
+        fontStyle: 'normal',
         overflow: 'hidden',
         textOverflow: 'ellipsis',
         whiteSpace: 'nowrap',
-        minWidth: 0, // 내용이 길어도 강제로 줄어들도록 허용
+        minWidth: 0,
       }}>
         {memo}
       </div>
 
-      {/* 오른쪽: 버튼 영역 (크기 고정) */}
+      {/* 3. 오른쪽: 버튼 영역 */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
         {children}
       </div>

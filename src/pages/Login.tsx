@@ -1,33 +1,30 @@
-import React, { useState, useRef,useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // ✅ 1. AuthContext에서 useAuth를 가져옵니다.
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // ✅ 2. login 함수를 가져옵니다.
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
-  // ✅ 드래그 앤 드롭 관련 상태 추가
   const [isDragging, setIsDragging] = useState(false);
   const [isDropped, setIsDropped] = useState(false);
   const [isFormFilled, setIsFormFilled] = useState(false);
 
   const draggableButtonRef = useRef<HTMLButtonElement>(null);
 
-  // ✅ 아이디/비밀번호 입력 시 폼 채움 상태 업데이트
-  const handleInputChange = () => {
+  useEffect(() => {
     if (username.trim() !== '' && password.trim() !== '') {
       setIsFormFilled(true);
     } else {
       setIsFormFilled(false);
     }
-  };
+  }, [username, password]);
 
-  useEffect(handleInputChange, [username, password]);
-
-  // ✅ 드래그 이벤트 핸들러
   const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    if (!isFormFilled) return;
     setIsDragging(true);
-    // 드래그 데이터 설정 (필요 시)
     e.dataTransfer.setData('text/plain', 'login');
   };
 
@@ -35,22 +32,24 @@ const Login: React.FC = () => {
     setIsDragging(false);
   };
 
-  // ✅ 드롭 존 이벤트 핸들러
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); // 드롭을 허용하기 위해 필수
+    e.preventDefault();
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    if (!isFormFilled) return; // 폼이 채워지지 않으면 드롭 무시
+    if (!isFormFilled) return;
 
     setIsDropped(true);
     console.log("로그인 시도...");
 
-    // ✅ 드롭 성공 애니메이션 후 페이지 이동
+    // ✅ 3. 로그인 상태를 true로 변경하고 페이지를 이동합니다.
+    // 실제로는 여기서 서버 API와 통신하여 성공 시 토큰을 받아와야 합니다.
+    login("dummy-auth-token"); // 임시 토큰으로 로그인 상태 변경
+
     setTimeout(() => {
       navigate('/main');
-    }, 800); // 0.8초 후 이동
+    }, 800);
   };
 
   // 동적 스타일
@@ -86,24 +85,23 @@ const Login: React.FC = () => {
         <img src="/DropInLogo.png" alt="Drop In Logo" style={{ width: '120px', marginBottom: '20px' }} />
         <h2 style={{ marginBottom: '25px', color: '#333' }}>로그인</h2>
 
-        {/* 아이디 입력 */}
         <input
           type="text"
           placeholder="아이디"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
           style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '20px' }}
         />
-        {/* 비밀번호 입력 */}
         <input
           type="password"
           placeholder="비밀번호"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
           style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '10px' }}
         />
 
-        {/* ✅ 드래그 가능한 버튼 */}
         <button
           ref={draggableButtonRef}
           draggable={isFormFilled}
@@ -114,7 +112,6 @@ const Login: React.FC = () => {
           {isDropped ? '환영합니다!' : (isFormFilled ? '↓ 아래로 드롭하여 로그인' : '정보를 입력하세요')}
         </button>
 
-        {/* ✅ 드롭 존 */}
         <div
           onDragOver={handleDragOver}
           onDrop={handleDrop}
