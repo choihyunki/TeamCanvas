@@ -1,13 +1,13 @@
 {
   "files": {
-    "main.css": "/DropIn/static/css/main.4e34ac89.css",
-    "main.js": "/DropIn/static/js/main.e6409bef.js",
-    "index.html": "/DropIn/index.html",
-    "main.4e34ac89.css.map": "/DropIn/static/css/main.4e34ac89.css.map",
-    "main.e6409bef.js.map": "/DropIn/static/js/main.e6409bef.js.map"
+    "main.css": "/TeamCanvas/static/css/main.4e34ac89.css",
+    "main.js": "/TeamCanvas/static/js/main.bd607049.js",
+    "index.html": "/TeamCanvas/index.html",
+    "main.4e34ac89.css.map": "/TeamCanvas/static/css/main.4e34ac89.css.map",
+    "main.bd607049.js.map": "/TeamCanvas/static/js/main.bd607049.js.map"
   },
   "entrypoints": [
     "static/css/main.4e34ac89.css",
-    "static/js/main.e6409bef.js"
+    "static/js/main.bd607049.js"
   ]
 }
