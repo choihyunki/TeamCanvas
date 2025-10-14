@@ -22,7 +22,7 @@ const Project: React.FC = () => {
   // --- 상태 관리 ---
   const [members, setMembers] = useState<Member[]>([
     { id: 1, name: "홍길동", isOnline: true, role: "프론트엔드" },
-    { id: 4, name: "박지성", isOnline: true, role: "기획" },
+    { id: 4, name: "박지성", isOnline: false, role: "기획" },
   ]);
   const [columns, setColumns] = useState<RoleColumn[]>([
     { id: 101, name: "백엔드 개발", members: [] },
