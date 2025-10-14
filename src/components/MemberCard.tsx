@@ -17,7 +17,7 @@ const MemberCard: React.FC<Props> = ({ member, memo, children, onDragStart }) =>
     gap: "10px",
     padding: "10px 15px",
     borderRadius: "8px",
-    background: isHovered ? "#eff6ff" : "#dbeafe", // 기본 배경색 변경, 호버 시 더 연하게
+    background: isHovered ? "#eff6ff" : "#dbeafe", 
     border: "1px solid #bfdbfe",
     boxShadow: isHovered ? "0 4px 8px rgba(0,0,0,0.08)" : "none",
     cursor: onDragStart ? "grab" : "default",
