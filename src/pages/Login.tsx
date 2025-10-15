@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // ✅ 1. AuthContext에서 useAuth를 가져옵니다.
+import { useAuth } from '../context/AuthContext';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth(); // ✅ 2. login 함수를 가져옵니다.
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
 
@@ -15,11 +15,7 @@ const Login: React.FC = () => {
   const draggableButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (username.trim() !== '' && password.trim() !== '') {
-      setIsFormFilled(true);
-    } else {
-      setIsFormFilled(false);
-    }
+    setIsFormFilled(username.trim() !== '' && password.trim() !== '');
   }, [username, password]);
 
   const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
@@ -42,48 +38,51 @@ const Login: React.FC = () => {
 
     setIsDropped(true);
     console.log("로그인 시도...");
-
-    // ✅ 3. 로그인 상태를 true로 변경하고 페이지를 이동합니다.
-    // 실제로는 여기서 서버 API와 통신하여 성공 시 토큰을 받아와야 합니다.
-    login("dummy-auth-token"); // 임시 토큰으로 로그인 상태 변경
+    
+    login("dummy-auth-token");
 
     setTimeout(() => {
       navigate('/main');
     }, 800);
   };
 
-  // 동적 스타일
   const dropzoneStyle: React.CSSProperties = {
     width: '100%',
-    padding: '20px',
+    padding: '30px 20px',
     marginTop: '20px',
-    border: `2px dashed ${isDragging ? '#4f46e5' : '#ccc'}`,
+    border: `2px ${isDragging ? 'solid' : 'dashed'} ${isDragging ? '#4f46e5' : '#d1d5db'}`,
     borderRadius: '8px',
     textAlign: 'center',
-    color: '#aaa',
-    transition: 'border-color 0.3s, background-color 0.3s',
-    backgroundColor: isDropped ? '#eef2ff' : 'transparent',
+    color: isDragging ? '#4f46e5' : '#9ca3af',
+    fontWeight: '500',
+    transition: 'all 0.3s ease',
+    backgroundColor: isDragging ? '#eef2ff' : (isDropped ? '#dcfce7' : 'transparent'),
+    boxSizing: 'border-box', // ⭐️ [수정] 이 줄을 추가하여 너비 문제를 해결합니다.
   };
 
   const buttonStyle: React.CSSProperties = {
     padding: '12px 24px',
-    backgroundColor: isFormFilled ? '#2b6cb0' : '#a0aec0',
+    backgroundColor: isFormFilled ? '#4f46e5' : '#9ca3af',
     color: '#fff',
     border: 'none',
     borderRadius: '8px',
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: 'bold',
     cursor: isFormFilled ? 'grab' : 'not-allowed',
     transition: 'all 0.3s ease',
     opacity: isDragging ? 0.5 : 1,
     transform: isDropped ? 'scale(0.9)' : 'scale(1)',
+    width: '100%',
+    marginBottom: '10px',
+    boxSizing: 'border-box', // ⭐️ [수정] 버튼에도 일관성을 위해 추가합니다.
   };
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
-      <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)', textAlign: 'center', width: '420px' }}>
-        <img src="/DropInLogo.png" alt="Drop In Logo" style={{ width: '120px', marginBottom: '20px' }} />
-        <h2 style={{ marginBottom: '25px', color: '#333' }}>로그인</h2>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)', textAlign: 'center', width: '400px' }}>
+        
+        <img src="DropInLogo.png" alt="Drop In Logo" style={{ width: '100px', marginBottom: '20px' }} />
+        <h2 style={{ marginBottom: '30px', color: '#111827', fontSize: '24px' }}>로그인</h2>
 
         <input
           type="text"
@@ -91,7 +90,7 @@ const Login: React.FC = () => {
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
-          style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '20px' }}
+          style={{ width: '100%', padding: '12px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '16px' }}
         />
         <input
           type="password"
@@ -99,7 +98,7 @@ const Login: React.FC = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
-          style={{ width: '100%', padding: '12px', border: '1px solid #ddd', borderRadius: '4px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '10px' }}
+          style={{ width: '100%', padding: '12px', border: '1px solid #d1d5db', borderRadius: '6px', boxSizing: 'border-box', fontSize: '16px', marginBottom: '25px' }}
         />
 
         <button
@@ -109,7 +108,7 @@ const Login: React.FC = () => {
           onDragEnd={handleDragEnd}
           style={buttonStyle}
         >
-          {isDropped ? '환영합니다!' : (isFormFilled ? '↓ 아래로 드롭하여 로그인' : '정보를 입력하세요')}
+          {isDropped ? '환영합니다!' : (isFormFilled ? '↓ 아래로 드롭하여 로그인' : '아이디와 비밀번호를 입력하세요')}
         </button>
 
         <div
@@ -120,9 +119,9 @@ const Login: React.FC = () => {
           {isDropped ? '로그인 성공!' : '이곳에 버튼을 놓으세요'}
         </div>
 
-        <div style={{ marginTop: '20px', fontSize: '14px' }}>
-          <a href="/register" style={{ color: '#2b6cb0', textDecoration: 'none' }}>
-            회원가입
+        <div style={{ marginTop: '25px', fontSize: '14px' }}>
+          <a href="/register" style={{ color: '#4f46e5', textDecoration: 'none', fontWeight: '500' }}>
+            계정이 없으신가요? 회원가입
           </a>
         </div>
       </div>
