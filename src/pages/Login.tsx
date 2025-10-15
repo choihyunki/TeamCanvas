@@ -57,7 +57,7 @@ const Login: React.FC = () => {
     fontWeight: '500',
     transition: 'all 0.3s ease',
     backgroundColor: isDragging ? '#eef2ff' : (isDropped ? '#dcfce7' : 'transparent'),
-    boxSizing: 'border-box', // ⭐️ [수정] 이 줄을 추가하여 너비 문제를 해결합니다.
+    boxSizing: 'border-box', // ✅ 박스 깨짐 방지
   };
 
   const buttonStyle: React.CSSProperties = {
@@ -74,14 +74,16 @@ const Login: React.FC = () => {
     transform: isDropped ? 'scale(0.9)' : 'scale(1)',
     width: '100%',
     marginBottom: '10px',
-    boxSizing: 'border-box', // ⭐️ [수정] 버튼에도 일관성을 위해 추가합니다.
+    boxSizing: 'border-box', // ✅ 박스 깨짐 방지
   };
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'system-ui, sans-serif' }}>
       <div style={{ backgroundColor: '#fff', padding: '40px', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)', textAlign: 'center', width: '400px' }}>
         
-        <img src="DropInLogo.png" alt="Drop In Logo" style={{ width: '100px', marginBottom: '20px' }} />
+        {/* ✅ 배포 환경에서도 이미지가 잘 보이도록 수정된 경로 */}
+        <img src={process.env.PUBLIC_URL + '/DropInLogo.png'} alt="Drop In Logo" style={{ width: '200px', marginBottom: '20px' }} />
+
         <h2 style={{ marginBottom: '30px', color: '#111827', fontSize: '24px' }}>로그인</h2>
 
         <input
