@@ -1,127 +1,111 @@
-import React, { useState } from 'react';
+// src/components/Schedule.tsx
 
-// --- 타입 정의 ---
-interface Task {
-  id: number;
-  name: string;
-  start: Date;
-  end: Date;
-  color: string;
+import React, { useState } from "react";
+import { Task } from "../types/Task";
+
+interface Props {
+  tasks: Task[];
+  onUpdateTask: (updatedTask: Task) => void;
 }
 
-// --- 컴포넌트 ---
-const Schedule: React.FC = () => {
-  const [currentDate, setCurrentDate] = useState(new Date());
+const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [newDueDate, setNewDueDate] = useState("");
 
-  // ⭐️ 임시 데이터: 실제로는 props나 API를 통해 받아와야 합니다.
-  const [tasks] = useState<Task[]>([
-    { id: 1, name: "로그인 UI 구현", start: new Date(2025, 9, 2), end: new Date(2025, 9, 7), color: '#81c784' },
-    { id: 2, name: "API 엔드포인트 작성", start: new Date(2025, 9, 6), end: new Date(2025, 9, 12), color: '#64b5f6' },
-    { id: 3, name: "데이터베이스 설계", start: new Date(2025, 9, 10), end: new Date(2025, 9, 15), color: '#ffb74d' },
-    { id: 4, name: "프로젝트 로고 디자인", start: new Date(2025, 9, 16), end: new Date(2025, 9, 20), color: '#ba68c8' },
-    { id: 5, name: "QA 및 버그 수정", start: new Date(2025, 9, 22), end: new Date(2025, 9, 28), color: '#e57373' },
-  ]);
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
 
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const handleSaveDate = () => {
+    if (!selectedTask || !newDueDate) return;
 
-  // --- 이벤트 핸들러 ---
-  const goToPreviousMonth = () => {
-    setCurrentDate(new Date(year, month - 1, 1));
-  };
+    const updated: Task = {
+      ...selectedTask,
+      dueDate: newDueDate,
+    };
 
-  const goToNextMonth = () => {
-    setCurrentDate(new Date(year, month + 1, 1));
-  };
-
-  // --- 렌더링 함수 ---
-  const renderTimelineGrid = () => {
-    const dayHeaders = [];
-    for (let day = 1; day <= daysInMonth; day++) {
-      dayHeaders.push(
-        <div key={day} style={{ flex: '1 0 40px', textAlign: 'center', padding: '10px 0', borderRight: '1px solid #eee', boxSizing: 'border-box' }}>
-          {day}
-        </div>
-      );
-    }
-    return dayHeaders;
-  };
-
-  const renderTaskBars = () => {
-    return tasks.map(task => {
-      // 현재 월에 해당하는 작업만 필터링
-      if (task.start.getMonth() !== month && task.end.getMonth() !== month) {
-        return null;
-      }
-
-      const startDay = task.start.getMonth() === month ? task.start.getDate() : 1;
-      const endDay = task.end.getMonth() === month ? task.end.getDate() : daysInMonth;
-
-      const duration = endDay - startDay + 1;
-      const left = ((startDay - 1) / daysInMonth) * 100;
-      const width = (duration / daysInMonth) * 100;
-
-      return (
-        <div key={task.id} style={{ position: 'relative', height: '50px', borderBottom: '1px solid #eee' }}>
-          <div
-            title={`${task.name}: ${task.start.toLocaleDateString()} ~ ${task.end.toLocaleDateString()}`}
-            style={{
-              position: 'absolute',
-              top: '10px',
-              left: `${left}%`,
-              width: `${width}%`,
-              height: '30px',
-              background: task.color,
-              borderRadius: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              paddingLeft: '10px',
-              boxSizing: 'border-box',
-              color: 'white',
-              fontSize: '13px',
-              fontWeight: '500',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              cursor: 'pointer',
-            }}
-          >
-            {task.name}
-          </div>
-        </div>
-      );
-    });
+    onUpdateTask(updated);
+    alert("마감일이 저장되었습니다!");
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif' }}>
-      <h2>작업 일정 (타임라인)</h2>
+    <div style={{ padding: "20px" }}>
+      <h2 style={{ marginBottom: 20 }}>작업 일정 관리</h2>
 
-      {/* 컨트롤러 (이전/다음 달) */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0' }}>
-        <button onClick={goToPreviousMonth} style={{ background: 'none', border: '1px solid #ccc', borderRadius: '4px', padding: '5px 10px', cursor: 'pointer' }}>
-          이전 달
-        </button>
-        <h3 style={{ margin: 0 }}>
-          {year}년 {month + 1}월
-        </h3>
-        <button onClick={goToNextMonth} style={{ background: 'none', border: '1px solid #ccc', borderRadius: '4px', padding: '5px 10px', cursor: 'pointer' }}>
-          다음 달
-        </button>
-      </div>
+      {/* 작업 리스트 */}
+      <div style={{ display: "flex", gap: "20px" }}>
+        {/* 왼쪽 - 작업 목록 */}
+        <div style={{ width: "40%" }}>
+          <h3>작업 목록</h3>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {tasks.length === 0 && <p>아직 등록된 작업이 없습니다.</p>}
 
-      {/* 타임라인 */}
-      <div style={{ border: '1px solid #ccc', borderRadius: '8px', overflowX: 'auto' }}>
-        <div style={{ minWidth: `${daysInMonth * 40}px` }}>
-          {/* 날짜 헤더 */}
-          <div style={{ display: 'flex', background: '#f8f9fa', borderBottom: '1px solid #ccc' }}>
-            {renderTimelineGrid()}
-          </div>
-          {/* 작업 바 */}
-          <div>
-            {renderTaskBars()}
-          </div>
+            {tasks.map((t) => (
+              <li
+                key={t.id}
+                onClick={() => {
+                  setSelectedTaskId(t.id);
+                  setNewDueDate(t.dueDate || "");
+                }}
+                style={{
+                  padding: "10px",
+                  borderRadius: 6,
+                  border: "1px solid #ddd",
+                  marginBottom: "8px",
+                  cursor: "pointer",
+                  background: selectedTaskId === t.id ? "#eef2ff" : "white",
+                }}
+              >
+                <strong>{t.title}</strong>
+                <div style={{ fontSize: 13, color: "#555" }}>
+                  마감일: {t.dueDate || "없음"}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* 오른쪽 - 상세 일정 설정 */}
+        <div style={{ width: "60%" }}>
+          <h3>작업 상세</h3>
+
+          {selectedTask ? (
+            <div>
+              <h4 style={{ marginBottom: 10 }}>{selectedTask.title}</h4>
+
+              <label>마감일 설정:</label>
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                style={{
+                  marginLeft: "10px",
+                  padding: "6px",
+                  borderRadius: "6px",
+                  border: "1px solid #ccc",
+                }}
+              />
+
+              <button
+                onClick={handleSaveDate}
+                style={{
+                  marginLeft: "12px",
+                  padding: "8px 12px",
+                  background: "#4f46e5",
+                  color: "white",
+                  border: "none",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                }}
+              >
+                저장
+              </button>
+
+              <hr style={{ margin: "20px 0" }} />
+
+              <p>현재 마감일: {selectedTask.dueDate || "없음"}</p>
+            </div>
+          ) : (
+            <p>왼쪽에서 작업을 선택하세요.</p>
+          )}
         </div>
       </div>
     </div>

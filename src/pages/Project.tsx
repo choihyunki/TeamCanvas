@@ -1,45 +1,57 @@
+// src/pages/Project.tsx
+
 import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import MemberList from "../components/MemberList";
 import TaskBoard from "../components/TaskBoard";
-import ChatBox from "../components/ChatBox";
 import TaskDetails from "../components/TaskDetails";
 import Schedule from "../components/Schedule";
 import SlideoutSidebar from "../components/SlideoutSidebar";
+import ProgressBar from "../components/ProgressBar";
+
 import { Member } from "../types/Member";
 import { RoleColumn, ProjectMember } from "../types/Project";
-import { useParams } from "react-router-dom";
+import { Task } from "../types/Task";
+
 import { useAuth } from "../context/AuthContext";
 import {
   getProjectsForUser,
+  getProjectById,
   ProjectRecord,
   addMemberToProject,
   removeMemberFromProject,
 } from "../data/mockDb";
 
-// --- 타입 정의 ---
 interface Friend {
   id: number;
   name: string;
   avatarInitial: string;
 }
 
-// --- 메인 프로젝트 컴포넌트 ---
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const numericProjectId = projectId ? Number(projectId) : null;
+
   const { token } = useAuth(); // username
   const [currentProject, setCurrentProject] = useState<ProjectRecord | null>(
     null
   );
-  const numericProjectId = projectId ? Number(projectId) : null;
 
   // --- 상태 관리 ---
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
+
+  // 🔹 작업 목록
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+
   const [friends, setFriends] = useState<Friend[]>([
     { id: 201, name: "김유신", avatarInitial: "김" },
     { id: 202, name: "이순신", avatarInitial: "이" },
   ]);
+
   const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
     []
   );
@@ -48,135 +60,128 @@ const Project: React.FC = () => {
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState("taskBoard");
 
-  // --- 이벤트 핸들러 ---
+  const navigate = useNavigate();
+
+  // --- Sidebar toggles
   const toggleLeftSidebar = () =>
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleRightSidebar = () =>
     setIsRightSidebarCollapsed(!isRightSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
+  // --- Handler: 초대 친구 → 역할 칼럼
   const handleInviteFriendToColumn = (
     columnId: number,
     friendId: string,
     friendName: string
   ) => {
     const id = parseInt(friendId, 10);
-    const isAlreadyMember = members.some((member) => member.id === id);
-    const targetColumn = columns.find((col) => col.id === columnId);
-    const isAlreadyInThisColumn = targetColumn?.members.some(
-      (m) => m.id === id
-    );
+    const isAlreadyMember = members.some((m) => m.id === id);
 
-    if (isAlreadyInThisColumn) {
-      alert("이 역할에는 이미 배정된 멤버입니다.");
+    const col = columns.find((c) => c.id === columnId);
+    const isInThisColumn = col?.members.some((m) => m.id === id);
+
+    if (isInThisColumn) {
+      alert("이미 이 역할에 등록된 멤버입니다.");
       return;
     }
 
     if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
       if (!isAlreadyMember) {
-        const newMember: Member = {
-          id,
-          name: friendName,
-          isOnline: false,
-          role: "팀원",
-        };
+        const newMember: Member = { id, name: friendName, isOnline: false };
         setMembers((prev) => [...prev, newMember]);
       }
       if (numericProjectId !== null) {
         addMemberToProject(numericProjectId, friendName);
       }
-
       setColumns((prev) =>
-        prev.map((col) =>
-          col.id === columnId
-            ? { ...col, members: [...col.members, { id, status: "작업전" }] }
-            : col
+        prev.map((colItem) =>
+          colItem.id === columnId
+            ? {
+                ...colItem,
+                members: [...colItem.members, { id, status: "작업전" }],
+              }
+            : colItem
         )
       );
     }
   };
 
+  // --- Handler: 직접 멤버 추가
   const handleAddMember = () => {
-    const newName = prompt("새 멤버의 이름을 입력하세요:");
-    if (!newName) return;
-
-    const trimmed = newName.trim();
+    const name = prompt("추가할 멤버 이름:");
+    if (!name) return;
+    const trimmed = name.trim();
     if (!trimmed) return;
 
     const newMember: Member = {
-      id: new Date().getTime(),
+      id: Date.now(),
       name: trimmed,
       isOnline: true,
     };
 
-    setMembers((prevMembers) => [...prevMembers, newMember]);
-
-    // 🔹 가짜 DB에도 멤버 추가
+    setMembers((prev) => [...prev, newMember]);
     if (numericProjectId !== null) {
       addMemberToProject(numericProjectId, trimmed);
     }
   };
 
+  // --- Handler: 멤버 삭제
   const handleDeleteMember = (memberId: number) => {
-    if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
+    if (!window.confirm("이 멤버를 프로젝트에서 제거할까요?")) return;
 
-    // 🔹 DB에서 제거할 이름 찾기
     const target = members.find((m) => m.id === memberId);
     if (target && numericProjectId !== null) {
       removeMemberFromProject(numericProjectId, target.name);
     }
-
-    // 🔹 화면 상태에서도 제거
-    setMembers((prevMembers) =>
-      prevMembers.filter((member) => member.id !== memberId)
-    );
+    setMembers((prev) => prev.filter((m) => m.id !== memberId));
   };
 
-  const handleAddColumn = (columnName: string) => {
+  // --- Handler: 역할(칼럼) 추가/삭제
+  const handleAddColumn = (name: string) => {
     const newColumn: RoleColumn = {
-      id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
-      name: columnName,
+      id: columns.length ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
+      name,
       members: [],
     };
-    setColumns([...columns, newColumn]);
+    setColumns((prev) => [...prev, newColumn]);
   };
-
   const handleDeleteColumn = (columnId: number) => {
-    setColumns((prev) => prev.filter((col) => col.id !== columnId));
+    setColumns((prev) => prev.filter((c) => c.id !== columnId));
   };
 
+  // --- Handler: 멤버를 칼럼에 배치
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
-    const destinationColumn = columns.find((col) => col.id === columnId);
-    if (!destinationColumn) return;
-    const isAlreadyInThisColumn = destinationColumn.members.some(
-      (m) => m.id === memberId
-    );
-    if (isAlreadyInThisColumn) {
-      alert("이 역할에는 이미 배정된 멤버입니다.");
+    const column = columns.find((c) => c.id === columnId);
+    if (!column) return;
+    if (column.members.some((m) => m.id === memberId)) {
+      alert("이미 이 역할에 배정된 멤버입니다.");
       return;
     }
     setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
+      prev.map((c) =>
+        c.id === columnId
           ? {
-              ...col,
-              members: [...col.members, { id: memberId, status: "작업전" }],
+              ...c,
+              members: [...c.members, { id: memberId, status: "작업전" }],
             }
-          : col
+          : c
       )
     );
   };
 
+  // --- Handler: 칼럼 간 멤버 이동
   const handleMoveMemberBetweenColumns = (
     memberId: number,
     sourceColumnId: number,
-    destinationColumnId: number
+    targetColumnId: number
   ) => {
-    if (sourceColumnId === destinationColumnId) return;
-    let memberToMove: ProjectMember | undefined;
-    const columnsAfterRemoval = columns.map((col) => {
+    if (sourceColumnId === targetColumnId) return;
+
+    let moved: ProjectMember | undefined;
+    const removed = columns.map((col) => {
       if (col.id === sourceColumnId) {
-        memberToMove = col.members.find((m) => m.id === memberId);
+        moved = col.members.find((m) => m.id === memberId);
         return {
           ...col,
           members: col.members.filter((m) => m.id !== memberId),
@@ -184,17 +189,19 @@ const Project: React.FC = () => {
       }
       return col;
     });
-    if (memberToMove) {
-      const columnsAfterAddition = columnsAfterRemoval.map((col) => {
-        if (col.id === destinationColumnId) {
-          return { ...col, members: [...col.members, memberToMove!] };
-        }
-        return col;
-      });
-      setColumns(columnsAfterAddition);
-    }
+
+    if (!moved) return;
+
+    const added = removed.map((col) =>
+      col.id === targetColumnId
+        ? { ...col, members: [...col.members, moved!] }
+        : col
+    );
+
+    setColumns(added);
   };
 
+  // --- Handler: 상태 변경
   const handleUpdateMemberStatus = (
     columnId: number,
     memberId: number,
@@ -214,16 +221,7 @@ const Project: React.FC = () => {
     );
   };
 
-  const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
-          : col
-      )
-    );
-  };
-
+  // --- Handler: 메모 수정
   const handleUpdateMemberMemo = (
     columnId: number,
     memberId: number,
@@ -243,56 +241,62 @@ const Project: React.FC = () => {
     );
   };
 
-  // 🔹 로그인한 유저의 프로젝트 목록 + 현재 프로젝트 세팅
+  // --- Handler: 작업(task) 추가
+  const handleAddTask = (columnId: number, title: string) => {
+    const newTask: Task = {
+      id: Date.now(),
+      title,
+      description: "",
+      columnId,
+      members: [],
+    };
+    setTasks((prev) => [...prev, newTask]);
+  };
+
+  // --- Handler: 작업 선택
+  const handleSelectTask = (taskId: number) => {
+    setSelectedTaskId(taskId);
+    setActiveTab("taskDetails");
+  };
+
+  const handleUpdateTask = (updatedTask: Task) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === updatedTask.id ? updatedTask : t))
+    );
+  };
+
+  // --- Initial load effect
   useEffect(() => {
     if (!token) return;
 
-    // 1) 이 유저의 프로젝트 목록을 mockDb에서 조회
-    const list = getProjectsForUser(token);
+    const myList = getProjectsForUser(token);
+    setMyProjects(myList.map((p) => ({ id: p.id, name: p.name })));
 
-    // SlideoutSidebar에 줄 "내 프로젝트" 목록
-    setMyProjects(
-      list.map((p) => ({
-        id: p.id,
-        name: p.name,
-      }))
-    );
-
-    // 2) 현재 URL에서 projectId 읽어서 해당 프로젝트 찾기
-    let current = list[0]; // 기본값: 첫 번째 프로젝트
-    if (projectId) {
-      const idNum = Number(projectId);
-      const matched = list.find((p) => p.id === idNum);
-      if (matched) {
-        current = matched;
+    if (numericProjectId !== null) {
+      const record = getProjectById(numericProjectId);
+      if (record) {
+        setCurrentProject(record);
+        setMembers(
+          record.members.map((name, idx) => ({
+            id: idx + 1,
+            name,
+            isOnline: true,
+          }))
+        );
+        // 기본 칼럼 세팅
+        setColumns([
+          { id: 101, name: "백엔드 개발", members: [] },
+          { id: 102, name: "프론트엔드 개발", members: [] },
+          { id: 103, name: "디자인", members: [] },
+        ]);
+        setTasks([]); // 새 프로젝트이거나 초기화
+        setSelectedTaskId(null);
       }
     }
-
-    if (!current) return;
-
-    setCurrentProject(current);
-
-    // 3) 프로젝트 멤버 이름 배열 → Member[]로 변환
-    const mappedMembers: Member[] = current.members.map((name, idx) => ({
-      id: idx + 1,
-      name,
-      isOnline: true,
-      role: undefined,
-    }));
-
-    setMembers(mappedMembers);
-  }, [token, projectId]);
+  }, [token, numericProjectId]);
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        overflow: "hidden",
-        background: "#f4f7f6",
-      }}
-    >
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh" }}>
       <Header onMenuClick={toggleSlideout} />
 
       <SlideoutSidebar
@@ -306,22 +310,17 @@ const Project: React.FC = () => {
         style={{
           display: "flex",
           flex: 1,
-          overflow: "hidden",
-          position: "relative",
-          marginLeft: isSlideoutOpen ? "280px" : "0px",
-          transition: "margin-left 0.3s ease-in-out",
+          marginLeft: isSlideoutOpen ? 280 : 0,
+          transition: "margin-left 0.3s",
         }}
       >
         <aside
           style={{
-            width: isLeftSidebarCollapsed ? "0px" : "15%",
-            minWidth: isLeftSidebarCollapsed ? "0px" : "220px",
-            padding: isLeftSidebarCollapsed ? "0" : "10px",
+            width: isLeftSidebarCollapsed ? 0 : 220,
+            padding: isLeftSidebarCollapsed ? 0 : 10,
             borderRight: isLeftSidebarCollapsed ? "none" : "1px solid #ddd",
-            transition: "all 0.3s ease-in-out",
-            overflow: "hidden",
-            boxSizing: "border-box",
-            background: "#fff",
+            transition: "width 0.3s",
+            overflow: "auto",
           }}
         >
           <MemberList
@@ -331,16 +330,8 @@ const Project: React.FC = () => {
           />
         </aside>
 
-        <main
-          style={{
-            flex: 1,
-            boxSizing: "border-box",
-            overflow: "hidden",
-            position: "relative",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
+        <main style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          {/* 왼쪽 토글 버튼 */}
           <button
             onClick={toggleLeftSidebar}
             style={{
@@ -349,138 +340,24 @@ const Project: React.FC = () => {
               top: "50%",
               transform: "translateY(-50%)",
               zIndex: 10,
-              background: "#fff",
-              border: "1px solid #ddd",
-              borderRadius: "50%",
-              width: "24px",
-              height: "24px",
-              cursor: "pointer",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
             }}
           >
             {isLeftSidebarCollapsed ? "›" : "‹"}
           </button>
-          <button
-            onClick={toggleRightSidebar}
-            style={{
-              position: "absolute",
-              right: isRightSidebarCollapsed ? 10 : -10,
-              top: "50%",
-              transform: "translateY(-50%)",
-              zIndex: 10,
-              background: "#fff",
-              border: "1px solid #ddd",
-              borderRadius: "50%",
-              width: "24px",
-              height: "24px",
-              cursor: "pointer",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
-            }}
-          >
-            {isRightSidebarCollapsed ? "‹" : "›"}
-          </button>
 
-          <div
-            style={{
-              padding: "10px 10px 0 10px",
-              borderBottom: "1px solid #ddd",
-              flexShrink: 0,
-              background: "#fff",
-            }}
-          >
-            {/* 🔹 현재 프로젝트 정보 헤더 */}
-            {currentProject ? (
-              <div
-                style={{
-                  marginBottom: "8px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <h2
-                    style={{
-                      margin: 0,
-                      fontSize: "18px",
-                      fontWeight: 700,
-                      color: "#111827",
-                    }}
-                  >
-                    {currentProject.name}
-                  </h2>
-                  <p
-                    style={{
-                      margin: "4px 0 0",
-                      fontSize: "13px",
-                      color: "#6b7280",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      maxWidth: "420px",
-                    }}
-                    title={currentProject.description || ""}
-                  >
-                    {currentProject.description || "프로젝트 설명이 없습니다."}
-                  </p>
-                </div>
-
-                <div
-                  style={{
-                    textAlign: "right",
-                    fontSize: "12px",
-                    color: "#6b7280",
-                    minWidth: "140px",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: 600,
-                      marginBottom: "2px",
-                    }}
-                  >
-                    멤버 {currentProject.members.length}명
-                  </div>
-                  <div
-                    style={{
-                      maxWidth: "220px",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                    }}
-                    title={currentProject.members.join(", ")}
-                  >
-                    {currentProject.members.join(", ")}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div
-                style={{
-                  marginBottom: "8px",
-                  fontSize: "13px",
-                  color: "#9ca3af",
-                }}
-              >
-                프로젝트 정보를 불러오는 중입니다...
-              </div>
-            )}
-
-            {/* 🔹 탭 버튼들 */}
+          {/* 탭 헤더 */}
+          <div style={{ padding: "10px", borderBottom: "1px solid #ddd" }}>
             <button
               onClick={() => setActiveTab("taskBoard")}
               style={{
-                padding: "10px 15px",
+                padding: 10,
                 border: "none",
                 borderBottom:
                   activeTab === "taskBoard"
                     ? "3px solid #4f46e5"
                     : "3px solid transparent",
-                background: "transparent",
                 cursor: "pointer",
-                fontWeight: activeTab === "taskBoard" ? "bold" : "normal",
-                color: activeTab === "taskBoard" ? "#4f46e5" : "#333",
+                background: "transparent",
               }}
             >
               작업 보드
@@ -488,16 +365,14 @@ const Project: React.FC = () => {
             <button
               onClick={() => setActiveTab("taskDetails")}
               style={{
-                padding: "10px 15px",
+                padding: 10,
                 border: "none",
                 borderBottom:
                   activeTab === "taskDetails"
                     ? "3px solid #4f46e5"
                     : "3px solid transparent",
-                background: "transparent",
                 cursor: "pointer",
-                fontWeight: activeTab === "taskDetails" ? "bold" : "normal",
-                color: activeTab === "taskDetails" ? "#4f46e5" : "#333",
+                background: "transparent",
               }}
             >
               세부 작업 내용
@@ -505,54 +380,61 @@ const Project: React.FC = () => {
             <button
               onClick={() => setActiveTab("schedule")}
               style={{
-                padding: "10px 15px",
+                padding: 10,
                 border: "none",
                 borderBottom:
                   activeTab === "schedule"
                     ? "3px solid #4f46e5"
                     : "3px solid transparent",
-                background: "transparent",
                 cursor: "pointer",
-                fontWeight: activeTab === "schedule" ? "bold" : "normal",
-                color: activeTab === "schedule" ? "#4f46e5" : "#333",
+                background: "transparent",
               }}
             >
               작업 일정
             </button>
           </div>
+          <ProgressBar tasks={tasks} />
 
+          {/* 탭 내용 */}
           <div style={{ flex: 1, overflow: "auto" }}>
             {activeTab === "taskBoard" && (
               <TaskBoard
                 columns={columns}
                 members={members}
+                tasks={tasks}
+                onAddColumn={handleAddColumn}
+                onDeleteColumn={handleDeleteColumn}
                 onAddMemberToColumn={handleAddMemberToColumn}
                 onMoveMember={handleMoveMemberBetweenColumns}
                 onUpdateStatus={handleUpdateMemberStatus}
-                onAddColumn={handleAddColumn}
-                onDeleteColumn={handleDeleteColumn}
                 onDeleteMember={handleDeleteMemberFromColumn}
                 onUpdateMemberMemo={handleUpdateMemberMemo}
                 onInviteFriend={handleInviteFriendToColumn}
+                onAddTask={handleAddTask}
+                onSelectTask={handleSelectTask}
               />
             )}
             {activeTab === "taskDetails" && (
-              <TaskDetails columns={columns} members={members} />
+              <TaskDetails
+                columns={columns}
+                members={members}
+                tasks={tasks}
+                selectedTaskId={selectedTaskId}
+              />
             )}
-            {activeTab === "schedule" && <Schedule />}
+            {activeTab === "schedule" && (
+              <Schedule tasks={tasks} onUpdateTask={handleUpdateTask} />
+            )}
           </div>
         </main>
 
         <aside
           style={{
-            width: isRightSidebarCollapsed ? "0px" : "20%",
-            minWidth: isRightSidebarCollapsed ? "0px" : "280px",
-            padding: isRightSidebarCollapsed ? "0" : "10px",
+            width: isRightSidebarCollapsed ? 0 : 280,
+            padding: isRightSidebarCollapsed ? 0 : 10,
             borderLeft: isRightSidebarCollapsed ? "none" : "1px solid #ddd",
-            transition: "all 0.3s ease-in-out",
-            overflow: "hidden",
-            boxSizing: "border-box",
-            background: "#fff",
+            transition: "width 0.3s",
+            overflow: "auto",
           }}
         >
           <ChatBox projectId={numericProjectId} />

@@ -1,110 +1,90 @@
-import React, { useState } from "react"; // ⭐️ [추가] useState 훅을 가져옵니다.
+// src/components/MemberCard.tsx
+
+import React from "react";
 import { Member } from "../types/Member";
 
 interface Props {
   member: Member;
-  memo?: string;
-  children?: React.ReactNode;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onClick?: () => void; // 카드 클릭 이벤트
+  onDelete?: (id: number) => void; // 삭제 버튼 눌렀을 때
+  showDelete?: boolean; // 삭제 버튼 표시 여부
 }
 
-const MemberCard: React.FC<Props> = ({ member, memo, children, onDragStart }) => {
-  const [isHovered, setIsHovered] = useState(false);
-
-  const cardStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "10px 15px",
-    borderRadius: "8px",
-    background: isHovered ? "#eff6ff" : "#dbeafe", 
-    border: "1px solid #bfdbfe",
-    boxShadow: isHovered ? "0 4px 8px rgba(0,0,0,0.08)" : "none",
-    cursor: onDragStart ? "grab" : "default",
-    width: "100%",
-    boxSizing: 'border-box',
-    transition: "all 0.2s ease-in-out",
-    transform: isHovered ? "translateY(-2px)" : "none",
-  };
-
+const MemberCard: React.FC<Props> = ({
+  member,
+  onClick,
+  onDelete,
+  showDelete = false,
+}) => {
   return (
     <div
-      draggable={!!onDragStart}
-      onDragStart={onDragStart}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      style={cardStyle}
-    >
-      <div style={{
+      onClick={onClick}
+      style={{
         display: "flex",
+        justifyContent: "space-between",
         alignItems: "center",
-        minWidth: 0,
-      }}>
-        <div style={{ position: 'relative', marginRight: '10px', flexShrink: 0 }}>
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              background: "#e9ecef",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#495057",
-              fontWeight: "bold",
-              fontSize: "14px",
-            }}
-          >
-            {member.name.charAt(0)}
-          </div>
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: member.isOnline ? '#28a745' : '#adb5bd',
-              border: '2px solid white',
-            }}
-            title={member.isOnline ? "온라인" : "오프라인"}
-          />
-        </div>
+        padding: "10px",
+        borderRadius: "8px",
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        cursor: onClick ? "pointer" : "default",
+        transition: "0.2s",
+        marginBottom: "8px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* 프로필 원 */}
         <div
           style={{
-            fontSize: "15px",
-            fontWeight: "600", // ⭐️ [수정] 이름을 조금 더 굵게
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            maxWidth: '100px',
-            color: '#212529',
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "#6366f1",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
           }}
         >
-          {member.name}
+          {member.name.charAt(0)}
+        </div>
+
+        {/* 사용자 이름 */}
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{member.name}</div>
+          <div
+            style={{
+              fontSize: 12,
+              color: member.isOnline ? "#10b981" : "#6b7280",
+              fontWeight: 500,
+            }}
+          >
+            {member.isOnline ? "온라인" : "오프라인"}
+          </div>
         </div>
       </div>
 
-      {/* 2. 중앙: 메모 */}
-      <div style={{
-        flex: 1,
-        textAlign: 'center',
-        fontSize: '14px',
-        color: '#6c757d',
-        fontStyle: 'normal',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        minWidth: 0,
-      }}>
-        {memo}
-      </div>
-
-      {/* 3. 오른쪽: 버튼 영역 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-        {children}
-      </div>
+      {/* 삭제 버튼 */}
+      {showDelete && onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // 카드 클릭과 충돌 방지
+            onDelete(member.id);
+          }}
+          style={{
+            border: "none",
+            background: "transparent",
+            color: "#ef4444",
+            cursor: "pointer",
+            fontSize: 18,
+            fontWeight: "bold",
+          }}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 };

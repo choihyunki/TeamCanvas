@@ -8,6 +8,25 @@ export interface User {
   name: string; // 화면에 보여줄 이름
 }
 
+export function createUser(
+  username: string,
+  password: string,
+  name: string
+): User {
+  const exists = users.find((u) => u.username === username);
+  if (exists) throw new Error("이미 존재하는 아이디입니다.");
+
+  const newUser: User = {
+    id: Date.now(),
+    username,
+    password,
+    name,
+  };
+
+  users.push(newUser);
+  return newUser;
+}
+
 // 🔹 프로젝트 레코드 (ownerUsername 기준으로 소유자 구분)
 export interface ProjectRecord {
   id: number;
