@@ -1,56 +1,59 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
+import {
+  getProjectsForUser,
+  createProjectForUser,
+  ProjectRecord,
+} from "../data/mockDb";
 
-interface Project {
-  id: number;
-  name: string;
-  description?: string;
-  members: string[];
-}
+type Project = ProjectRecord;
 
 const Main: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, token } = useAuth(); // 🔹 token 추가
   const navigate = useNavigate();
-
-  const handleNavigateToProject = (projectId: number) => {
-    navigate(`/project/${projectId}`);
-  };
-  // ✅ 임시 프로젝트 데이터
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: 101,
-      name: "DropIn 개발 프로젝트",
-      description: "React + Spring Boot 기반 협업툴 개발",
-      members: ["현기", "철수", "영희"],
-    },
-  ]);
-
+  const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ 프로젝트 선택
+  const handleNavigateToProject = (projectId: number) => {
+    navigate(`/project/${projectId}`);
+  };
+
+  // ✅ 로그인한 유저의 프로젝트를 가짜 DB에서 가져오기
+  useEffect(() => {
+    if (!token) return;
+    const list = getProjectsForUser(token);
+    setProjects(list);
+    setSelectedProject(list[0] ?? null);
+  }, [token]);
+
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
   };
 
-  // ✅ 새 프로젝트 생성 (모달 확인 시)
   const handleCreateProject = () => {
     if (newProjectName.trim() === "") {
       setError("프로젝트 이름을 입력해주세요!");
       return;
     }
 
-    const newProject: Project = {
-      id: Date.now(),
-      name: newProjectName.trim(),
-      description: "새로 생성된 프로젝트입니다.",
-      members: ["현기"],
-    };
+    if (!token) {
+      alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+      navigate("/");
+      return;
+    }
+
+    // 🔹 mockDb에 실제로 프로젝트 생성
+    const newProject = createProjectForUser(
+      token,
+      newProjectName.trim(),
+      "새로 생성된 프로젝트입니다."
+    );
 
     setProjects((prev) => [...prev, newProject]);
     setSelectedProject(newProject);
@@ -69,6 +72,31 @@ const Main: React.FC = () => {
       }}
     >
       <Header onMenuClick={() => console.log("Menu clicked")} />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          padding: "8px 20px",
+          fontSize: "14px",
+        }}
+      >
+        <button
+          onClick={() => {
+            logout();
+            navigate("/");
+          }}
+          style={{
+            padding: "6px 12px",
+            borderRadius: "6px",
+            border: "1px solid #ddd",
+            background: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          로그아웃
+        </button>
+      </div>
 
       <main
         style={{
@@ -95,7 +123,6 @@ const Main: React.FC = () => {
             position: "relative",
           }}
         >
-          {/* 리스트 헤더 */}
           <div
             style={{
               display: "flex",
@@ -125,7 +152,6 @@ const Main: React.FC = () => {
             </button>
           </div>
 
-          {/* 프로젝트 목록 */}
           {projects.length === 0 ? (
             <div
               style={{
@@ -231,7 +257,7 @@ const Main: React.FC = () => {
         </section>
       </main>
 
-      {/* ✅ 모달창 (프로젝트 생성) */}
+      {/* 모달: 새 프로젝트 만들기 */}
       {showModal && (
         <div
           onClick={() => setShowModal(false)}
