@@ -1,7 +1,6 @@
-// src/components/Schedule.tsx
-
 import React, { useState } from "react";
 import { Task } from "../types/Task";
+import "../styles/Schedule.css"; // CSS import
 
 interface Props {
   tasks: Task[];
@@ -15,7 +14,7 @@ const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
 
   const handleSaveDate = () => {
-    if (!selectedTask || !newDueDate) return;
+    if (!selectedTask) return;
 
     const updated: Task = {
       ...selectedTask,
@@ -27,13 +26,12 @@ const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2 style={{ marginBottom: 20 }}>작업 일정 관리</h2>
+    <div className="schedule-container">
+      <h2 className="schedule-title">작업 일정 관리</h2>
 
-      {/* 작업 리스트 */}
-      <div style={{ display: "flex", gap: "20px" }}>
+      <div className="schedule-layout">
         {/* 왼쪽 - 작업 목록 */}
-        <div style={{ width: "40%" }}>
+        <div className="schedule-list-panel">
           <h3>작업 목록</h3>
           <ul style={{ listStyle: "none", padding: 0 }}>
             {tasks.length === 0 && <p>아직 등록된 작업이 없습니다.</p>}
@@ -45,26 +43,19 @@ const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                   setSelectedTaskId(t.id);
                   setNewDueDate(t.dueDate || "");
                 }}
-                style={{
-                  padding: "10px",
-                  borderRadius: 6,
-                  border: "1px solid #ddd",
-                  marginBottom: "8px",
-                  cursor: "pointer",
-                  background: selectedTaskId === t.id ? "#eef2ff" : "white",
-                }}
+                className={`schedule-task-item ${
+                  selectedTaskId === t.id ? "selected" : ""
+                }`}
               >
                 <strong>{t.title}</strong>
-                <div style={{ fontSize: 13, color: "#555" }}>
-                  마감일: {t.dueDate || "없음"}
-                </div>
+                <div className="task-meta">마감일: {t.dueDate || "없음"}</div>
               </li>
             ))}
           </ul>
         </div>
 
         {/* 오른쪽 - 상세 일정 설정 */}
-        <div style={{ width: "60%" }}>
+        <div className="schedule-detail-panel">
           <h3>작업 상세</h3>
 
           {selectedTask ? (
@@ -76,35 +67,19 @@ const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
                 type="date"
                 value={newDueDate}
                 onChange={(e) => setNewDueDate(e.target.value)}
-                style={{
-                  marginLeft: "10px",
-                  padding: "6px",
-                  borderRadius: "6px",
-                  border: "1px solid #ccc",
-                }}
+                className="date-input"
               />
 
-              <button
-                onClick={handleSaveDate}
-                style={{
-                  marginLeft: "12px",
-                  padding: "8px 12px",
-                  background: "#4f46e5",
-                  color: "white",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                }}
-              >
+              <button onClick={handleSaveDate} className="date-save-btn">
                 저장
               </button>
 
-              <hr style={{ margin: "20px 0" }} />
+              <hr className="divider" />
 
               <p>현재 마감일: {selectedTask.dueDate || "없음"}</p>
             </div>
           ) : (
-            <p>왼쪽에서 작업을 선택하세요.</p>
+            <p style={{ color: "#aaa" }}>왼쪽에서 작업을 선택하세요.</p>
           )}
         </div>
       </div>
