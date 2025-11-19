@@ -1,0 +1,71 @@
+.member-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  transition: 0.2s;
+  margin-bottom: 8px;
+}
+
+.member-card.clickable {
+  cursor: pointer;
+}
+
+.member-card.clickable:hover {
+  background: #f9fafb;
+}
+
+.member-info-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #6366f1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.member-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.member-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-online {
+  color: #10b981;
+}
+
+.status-offline {
+  color: #6b7280;
+}
+
+.delete-icon-btn {
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: bold;
+  padding: 0 5px;
+}
+
+.delete-icon-btn:hover {
+  background-color: #fee2e2;
+  border-radius: 4px;
+}

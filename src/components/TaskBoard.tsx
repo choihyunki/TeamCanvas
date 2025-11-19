@@ -1,5 +1,3 @@
-// src/components/TaskBoard.tsx
-
 import React, { useState } from "react";
 import { Member } from "../types/Member";
 import { RoleColumn } from "../types/Project";
@@ -10,7 +8,6 @@ interface Props {
   columns: RoleColumn[];
   members: Member[];
   tasks: Task[];
-
   onAddColumn: (name: string) => void;
   onDeleteColumn: (columnId: number) => void;
   onAddMemberToColumn: (columnId: number, memberId: number) => void;
@@ -27,8 +24,6 @@ interface Props {
     friendId: string,
     friendName: string
   ) => void;
-
-  // 🔥 추가된 작업 관련 핸들러들
   onAddTask: (columnId: number, title: string) => void;
   onSelectTask: (taskId: number) => void;
 }
@@ -40,11 +35,7 @@ const TaskBoard: React.FC<Props> = ({
   onAddColumn,
   onDeleteColumn,
   onAddMemberToColumn,
-  onMoveMember,
-  onUpdateStatus,
   onDeleteMember,
-  onUpdateMemberMemo,
-  onInviteFriend,
   onAddTask,
   onSelectTask,
 }) => {
@@ -63,20 +54,19 @@ const TaskBoard: React.FC<Props> = ({
   };
 
   return (
-    <div className="taskboard-container">
-      <div className="taskboard-columns">
+    <div className="taskboard">
+      <div className="columns-container">
         {columns.map((col) => (
-          <div key={col.id} className="taskboard-column">
-            <div className="taskboard-column-header">
-              <h3>{col.name}</h3>
-              <div style={{ display: "flex", gap: "6px" }}>
+          <div key={col.id} className="column">
+            <div className="column-header">
+              <h3 style={{ margin: 0, fontSize: 16 }}>{col.name}</h3>
+              <div className="taskboard-header-actions">
                 <button
                   className="task-btn small"
                   onClick={() => handleAddTaskClick(col.id)}
                 >
                   + 작업
                 </button>
-
                 <button
                   className="task-btn small red"
                   onClick={() => onDeleteColumn(col.id)}
@@ -86,7 +76,7 @@ const TaskBoard: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* 🔥 작업 리스트 */}
+            {/* 작업 리스트 */}
             <div className="task-items">
               {tasks
                 .filter((t) => t.columnId === col.id)
@@ -110,21 +100,22 @@ const TaskBoard: React.FC<Props> = ({
                 ))}
             </div>
 
-            {/* 🔥 멤버 리스트 (역할 배정) */}
+            {/* 멤버 리스트 (역할 배정) */}
             <div className="taskboard-members">
               <h4>역할 멤버</h4>
-              <ul>
+              <ul style={{ padding: 0, listStyle: "none" }}>
                 {col.members.map((m) => {
                   const memberInfo = members.find((mm) => mm.id === m.id);
                   if (!memberInfo) return null;
                   return (
-                    <li key={m.id} className="member-item">
+                    <li key={m.id} className="member-item-row">
                       <span>{memberInfo.name}</span>
                       <button
-                        className="small"
+                        className="edit-btn red"
+                        style={{ color: "red" }}
                         onClick={() => onDeleteMember(col.id, m.id)}
                       >
-                        ❌
+                        ✕
                       </button>
                     </li>
                   );
@@ -133,6 +124,7 @@ const TaskBoard: React.FC<Props> = ({
 
               <button
                 className="task-btn"
+                style={{ width: "100%", marginTop: 10 }}
                 onClick={() => {
                   const idStr = prompt(
                     "추가할 멤버 선택 (ID):\n" +
@@ -149,14 +141,26 @@ const TaskBoard: React.FC<Props> = ({
           </div>
         ))}
 
-        {/* 🔥 역할(칼럼) 추가 */}
-        <div className="taskboard-column add-column">
+        {/* 역할 추가 */}
+        <div className="column empty-column" style={{ display: "block" }}>
+          <div style={{ marginBottom: 10, fontWeight: "bold" }}>새 역할</div>
           <input
             value={newColumnName}
             onChange={(e) => setNewColumnName(e.target.value)}
-            placeholder="새 역할 이름"
+            placeholder="역할 이름 입력"
+            style={{
+              width: "100%",
+              padding: 8,
+              marginBottom: 8,
+              borderRadius: 6,
+              border: "1px solid #ddd",
+            }}
           />
-          <button className="task-btn" onClick={handleAddColumnClick}>
+          <button
+            className="task-btn"
+            style={{ width: "100%" }}
+            onClick={handleAddColumnClick}
+          >
             + 역할 추가
           </button>
         </div>

@@ -1,0 +1,114 @@
+.project-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden; /* 전체 스크롤 방지 */
+}
+
+.workspace-container {
+  display: flex;
+  flex: 1;
+  transition: margin-left 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+/* 왼쪽 사이드바 (멤버 리스트) */
+.left-sidebar {
+  width: 220px;
+  border-right: 1px solid #ddd;
+  transition: width 0.3s ease-in-out, padding 0.3s;
+  overflow: hidden;
+  background: #fdfdfd;
+  position: relative;
+}
+
+.left-sidebar.collapsed {
+  width: 0;
+  padding: 0;
+  border-right: none;
+}
+
+/* 중앙 메인 영역 */
+.project-main {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: #f4f7f6;
+}
+
+/* 탭 버튼 영역 */
+.tabs-container {
+  padding: 0 10px;
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+  display: flex;
+  gap: 10px;
+}
+
+.tab-btn {
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  font-size: 14px;
+  color: #555;
+  transition: color 0.2s;
+}
+
+.tab-btn:hover {
+  color: #4f46e5;
+}
+
+.tab-btn.active {
+  border-bottom-color: #4f46e5;
+  font-weight: bold;
+  color: #4f46e5;
+}
+
+/* 탭 컨텐츠 영역 */
+.tab-content-area {
+  flex: 1;
+  overflow: auto; /* 내부 스크롤 */
+  position: relative;
+}
+
+/* 토글 버튼 */
+.toggle-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  width: 24px;
+  height: 40px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+}
+
+/* 왼쪽 토글 위치 */
+.toggle-btn.left {
+  left: 0;
+}
+
+/* 오른쪽 사이드바 (채팅) */
+.right-sidebar {
+  width: 300px;
+  border-left: 1px solid #ddd;
+  transition: width 0.3s ease-in-out;
+  background: #fff;
+  overflow: hidden;
+}
+
+.right-sidebar.collapsed {
+  width: 0;
+  border-left: none;
+}

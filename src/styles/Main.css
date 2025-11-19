@@ -1,0 +1,197 @@
+.main-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f9fafb;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+  box-sizing: border-box;
+}
+
+/* 왼쪽 프로필 섹션 */
+.profile-section {
+  width: 280px;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: fit-content; /* 높이는 내용만큼만 */
+}
+
+.welcome-title {
+  margin-bottom: 8px;
+  font-size: 18px;
+  color: #111;
+}
+
+.user-info-text {
+  color: #4b5563;
+  font-size: 14px;
+}
+
+.logout-btn {
+  padding: 10px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  width: 100%;
+}
+
+.logout-btn:hover {
+  background: #dc2626;
+}
+
+.divider {
+  border: 0;
+  border-top: 1px solid #e5e7eb;
+  margin: 0;
+}
+
+.new-project-title {
+  margin-bottom: 8px;
+  font-size: 16px;
+  color: #333;
+}
+
+.input-field,
+.textarea-field {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  margin-bottom: 8px;
+  font-size: 14px;
+  box-sizing: border-box; /* padding 포함 */
+}
+
+.textarea-field {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.create-btn {
+  width: 100%;
+  padding: 12px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.create-btn:hover {
+  background: #4338ca;
+}
+
+/* 오른쪽 프로젝트 목록 섹션 */
+.projects-section {
+  flex: 1;
+  padding: 20px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.projects-header {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.projects-title {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.projects-count {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.empty-msg {
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  margin-top: 40px;
+}
+
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* 프로젝트 카드 */
+.project-card {
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 140px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.project-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 16px;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bold;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 2줄까지만 표시 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 32px; /* 줄어들지 않게 */
+}
+
+.card-meta {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 12px;
+}
+
+.enter-project-btn {
+  width: 100%;
+  padding: 8px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.enter-project-btn:hover {
+  background: #4338ca;
+}

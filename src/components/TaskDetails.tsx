@@ -1,9 +1,8 @@
-// src/components/TaskDetails.tsx
-
 import React, { useEffect, useState } from "react";
 import { Member } from "../types/Member";
 import { Task } from "../types/Task";
 import { RoleColumn } from "../types/Project";
+import "../styles/TaskDetails.css"; // CSS import
 
 interface Props {
   columns: RoleColumn[];
@@ -27,7 +26,6 @@ const TaskDetails: React.FC<Props> = ({
   const task = tasks.find((t) => t.id === selectedTaskId) || null;
   const taskColumn = task ? columns.find((c) => c.id === task.columnId) : null;
 
-  // 선택된 작업이 바뀔 때마다 로컬 상태 동기화
   useEffect(() => {
     if (!task) {
       setLocalDescription("");
@@ -42,16 +40,16 @@ const TaskDetails: React.FC<Props> = ({
 
   if (!selectedTaskId) {
     return (
-      <div style={{ padding: 20 }}>
-        <h2>세부 작업 내용</h2>
-        <p>선택된 작업이 없습니다.</p>
+      <div className="task-details-container">
+        <h2 className="task-details-title">세부 작업 내용</h2>
+        <p className="empty-message">선택된 작업이 없습니다.</p>
       </div>
     );
   }
 
   if (!task) {
     return (
-      <div style={{ padding: 20 }}>
+      <div className="task-details-container">
         <h2>작업을 찾을 수 없습니다.</h2>
       </div>
     );
@@ -63,7 +61,6 @@ const TaskDetails: React.FC<Props> = ({
         members.map((m) => `${m.name}`).join("\n")
     );
     if (!name) return;
-
     const trimmed = name.trim();
     if (!trimmed) return;
 
@@ -78,7 +75,6 @@ const TaskDetails: React.FC<Props> = ({
       ...task,
       members: [...task.members, trimmed],
     };
-
     onUpdateTask(updated);
   };
 
@@ -94,129 +90,65 @@ const TaskDetails: React.FC<Props> = ({
   };
 
   return (
-    <div style={{ padding: "20px", overflowY: "auto" }}>
-      <h2 style={{ marginBottom: "15px" }}>세부 작업 내용</h2>
+    <div className="task-details-container">
+      <h2 className="task-details-title">세부 작업 내용</h2>
 
       {/* 작업 제목 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>작업 제목</h3>
-        <div
-          style={{
-            padding: "10px",
-            borderRadius: 6,
-            border: "1px solid #ddd",
-            background: "#fff",
-            fontWeight: "bold",
-          }}
-        >
-          {task.title}
-        </div>
+      <section className="details-section">
+        <h3 className="section-label">작업 제목</h3>
+        <div className="info-box">{task.title}</div>
       </section>
 
-      <section style={{ marginBottom: 30 }}>
-        <h3 style={{ marginBottom: 5 }}>해당 역할</h3>
-        <div
-          style={{
-            padding: 10,
-            background: "#f9fafb",
-            borderRadius: 6,
-            border: "1px solid #ddd",
-          }}
-        >
-          {taskColumn ? taskColumn.name : "없음"}
-        </div>
+      {/* 해당 역할 */}
+      <section className="details-section">
+        <h3 className="section-label">해당 역할</h3>
+        <div className="role-box">{taskColumn ? taskColumn.name : "없음"}</div>
       </section>
 
-      <section style={{ marginBottom: 30 }}>
-        <h3 style={{ marginBottom: 8 }}>참여중인 멤버</h3>
-
+      {/* 참여 멤버 */}
+      <section className="details-section">
+        <h3 className="section-label">참여중인 멤버</h3>
         {task.members.length === 0 ? (
-          <p style={{ color: "#666" }}>아직 참여한 멤버가 없습니다.</p>
+          <p className="empty-message" style={{ padding: 0 }}>
+            아직 참여한 멤버가 없습니다.
+          </p>
         ) : (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          <div className="member-list-wrapper">
             {task.members.map((name) => (
-              <span
-                key={name}
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  background: "#e0e7ff",
-                  color: "#4f46e5",
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-              >
+              <span key={name} className="member-tag">
                 {name}
               </span>
             ))}
           </div>
         )}
-
-        <button
-          onClick={handleAddMember}
-          style={{
-            marginTop: 10,
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "none",
-            background: "#4f46e5",
-            color: "white",
-            cursor: "pointer",
-            fontSize: 14,
-          }}
-        >
+        <button onClick={handleAddMember} className="add-member-btn">
           + 참여 멤버 추가
         </button>
       </section>
 
       {/* 설명 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>작업 설명</h3>
+      <section className="details-section">
+        <h3 className="section-label">작업 설명</h3>
         <textarea
+          className="description-area"
           value={localDescription}
           onChange={(e) => setLocalDescription(e.target.value)}
           placeholder="작업 설명을 입력하세요."
-          style={{
-            width: "100%",
-            minHeight: 100,
-            padding: 10,
-            borderRadius: 6,
-            border: "1px solid #ddd",
-            resize: "vertical",
-          }}
         />
       </section>
 
       {/* 메모 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>추가 메모</h3>
+      <section className="details-section">
+        <h3 className="section-label">추가 메모</h3>
         <textarea
+          className="memo-area"
           value={localMemo}
           onChange={(e) => setLocalMemo(e.target.value)}
           placeholder="간단한 메모를 남길 수 있습니다."
-          style={{
-            width: "100%",
-            minHeight: 80,
-            padding: 10,
-            borderRadius: 6,
-            border: "1px solid #ddd",
-            resize: "vertical",
-          }}
         />
       </section>
 
-      <button
-        onClick={handleSaveDescription}
-        style={{
-          padding: "10px 16px",
-          borderRadius: 6,
-          border: "none",
-          background: "#10b981",
-          color: "white",
-          cursor: "pointer",
-          fontWeight: 600,
-        }}
-      >
+      <button onClick={handleSaveDescription} className="save-btn">
         변경사항 저장
       </button>
     </div>

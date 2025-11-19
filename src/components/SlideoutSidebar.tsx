@@ -1,10 +1,8 @@
-// src/components/SlideoutSidebar.tsx
-
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../styles/index.css";
 import { createProjectForUser } from "../data/mockDb";
 import { useAuth } from "../context/AuthContext";
+import "../styles/SlideoutSidebar.css"; // CSS import
 
 interface Friend {
   id: number;
@@ -26,21 +24,19 @@ const SlideoutSidebar: React.FC<Props> = ({
   friends,
 }) => {
   const navigate = useNavigate();
-  const { token } = useAuth(); // 현재 로그인 username
-
+  const { token } = useAuth();
   const [newProjectName, setNewProjectName] = useState("");
 
-  // 🔥 프로젝트 클릭 → 해당 프로젝트로 이동
   const handleProjectClick = (id: number) => {
     navigate(`/project/${id}`);
     onClose();
   };
 
-  // 🔥 프로젝트 생성 (mockDb 기반)
   const handleCreateProject = () => {
     if (!newProjectName.trim()) return;
+    if (!token) return;
 
-    const project = createProjectForUser(token!, newProjectName.trim());
+    const project = createProjectForUser(token, newProjectName.trim());
     alert("프로젝트가 생성되었습니다!");
 
     setNewProjectName("");
@@ -52,7 +48,7 @@ const SlideoutSidebar: React.FC<Props> = ({
     <div
       className="slideout-sidebar"
       style={{
-        transform: isOpen ? "translateX(0)" : "translateX(-280px)",
+        transform: isOpen ? "translateX(0)" : "translateX(-100%)", // 동적 스타일 유지
       }}
     >
       <div className="sidebar-header">
@@ -62,53 +58,53 @@ const SlideoutSidebar: React.FC<Props> = ({
         </button>
       </div>
 
-      {/* 🔥 내 프로젝트 목록 */}
-      <section className="sidebar-section">
-        <h4>내 프로젝트</h4>
+      <div className="sidebar-content">
+        {/* 내 프로젝트 목록 */}
+        <section className="sidebar-section">
+          <h4>내 프로젝트</h4>
+          {projects.length === 0 ? (
+            <p style={{ color: "#aaa", fontSize: "14px" }}>프로젝트 없음</p>
+          ) : (
+            <ul className="sidebar-list">
+              {projects.map((p) => (
+                <li
+                  key={p.id}
+                  className="sidebar-item"
+                  onClick={() => handleProjectClick(p.id)}
+                >
+                  📁 {p.name}
+                </li>
+              ))}
+            </ul>
+          )}
 
-        {projects.length === 0 ? (
-          <p>아직 생성된 프로젝트가 없습니다.</p>
-        ) : (
+          {/* 프로젝트 생성 */}
+          <div className="create-project-area">
+            <input
+              placeholder="새 프로젝트 이름"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              className="sidebar-input"
+            />
+            <button className="sidebar-btn" onClick={handleCreateProject}>
+              + 프로젝트 생성
+            </button>
+          </div>
+        </section>
+
+        {/* 친구 목록 */}
+        <section className="sidebar-section">
+          <h4>친구 목록</h4>
           <ul className="sidebar-list">
-            {projects.map((p) => (
-              <li
-                key={p.id}
-                className="sidebar-item"
-                onClick={() => handleProjectClick(p.id)}
-              >
-                📁 {p.name}
+            {friends.map((f) => (
+              <li key={f.id} className="sidebar-item friend-item">
+                <div className="friend-avatar">{f.avatarInitial}</div>
+                <span>{f.name}</span>
               </li>
             ))}
           </ul>
-        )}
-
-        {/* 🔥 프로젝트 생성 */}
-        <div className="create-project-area">
-          <input
-            placeholder="새 프로젝트 이름"
-            value={newProjectName}
-            onChange={(e) => setNewProjectName(e.target.value)}
-            className="sidebar-input"
-          />
-          <button className="sidebar-btn" onClick={handleCreateProject}>
-            + 프로젝트 생성
-          </button>
-        </div>
-      </section>
-
-      {/* 🔥 친구 목록 */}
-      <section className="sidebar-section">
-        <h4>친구 목록</h4>
-
-        <ul className="sidebar-list">
-          {friends.map((f) => (
-            <li key={f.id} className="sidebar-item friend-item">
-              <div className="friend-avatar">{f.avatarInitial}</div>
-              <span>{f.name}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
+        </section>
+      </div>
     </div>
   );
 };

@@ -1,74 +1,38 @@
-// src/components/Header.tsx
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import "../styles/Header.css";
 
 interface HeaderProps {
   onMenuClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
+  // 헤더에서 로그아웃/유저정보를 뺐으므로 useAuth는 여기서 사용하지 않아도 됩니다.
 
   return (
-    <header
-      style={{
-        width: "100%",
-        padding: "15px 25px",
-        background: "#4f46e5",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        boxSizing: "border-box",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+    <header className="app-header">
+      <div className="header-left">
         {onMenuClick && (
           <button
             onClick={onMenuClick}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#fff",
-              fontSize: "22px",
-              cursor: "pointer",
-            }}
+            className="menu-btn"
+            aria-label="메뉴 열기"
           >
             ☰
           </button>
         )}
 
-        <h1
-          style={{ fontSize: "20px", cursor: "pointer" }}
-          onClick={() => navigate("/main")}
-        >
+        <h1 className="app-title" onClick={() => navigate("/main")}>
           TeamCanvas
         </h1>
       </div>
 
-      {isAuthenticated && (
-        <button
-          onClick={handleLogout}
-          style={{
-            background: "transparent",
-            border: "1px solid #fff",
-            color: "#fff",
-            padding: "5px 12px",
-            borderRadius: "6px",
-            cursor: "pointer",
-          }}
-        >
-          로그아웃
-        </button>
-      )}
+      {/* 오른쪽 영역 비움 (또는 div 자체를 삭제해도 됨) */}
+      <div className="header-right">
+        {/* 여기에 있던 유저 정보와 로그아웃 버튼 코드를 모두 삭제했습니다. */}
+      </div>
     </header>
   );
 };
