@@ -1,20 +1,18 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
-import axiosInstance from "../api/AxiosInstance";
-import { Navigate, useNavigate } from "react-router-dom";
+import {
+  getProjectsForUser,
+  createProjectForUser,
+  ProjectRecord,
+} from "../data/mockDb";
 
-interface Project {
-  id: number;
-  name: string;
-  chatRoomId?: number;
-  members?: string[];
-  description?: string;
-}
+type Project = ProjectRecord;
 
 const Main: React.FC = () => {
-  const { logout } = useAuth();
+  const { logout, token } = useAuth(); // 🔹 token 추가
   const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -22,42 +20,40 @@ const Main: React.FC = () => {
   const [newProjectName, setNewProjectName] = useState("");
   const [error, setError] = useState("");
 
-  /** ✅ 내 프로젝트 불러오기 */
-  const fetchProjects = async () => {
-    try {
-      const res = await axiosInstance.get("/api/projects/my");
-      if (Array.isArray(res.data)) {
-        setProjects(res.data);
-      } else {
-        setProjects([]);
-      }
-    } catch (err) {
-      console.error("❌ 프로젝트 목록 불러오기 실패:", err);
-      setProjects([]);
-    }
+  const handleNavigateToProject = (projectId: number) => {
+    navigate(`/project/${projectId}`);
   };
 
+  // ✅ 로그인한 유저의 프로젝트를 가짜 DB에서 가져오기
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (!token) return;
+    const list = getProjectsForUser(token);
+    setProjects(list);
+    setSelectedProject(list[0] ?? null);
+  }, [token]);
 
-  /** ✅ 프로젝트 선택 */
   const handleSelectProject = (project: Project) => {
     setSelectedProject(project);
-    navigate(`/project/${project.id}`); // ✅ 상세 페이지 이동
   };
 
-  /** ✅ 새 프로젝트 생성 */
-  const handleCreateProject = async () => {
+  const handleCreateProject = () => {
     if (newProjectName.trim() === "") {
       setError("프로젝트 이름을 입력해주세요!");
       return;
     }
 
-    try {
-      const { data: created } = await axiosInstance.post("/api/projects", {
-        name: newProjectName.trim(),
-      });
+    if (!token) {
+      alert("로그인 정보가 없습니다. 다시 로그인해주세요.");
+      navigate("/");
+      return;
+    }
+
+    // 🔹 mockDb에 실제로 프로젝트 생성
+    const newProject = createProjectForUser(
+      token,
+      newProjectName.trim(),
+      "새로 생성된 프로젝트입니다."
+    );
 
       // ✅ 새 프로젝트 자동 반영 및 선택
       setProjects((prev) => [...prev, created]);
@@ -84,6 +80,31 @@ const Main: React.FC = () => {
     >
       <Header onMenuClick={() => console.log("Menu clicked")} />
 
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          padding: "8px 20px",
+          fontSize: "14px",
+        }}
+      >
+        <button
+          onClick={() => {
+            logout();
+            navigate("/");
+          }}
+          style={{
+            padding: "6px 12px",
+            borderRadius: "6px",
+            border: "1px solid #ddd",
+            background: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          로그아웃
+        </button>
+      </div>
+
       <main
         style={{
           flex: 1,
@@ -108,8 +129,15 @@ const Main: React.FC = () => {
             boxSizing: "border-box",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <h3>내 프로젝트</h3>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "10px",
+            }}
+          >
+            <h3 style={{ margin: 0, fontWeight: "bold" }}>내 프로젝트</h3>
             <button
               onClick={() => setShowModal(true)}
               style={{
@@ -128,7 +156,6 @@ const Main: React.FC = () => {
             </button>
           </div>
 
-          {/* ✅ 프로젝트 리스트 or 안내 메시지 */}
           {projects.length === 0 ? (
             <div
               style={{ textAlign: "center", color: "#666", marginTop: "20px" }}
@@ -194,14 +221,33 @@ const Main: React.FC = () => {
         >
           {selectedProject ? (
             <>
-              <h2>{selectedProject.name}</h2>
-              <p>{selectedProject.description || "설명 없음"}</p>
-              <h4>팀원</h4>
-              <ul>
-                {(selectedProject.members || []).map((m, i) => (
-                  <li key={i}>{m}</li>
-                ))}
-              </ul>
+              <h2 style={{ marginTop: 0 }}>{selectedProject.name}</h2>
+              <p style={{ color: "#555", marginBottom: "20px" }}>
+                {selectedProject.description}
+              </p>
+              <div>
+                <h4 style={{ marginBottom: "10px" }}>팀원</h4>
+                <ul style={{ paddingLeft: "20px", margin: 0 }}>
+                  {selectedProject.members.map((m, i) => (
+                    <li key={i}>{m}</li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                onClick={() => handleNavigateToProject(selectedProject.id)}
+                style={{
+                  marginTop: "30px",
+                  padding: "12px 24px",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                }}
+              >
+                상세 페이지로 이동 →
+              </button>
             </>
           ) : (
             <p>왼쪽에서 프로젝트를 선택하세요.</p>
@@ -209,7 +255,7 @@ const Main: React.FC = () => {
         </section>
       </main>
 
-      {/* ✅ 프로젝트 생성 모달 */}
+      {/* 모달: 새 프로젝트 만들기 */}
       {showModal && (
         <div
           onClick={() => setShowModal(false)}

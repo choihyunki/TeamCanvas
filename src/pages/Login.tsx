@@ -1,274 +1,189 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import axiosInstance from "../api/AxiosInstance";
-
-const css = `
-  .login-page {
-    display: flex;
-    min-height: 100vh;
-    font-family: 'Arial', sans-serif;
-    overflow: hidden;
-  }
-
-  .branding-panel {
-    width: 50%;
-    background: linear-gradient(-45deg, #4f46e5, #818cf8, #3b82f6, #60a5fa);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    padding: 40px;
-    box-sizing: border-box;
-  }
-
-  .branding-panel img {
-    width: 180px;
-    margin-bottom: 20px;
-  }
-
-  .branding-panel h1 {
-    font-size: 36px;
-    margin-bottom: 10px;
-  }
-
-  .branding-panel p {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .form-panel {
-    width: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f0f2f5;
-  }
-
-  .form-container {
-    background-color: #fff;
-    padding: 50px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 420px;
-    box-sizing: border-box;
-  }
-
-  .form-container h2 {
-    margin-top: 0;
-    margin-bottom: 25px;
-    color: #333;
-    text-align: center;
-    font-size: 28px;
-  }
-
-  .input-group {
-    position: relative;
-    margin-bottom: 25px;
-  }
-
-  .input-field {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 16px;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .input-field:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  .password-toggle-btn {
-    position: absolute;
-    top: 50%;
-    right: 15px;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #888;
-    font-size: 14px;
-  }
-
-  .login-btn {
-    width: 100%;
-    padding: 14px;
-    background-color: #4f46e5;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-
-  .login-btn:hover {
-    background-color: #4338ca;
-  }
-
-  .social-login {
-    margin-top: 25px;
-    text-align: center;
-  }
-
-  .social-login p {
-      color: #888;
-      margin-bottom: 15px;
-  }
-
-  .social-btn {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background-color: #fff;
-      cursor: pointer;
-      margin-bottom: 10px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: background-color 0.2s;
-  }
-
-  .social-btn:hover {
-      background-color: #f7f7f7;
-  }
-  
-  .links {
-    margin-top: 20px;
-    font-size: 14px;
-    text-align: center;
-  }
-
-  .links a {
-    color: #4f46e5;
-    text-decoration: none;
-    margin: 0 10px;
-  }
-`;
+import { loginUser } from "../data/mockDb";
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
 
-  // ✅ 백엔드 로그인 연동
-  const handleLogin = async (e: React.FormEvent) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDropped, setIsDropped] = useState(false);
+  const [isFormFilled, setIsFormFilled] = useState(false);
+
+  const draggableButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setIsFormFilled(username.trim() !== "" && password.trim() !== "");
+  }, [username, password]);
+
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    if (!isFormFilled) return;
+    setIsDragging(true);
+    e.dataTransfer.setData("text/plain", "login");
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setError("");
+  };
 
-    try {
-      const response = await axiosInstance.post("/api/users/login", {
-        email,
-        password,
-      });
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isFormFilled) return;
 
-      const { token } = response.data;
-
-      // ✅ AuthContext에 저장 (24시간 JWT)
-      login(token, email.split("@")[0]);
-      navigate("/main");
-    } catch (err: any) {
-      console.error("로그인 실패:", err);
-      if (err.response?.status === 400) {
-        setError("이메일 또는 비밀번호가 잘못되었습니다.");
-      } else {
-        setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-      }
+    // 👉 1) 아이디/비번 검증
+    const user = loginUser(username, password);
+    if (!user) {
+      alert("아이디 또는 비밀번호가 올바르지 않습니다.");
+      setIsDropped(false);
+      return;
     }
+
+    setIsDropped(true);
+    console.log("로그인 시도...");
+
+    // 👉 2) 여기서 '토큰'에 실제로는 username을 넣어둘 거야.
+    //    나중에 진짜 백엔드 붙이면 JWT로 바꾸면 됨.
+    login(user.username);
+
+    // 👉 3) 로그인 성공 후 메인 페이지로 이동
+    setTimeout(() => {
+      navigate("/main");
+    }, 800);
+  };
+
+  const dropzoneStyle: React.CSSProperties = {
+    width: "100%",
+    padding: "30px 20px",
+    marginTop: "20px",
+    border: `2px ${isDragging ? "solid" : "dashed"} ${
+      isDragging ? "#4f46e5" : "#d1d5db"
+    }`,
+    borderRadius: "8px",
+    textAlign: "center",
+    color: isDragging ? "#4f46e5" : "#9ca3af",
+    fontWeight: "500",
+    transition: "all 0.3s ease",
+    backgroundColor: isDragging
+      ? "#eef2ff"
+      : isDropped
+      ? "#dcfce7"
+      : "transparent",
+    boxSizing: "border-box",
+  };
+
+  const buttonStyle: React.CSSProperties = {
+    padding: "12px 24px",
+    backgroundColor: isFormFilled ? "#4f46e5" : "#9ca3af",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    fontSize: "16px",
+    fontWeight: "bold",
+    cursor: isFormFilled ? "grab" : "not-allowed",
+    transition: "all 0.3s ease",
+    opacity: isDragging ? 0.5 : 1,
+    transform: isDropped ? "scale(0.9)" : "scale(1)",
+    width: "100%",
+    marginBottom: "10px",
+    boxSizing: "border-box",
   };
 
   return (
-    <>
-      <style>{css}</style>
-      <div className="login-page">
-        {/* 왼쪽 DropIn 브랜딩 */}
-        <div className="branding-panel">
-          <img src="/DropInLogo.png" alt="Drop In Logo" />
-          <h1>Drop In</h1>
-          <p>당신의 프로젝트를 한 곳에서, 손쉽게.</p>
-        </div>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "100vh",
+        backgroundColor: "#f3f4f6",
+        fontFamily: "system-ui, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: "#fff",
+          padding: "40px",
+          borderRadius: "12px",
+          boxShadow: "0 10px 25px rgba(0, 0, 0, 0.1)",
+          textAlign: "center",
+          width: "400px",
+        }}
+      >
+        <img
+          src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+          alt="Drop In Logo"
+          style={{ width: "200px", marginBottom: "20px" }}
+        />
 
-        {/* 오른쪽 로그인 폼 */}
-        <div className="form-panel">
-          <div className="form-container">
-            <h2>로그인</h2>
-            <form onSubmit={handleLogin}>
-              <div className="input-group">
-                <input
-                  type="email"
-                  placeholder="이메일"
-                  className="input-field"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="비밀번호"
-                  className="input-field"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="password-toggle-btn"
-                >
-                  {showPassword ? "숨기기" : "보이기"}
-                </button>
-              </div>
-              {error && (
-                <p style={{ color: "red", textAlign: "center" }}>{error}</p>
-              )}
-              <button type="submit" className="login-btn">
-                로그인
-              </button>
-            </form>
+        <h2
+          style={{ marginBottom: "30px", color: "#111827", fontSize: "24px" }}
+        >
+          로그인
+        </h2>
 
-            <div className="social-login">
-              <p>또는 소셜 계정으로 로그인</p>
-              <button className="social-btn">
-                <img
-                  src="https://img.icons8.com/color/16/000000/google-logo.png"
-                  alt="Google"
-                />
-                Google 계정으로 로그인
-              </button>
-            </div>
+        <input
+          type="text"
+          placeholder="아이디 (예: admin / hyeon)"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          style={{
+            width: "100%",
+            padding: "12px",
+            border: "1px solid #d1d5db",
+            borderRadius: "6px",
+            boxSizing: "border-box",
+            fontSize: "16px",
+            marginBottom: "16px",
+          }}
+        />
+        <input
+          type="password"
+          placeholder="비밀번호 (예: 1234)"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          style={{
+            width: "100%",
+            padding: "12px",
+            border: "1px solid #d1d5db",
+            borderRadius: "6px",
+            boxSizing: "border-box",
+            fontSize: "16px",
+            marginBottom: "25px",
+          }}
+        />
 
-            <div className="links">
-              <a href="/forgot-password">비밀번호 찾기</a>|
-              <a href="/register">회원가입</a>
-            </div>
-          </div>
+        <button
+          ref={draggableButtonRef}
+          draggable={isFormFilled}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          style={buttonStyle}
+        >
+          {isDropped
+            ? "환영합니다!"
+            : isFormFilled
+            ? "↓ 아래로 드롭하여 로그인"
+            : "아이디와 비밀번호를 입력하세요"}
+        </button>
+
+        <div
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+          style={dropzoneStyle}
+        >
+          {isDropped ? "로그인 성공!" : "이곳에 버튼을 놓으세요"}
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
