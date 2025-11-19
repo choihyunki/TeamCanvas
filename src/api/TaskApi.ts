@@ -1,4 +1,4 @@
-import axiosInstance from "./AxiosInstance";
+import axiosInstance from "./axiosInstance";
 
 export const getTasksByProject = async (projectId: number) => {
   const res = await axiosInstance.get(`/api/tasks/project/${projectId}`);

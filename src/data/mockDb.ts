@@ -37,7 +37,7 @@ export interface ProjectRecord {
 }
 
 // 🔹 데모용 유저 데이터
-const users: User[] = [
+export const users: User[] = [
   { id: 1, username: "admin", password: "1234", name: "관리자" },
   { id: 2, username: "hyeonki", password: "1234", name: "현기" },
   { id: 3, username: "gunil", password: "1234", name: "건일" },

@@ -9,12 +9,12 @@ import {
 import MainPage from "./pages/Main";
 import ProjectPage from "./pages/Project";
 import LoginPage from "./pages/Login";
+import SignupPage from "./pages/Signup";
 
 import HelpPage from "./pages/Help";
 import ContactPage from "./pages/Contact";
 import TermsPage from "./pages/Terms";
 import PrivacyPage from "./pages/Privacy";
-import Signup from "./pages/Signup";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -33,6 +33,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
 
           <Route
             path="/main"
