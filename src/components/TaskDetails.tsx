@@ -113,47 +113,25 @@ const TaskDetails: React.FC<Props> = ({
         </div>
       </section>
 
-      {/* 역할 / 칼럼 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>담당 역할</h3>
+      <section style={{ marginBottom: 30 }}>
+        <h3 style={{ marginBottom: 5 }}>해당 역할</h3>
         <div
           style={{
-            padding: "8px",
+            padding: 10,
+            background: "#f9fafb",
             borderRadius: 6,
             border: "1px solid #ddd",
-            background: "#f9fafb",
           }}
         >
-          {taskColumn ? taskColumn.name : "역할 없음"}
+          {taskColumn ? taskColumn.name : "없음"}
         </div>
       </section>
 
-      {/* 상태 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>작업 상태</h3>
-        <select
-          value={localStatus}
-          onChange={(e) => setLocalStatus(e.target.value)}
-          style={{
-            padding: "8px",
-            borderRadius: 6,
-            border: "1px solid #ddd",
-            minWidth: "160px",
-          }}
-        >
-          <option value="">상태 선택</option>
-          <option value="대기">대기</option>
-          <option value="진행중">진행중</option>
-          <option value="완료">완료</option>
-        </select>
-      </section>
-
-      {/* 참여중인 멤버 */}
-      <section style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 5 }}>참여중인 멤버</h3>
+      <section style={{ marginBottom: 30 }}>
+        <h3 style={{ marginBottom: 8 }}>참여중인 멤버</h3>
 
         {task.members.length === 0 ? (
-          <p style={{ color: "#6b7280" }}>아직 참여한 멤버가 없습니다.</p>
+          <p style={{ color: "#666" }}>아직 참여한 멤버가 없습니다.</p>
         ) : (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {task.members.map((name) => (

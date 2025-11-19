@@ -1,11 +1,11 @@
-import React from "react";
-import { Link } from "react-router-dom"; // Link 컴포넌트 사용
+// src/components/SlideoutSidebar.tsx
 
-// 임시 데이터 타입
-interface Project {
-  id: number;
-  name: string;
-}
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/index.css";
+import { createProjectForUser } from "../data/mockDb";
+import { useAuth } from "../context/AuthContext";
+
 interface Friend {
   id: number;
   name: string;
@@ -15,93 +15,101 @@ interface Friend {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  projects: Project[];
+  projects: { id: number; name: string }[];
   friends: Friend[];
 }
 
-const SlideoutSidebar: React.FC<Props> = ({ isOpen, onClose, projects, friends }) => {
+const SlideoutSidebar: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  projects,
+  friends,
+}) => {
+  const navigate = useNavigate();
+  const { token } = useAuth(); // 현재 로그인 username
+
+  const [newProjectName, setNewProjectName] = useState("");
+
+  // 🔥 프로젝트 클릭 → 해당 프로젝트로 이동
+  const handleProjectClick = (id: number) => {
+    navigate(`/project/${id}`);
+    onClose();
+  };
+
+  // 🔥 프로젝트 생성 (mockDb 기반)
+  const handleCreateProject = () => {
+    if (!newProjectName.trim()) return;
+
+    const project = createProjectForUser(token!, newProjectName.trim());
+    alert("프로젝트가 생성되었습니다!");
+
+    setNewProjectName("");
+    navigate(`/project/${project.id}`);
+    onClose();
+  };
+
   return (
-    <>
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "280px",
-          height: "100%",
-          backgroundColor: "#fff",
-          boxShadow: "2px 0 8px rgba(0,0,0,0.15)",
-          transform: isOpen ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.3s ease-in-out",
-          zIndex: 101, 
-          display: "flex",
-          flexDirection: "column",
-          padding: "20px",
-          boxSizing: "border-box",
-        }}
-      >
-        <button
-          onClick={onClose}
-          aria-label="메뉴 닫기"
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '20px',
-            background: 'none',
-            border: 'none',
-            fontSize: '1.5rem', 
-            color: '#555',
-            cursor: 'pointer',
-            padding: 0,
-            lineHeight: 1,
-          }}
-        >
-          &#9776; 
+    <div
+      className="slideout-sidebar"
+      style={{
+        transform: isOpen ? "translateX(0)" : "translateX(-280px)",
+      }}
+    >
+      <div className="sidebar-header">
+        <h3>프로젝트 & 친구</h3>
+        <button className="close-btn" onClick={onClose}>
+          ✕
         </button>
-
-        <h2 style={{ marginTop: 0, borderBottom: '1px solid #eee', paddingBottom: '15px', textAlign: 'center' }}>
-          내 워크스페이스
-        </h2>
-
-        {/* 내 프로젝트 목록 */}
-        <div style={{ marginBottom: '30px' }}>
-          <h3 style={{ fontSize: '16px', color: '#555' }}>내 프로젝트</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {projects.map(proj => (
-              <Link to={`/project/${proj.id}`} key={proj.id} style={{ textDecoration: 'none', color: '#333', padding: '8px 12px', borderRadius: '6px', background: '#f4f4f5', transition: 'background 0.2s' }}
-                onClick={onClose}
-              >
-                {proj.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-
-        {/* 내 친구 목록 (드래그 가능) */}
-        <div>
-          <h3 style={{ fontSize: '16px', color: '#555' }}>친구 목록</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {friends.map(friend => (
-              <div
-                key={friend.id}
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("text/plain", friend.id.toString());
-                  e.dataTransfer.setData("friendId", friend.id.toString());
-                  e.dataTransfer.setData("friendName", friend.name);
-                }}
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'grab', padding: '8px', borderRadius: '8px', background: '#eef2ff' }}
-              >
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: '#c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
-                  {friend.avatarInitial}
-                </div>
-                <span>{friend.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-    </>
+
+      {/* 🔥 내 프로젝트 목록 */}
+      <section className="sidebar-section">
+        <h4>내 프로젝트</h4>
+
+        {projects.length === 0 ? (
+          <p>아직 생성된 프로젝트가 없습니다.</p>
+        ) : (
+          <ul className="sidebar-list">
+            {projects.map((p) => (
+              <li
+                key={p.id}
+                className="sidebar-item"
+                onClick={() => handleProjectClick(p.id)}
+              >
+                📁 {p.name}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* 🔥 프로젝트 생성 */}
+        <div className="create-project-area">
+          <input
+            placeholder="새 프로젝트 이름"
+            value={newProjectName}
+            onChange={(e) => setNewProjectName(e.target.value)}
+            className="sidebar-input"
+          />
+          <button className="sidebar-btn" onClick={handleCreateProject}>
+            + 프로젝트 생성
+          </button>
+        </div>
+      </section>
+
+      {/* 🔥 친구 목록 */}
+      <section className="sidebar-section">
+        <h4>친구 목록</h4>
+
+        <ul className="sidebar-list">
+          {friends.map((f) => (
+            <li key={f.id} className="sidebar-item friend-item">
+              <div className="friend-avatar">{f.avatarInitial}</div>
+              <span>{f.name}</span>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
   );
 };
 
