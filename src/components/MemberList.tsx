@@ -1,8 +1,7 @@
-// src/components/MemberList.tsx
-
 import React from "react";
 import { Member } from "../types/Member";
 import styles from "../styles/MemberList.module.css";
+import MemberCard from "./MemberCard"; // 🔥 컴포넌트 import 필수!
 
 interface Props {
   members: Member[];
@@ -37,19 +36,12 @@ const MemberList: React.FC<Props> = ({
 
         {members.map((m) => (
           <li key={m.id} className={styles.cardWrapper}>
-            {/* 🔥 인라인 스타일 제거하고 CSS 클래스 적용 */}
-            <div className={styles.memberCard}>
-              <div className={styles.avatar}>{m.name.charAt(0)}</div>
-              <span className={styles.memberName}>{m.name}</span>
-
-              <button
-                className={styles.deleteButton}
-                onClick={() => onDeleteMember(m.id)}
-                title="멤버 삭제"
-              >
-                ✕
-              </button>
-            </div>
+            {/* 🔥 중요: 직접 div를 그리지 않고, 드래그 기능이 있는 MemberCard 컴포넌트를 사용합니다 */}
+            <MemberCard
+              member={m}
+              onDelete={onDeleteMember}
+              showDelete={true}
+            />
           </li>
         ))}
       </ul>
