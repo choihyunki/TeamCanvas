@@ -537,7 +537,13 @@ const Project: React.FC = () => {
               />
             )}
             {activeTab === "taskDetails" && (
-              <TaskDetails columns={columns} members={members} />
+              <TaskDetails
+                columns={columns}
+                members={members}
+                tasks={tasks}
+                selectedTaskId={selectedTaskId}
+                onUpdateTask={handleUpdateTask}
+              />
             )}
             {activeTab === "schedule" && <Schedule />}
           </div>
