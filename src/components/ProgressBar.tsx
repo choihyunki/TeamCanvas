@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import { Task } from "../types/Task";
+import "../styles/ProgressBar.css"; // CSS import
 
 interface Props {
   tasks: Task[];
@@ -27,30 +28,17 @@ const ProgressBar: React.FC<Props> = ({ tasks }) => {
   }, [tasks]);
 
   return (
-    <div style={{ padding: "15px" }}>
-      <h3 style={{ marginBottom: 10 }}>프로젝트 진행률</h3>
+    <div className="progress-container">
+      <h3 className="progress-title">프로젝트 진행률</h3>
 
-      <div
-        style={{
-          width: "100%",
-          height: "14px",
-          borderRadius: "7px",
-          background: "#e5e7eb",
-          overflow: "hidden",
-          marginBottom: 8,
-        }}
-      >
+      <div className="progress-track">
         <div
-          style={{
-            width: `${percent}%`,
-            height: "100%",
-            background: "#4f46e5",
-            transition: "0.3s",
-          }}
+          className="progress-fill"
+          style={{ width: `${percent}%` }} // 동적 값은 인라인 유지
         />
       </div>
 
-      <div style={{ fontSize: 14, color: "#4b5563" }}>
+      <div className="progress-text">
         {completed} / {total} 완료 ({percent}%)
       </div>
     </div>

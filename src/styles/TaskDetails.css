@@ -1,0 +1,97 @@
+.task-details-container {
+  padding: 20px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.task-details-title {
+  margin-bottom: 15px;
+}
+
+.details-section {
+  margin-bottom: 20px;
+}
+
+.section-label {
+  margin-bottom: 5px;
+  font-size: 1.1em;
+}
+
+.info-box {
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #fff;
+  font-weight: bold;
+}
+
+.role-box {
+  padding: 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.member-list-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.member-tag {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.add-member-btn {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: none;
+  background: #4f46e5;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.description-area,
+.memo-area {
+  width: 100%;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.description-area {
+  min-height: 100px;
+}
+
+.memo-area {
+  min-height: 80px;
+}
+
+.save-btn {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: none;
+  background: #10b981;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.save-btn:hover {
+  background: #059669;
+}
+
+.empty-message {
+  padding: 20px;
+  color: #666;
+}

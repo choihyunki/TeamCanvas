@@ -1,12 +1,12 @@
-// src/pages/Signup.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import UserService from "../services/UserService";
 import { useAuth } from "../context/AuthContext";
+import "../styles/Auth.css"; // CSS import
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
-  const { login } = useAuth(); // 회원가입 후 자동 로그인에 사용
+  const { login } = useAuth();
 
   const [form, setForm] = useState({
     username: "",
@@ -34,64 +34,58 @@ const Signup: React.FC = () => {
     try {
       // 1) mockDb에 사용자 생성
       const newUser = UserService.register(username, password, name);
-
-      // 2) 회원가입 후 자동 로그인처리
+      // 2) 자동 로그인
       login(newUser.username);
-
-      // 3) 메인 화면으로 이동
-      navigate("/");
+      // 3) 메인 이동
+      navigate("/main");
     } catch (err: any) {
       setError(err.message || "회원가입 실패");
     }
   };
 
   return (
-    <div style={{ maxWidth: "420px", margin: "60px auto" }}>
-      <h2 style={{ marginBottom: "20px" }}>회원가입</h2>
+    <div className="auth-container">
+      <h2 className="auth-title">회원가입</h2>
 
-      {error && <p style={{ color: "red", marginBottom: "10px" }}>{error}</p>}
+      {error && <p className="auth-error">{error}</p>}
 
-      <form onSubmit={handleSubmit}>
-        <label>이름</label>
-        <input
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          style={{ width: "100%", padding: 10, marginBottom: 15 }}
-        />
+      <form className="auth-form" onSubmit={handleSubmit}>
+        <div>
+          <label className="auth-label">이름</label>
+          <input
+            className="auth-input"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="실명을 입력하세요"
+          />
+        </div>
 
-        <label>아이디</label>
-        <input
-          name="username"
-          value={form.username}
-          onChange={handleChange}
-          style={{ width: "100%", padding: 10, marginBottom: 15 }}
-        />
+        <div>
+          <label className="auth-label">아이디</label>
+          <input
+            className="auth-input"
+            name="username"
+            value={form.username}
+            onChange={handleChange}
+            placeholder="사용할 아이디"
+          />
+        </div>
 
-        <label>비밀번호</label>
-        <input
-          type="password"
-          name="password"
-          value={form.password}
-          onChange={handleChange}
-          style={{ width: "100%", padding: 10, marginBottom: 25 }}
-        />
+        <div>
+          <label className="auth-label">비밀번호</label>
+          <input
+            type="password"
+            className="auth-input"
+            name="password"
+            value={form.password}
+            onChange={handleChange}
+            placeholder="비밀번호"
+          />
+        </div>
 
-        <button
-          type="submit"
-          style={{
-            width: "100%",
-            padding: 12,
-            background: "#4f46e5",
-            color: "white",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontSize: 16,
-            fontWeight: "bold",
-          }}
-        >
-          회원가입
+        <button type="submit" className="auth-button">
+          가입하기
         </button>
       </form>
     </div>
