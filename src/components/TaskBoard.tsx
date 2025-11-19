@@ -7,7 +7,7 @@ import "../styles/TaskBoard.css";
 interface Props {
   columns: RoleColumn[];
   members: Member[];
-  tasks: Task[];
+  tasks: Task[]; // (에러 방지용 유지)
   onAddColumn: (name: string) => void;
   onDeleteColumn: (columnId: number) => void;
   onAddMemberToColumn: (columnId: number, memberId: number) => void;
@@ -26,18 +26,19 @@ interface Props {
   ) => void;
   onAddTask: (columnId: number, title: string) => void;
   onSelectTask: (taskId: number) => void;
+
+  // 🔥 [핵심] 컬럼(보드)에 멤버를 드롭했을 때 실행되는 함수
+  onDropMemberOnColumn: (columnId: number, memberId: number) => void;
 }
 
 const TaskBoard: React.FC<Props> = ({
   columns,
   members,
-  tasks,
   onAddColumn,
   onDeleteColumn,
   onAddMemberToColumn,
   onDeleteMember,
-  onAddTask,
-  onSelectTask,
+  onDropMemberOnColumn, // Project.tsx에서 내려받은 핸들러
 }) => {
   const [newColumnName, setNewColumnName] = useState("");
 
@@ -47,84 +48,125 @@ const TaskBoard: React.FC<Props> = ({
     setNewColumnName("");
   };
 
-  const handleAddTaskClick = (columnId: number) => {
-    const title = prompt("추가할 작업명:");
-    if (!title) return;
-    onAddTask(columnId, title);
+  // 1. 드래그 오버 허용
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  // 2. 드롭 이벤트 처리 (컬럼 ID와 멤버 ID를 매칭)
+  const handleDropOnColumn = (e: React.DragEvent, columnId: number) => {
+    e.preventDefault();
+    const memberIdStr = e.dataTransfer.getData("memberId");
+
+    if (!memberIdStr) return; // 멤버 카드가 아니면 무시
+
+    const memberId = parseInt(memberIdStr, 10);
+    onDropMemberOnColumn(columnId, memberId);
   };
 
   return (
     <div className="taskboard">
       <div className="columns-container">
         {columns.map((col) => (
-          <div key={col.id} className="column">
+          <div
+            key={col.id}
+            className="column"
+            // 🔥 [핵심] 컬럼 전체를 드롭 구역으로 설정
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropOnColumn(e, col.id)}
+            style={{
+              minHeight: "300px",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* --- 헤더 영역 --- */}
             <div className="column-header">
               <h3 style={{ margin: 0, fontSize: 16 }}>{col.name}</h3>
-              <div className="taskboard-header-actions">
-                <button
-                  className="task-btn small"
-                  onClick={() => handleAddTaskClick(col.id)}
-                >
-                  + 작업
-                </button>
-                <button
-                  className="task-btn small red"
-                  onClick={() => onDeleteColumn(col.id)}
-                >
-                  삭제
-                </button>
-              </div>
+              <button
+                className="task-btn small red"
+                onClick={() => onDeleteColumn(col.id)}
+              >
+                삭제
+              </button>
             </div>
 
-            {/* 작업 리스트 */}
-            <div className="task-items">
-              {tasks
-                .filter((t) => t.columnId === col.id)
-                .map((task) => (
-                  <div
-                    key={task.id}
-                    className="task-item"
-                    onClick={() => onSelectTask(task.id)}
-                  >
-                    <strong>{task.title}</strong>
-                    {task.members.length > 0 && (
-                      <div className="task-members">
-                        {task.members.map((m) => (
-                          <span key={m} className="task-member-tag">
-                            {m}
+            {/* 🗑️ [삭제됨] 복잡했던 '작업 리스트(Task Items)' 렌더링 부분 제거 완료 */}
+
+            {/* --- 멤버 리스트 영역 (여기가 메인) --- */}
+            <div className="taskboard-members" style={{ flex: 1 }}>
+              <h4 style={{ marginTop: 15, marginBottom: 10, color: "#666" }}>
+                배정된 멤버
+              </h4>
+
+              {col.members.length === 0 ? (
+                <div
+                  style={{
+                    padding: "30px 0",
+                    color: "#aaa",
+                    fontSize: "13px",
+                    textAlign: "center",
+                    border: "2px dashed #e5e7eb",
+                    borderRadius: "8px",
+                    backgroundColor: "#f9fafb",
+                  }}
+                >
+                  왼쪽에서 멤버를
+                  <br />
+                  이곳으로 드래그하세요
+                </div>
+              ) : (
+                <ul style={{ padding: 0, listStyle: "none" }}>
+                  {col.members.map((m) => {
+                    const memberInfo = members.find((mm) => mm.id === m.id);
+                    if (!memberInfo) return null;
+                    return (
+                      <li key={m.id} className="member-item-row">
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          {/* 아바타 */}
+                          <div
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "50%",
+                              background: "#4f46e5",
+                              color: "white",
+                              display: "flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              fontSize: 12,
+                              fontWeight: "bold",
+                            }}
+                          >
+                            {memberInfo.name[0]}
+                          </div>
+                          <span style={{ fontSize: 14, fontWeight: 500 }}>
+                            {memberInfo.name}
                           </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-            </div>
+                        </div>
+                        <button
+                          className="edit-btn"
+                          style={{ color: "#ef4444", fontWeight: "bold" }}
+                          onClick={() => onDeleteMember(col.id, m.id)}
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
 
-            {/* 멤버 리스트 (역할 배정) */}
-            <div className="taskboard-members">
-              <h4>역할 멤버</h4>
-              <ul style={{ padding: 0, listStyle: "none" }}>
-                {col.members.map((m) => {
-                  const memberInfo = members.find((mm) => mm.id === m.id);
-                  if (!memberInfo) return null;
-                  return (
-                    <li key={m.id} className="member-item-row">
-                      <span>{memberInfo.name}</span>
-                      <button
-                        className="edit-btn red"
-                        style={{ color: "red" }}
-                        onClick={() => onDeleteMember(col.id, m.id)}
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-
+              {/* (선택사항) 버튼으로 멤버 추가하는 기능은 유지 */}
               <button
                 className="task-btn"
-                style={{ width: "100%", marginTop: 10 }}
+                style={{ width: "100%", marginTop: "auto" }}
                 onClick={() => {
                   const idStr = prompt(
                     "추가할 멤버 선택 (ID):\n" +
@@ -135,33 +177,38 @@ const TaskBoard: React.FC<Props> = ({
                   onAddMemberToColumn(col.id, id);
                 }}
               >
-                + 멤버 배정
+                + 멤버 직접 배정
               </button>
             </div>
           </div>
         ))}
 
-        {/* 역할 추가 */}
-        <div className="column empty-column" style={{ display: "block" }}>
-          <div style={{ marginBottom: 10, fontWeight: "bold" }}>새 역할</div>
+        {/* --- 새 역할(보드) 추가 영역 --- */}
+        <div
+          className="column empty-column"
+          style={{ display: "block", minHeight: "fit-content" }}
+        >
+          <div style={{ marginBottom: 10, fontWeight: "bold", color: "#444" }}>
+            새 작업 보드
+          </div>
           <input
             value={newColumnName}
             onChange={(e) => setNewColumnName(e.target.value)}
-            placeholder="역할 이름 입력"
+            placeholder="보드 이름 (예: 디자인)"
             style={{
               width: "100%",
-              padding: 8,
-              marginBottom: 8,
-              borderRadius: 6,
+              padding: "10px",
+              marginBottom: "10px",
+              borderRadius: "6px",
               border: "1px solid #ddd",
             }}
           />
           <button
             className="task-btn"
-            style={{ width: "100%" }}
+            style={{ width: "100%", padding: "10px" }}
             onClick={handleAddColumnClick}
           >
-            + 역할 추가
+            + 보드 생성
           </button>
         </div>
       </div>

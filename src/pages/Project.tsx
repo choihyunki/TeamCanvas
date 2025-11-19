@@ -23,7 +23,7 @@ import {
   removeMemberFromProject,
 } from "../data/mockDb";
 
-import "../styles/Project.css"; // CSS import
+import "../styles/Project.css";
 
 interface Friend {
   id: number;
@@ -41,7 +41,7 @@ const Project: React.FC = () => {
 
   // --- 상태 관리 ---
   const [members, setMembers] = useState<Member[]>([]);
-  const [columns, setColumns] = useState<RoleColumn[]>([]);
+  const [columns, setColumns] = useState<RoleColumn[]>([]); // 🔥 초기값 빈 배열
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
@@ -55,8 +55,7 @@ const Project: React.FC = () => {
   );
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
-  // const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false); // 필요시 사용
-  const isRightSidebarCollapsed = false; // 지금은 항상 열림으로 둠
+  const isRightSidebarCollapsed = false;
 
   const [activeTab, setActiveTab] = useState("taskBoard");
 
@@ -64,64 +63,242 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // ... (핸들러 함수들은 이전과 동일하므로 생략하거나,
-  //      아까 보내주신 코드에서 로직 부분만 그대로 유지해주세요.
-  //      여기서는 CSS 적용을 위한 return 부분 위주로 보여드립니다.)
+  // --- Handlers ---
 
-  // (핸들러 로직 생략: handleAddMember, handleDeleteMember, handleAddColumn 등...
-  //  위에서 완성해드린 로직 그대로 사용하시면 됩니다.)
+  const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
+    // 1. 드롭된 멤버 정보 찾기
+    const member = members.find((m) => m.id === memberId);
+    if (!member) return;
 
-  // 👇 간략화를 위해 핸들러 로직 부분은 "..." 으로 표시했습니다.
-  // 실제 파일엔 아까 수정한 로직을 그대로 두세요!
-  const handleAddMember = () => {
-    /* ... */
+    // 2. 해당 컬럼(작업 보드) 찾기
+    const targetColumn = columns.find((col) => col.id === columnId);
+    if (!targetColumn) return;
+
+    // 3. 중복 체크 (이미 해당 보드에 있는 멤버인지)
+    if (targetColumn.members.some((m) => m.id === memberId)) {
+      alert(`${member.name}님은 이미 이 작업 보드에 배정되어 있습니다.`);
+      return;
+    }
+
+    // 4. 컬럼 상태 업데이트 (멤버 추가)
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: [...col.members, { id: memberId, status: "작업전" }],
+            }
+          : col
+      )
+    );
   };
-  const handleDeleteMember = (id: number) => {
-    /* ... */
-  };
-  const handleAddColumn = (name: string) => {
-    /* ... */
-  };
-  const handleDeleteColumn = (id: number) => {
-    /* ... */
-  };
-  const handleAddMemberToColumn = (cid: number, mid: number) => {
-    /* ... */
-  };
-  const handleDeleteMemberFromColumn = (cid: number, mid: number) => {
-    /* ... */
-  };
+
   const handleInviteFriendToColumn = (
-    cid: number,
-    fid: string,
-    fname: string
+    columnId: number,
+    friendId: string,
+    friendName: string
   ) => {
-    /* ... */
+    const id = parseInt(friendId, 10);
+    const isAlreadyMember = members.some((member) => member.id === id);
+    const targetColumn = columns.find((col) => col.id === columnId);
+    const isAlreadyInThisColumn = targetColumn?.members.some(
+      (m) => m.id === id
+    );
+
+    if (isAlreadyInThisColumn) {
+      alert("이 역할에는 이미 배정된 멤버입니다.");
+      return;
+    }
+
+    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
+      if (!isAlreadyMember) {
+        const newMember: Member = {
+          id,
+          name: friendName,
+          isOnline: false,
+          role: "팀원",
+        };
+        setMembers((prev) => [...prev, newMember]);
+      }
+      if (numericProjectId !== null) {
+        addMemberToProject(numericProjectId, friendName);
+      }
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === columnId
+            ? { ...col, members: [...col.members, { id, status: "작업전" }] }
+            : col
+        )
+      );
+    }
   };
+
+  const handleAddMember = () => {
+    const newName = prompt("새 멤버의 이름을 입력하세요:");
+    if (!newName) return;
+
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    const newMember: Member = {
+      id: new Date().getTime(),
+      name: trimmed,
+      isOnline: true,
+    };
+
+    setMembers((prevMembers) => [...prevMembers, newMember]);
+
+    if (numericProjectId !== null) {
+      addMemberToProject(numericProjectId, trimmed);
+    }
+  };
+
+  const handleDeleteMember = (memberId: number) => {
+    if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
+
+    const target = members.find((m) => m.id === memberId);
+    if (target && numericProjectId !== null) {
+      removeMemberFromProject(numericProjectId, target.name);
+    }
+
+    setMembers((prevMembers) =>
+      prevMembers.filter((member) => member.id !== memberId)
+    );
+  };
+
+  const handleAddColumn = (columnName: string) => {
+    const newColumn: RoleColumn = {
+      id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
+      name: columnName,
+      members: [],
+    };
+    setColumns([...columns, newColumn]);
+  };
+
+  const handleDeleteColumn = (columnId: number) => {
+    setColumns((prev) => prev.filter((col) => col.id !== columnId));
+  };
+
+  const handleAddMemberToColumn = (columnId: number, memberId: number) => {
+    const destinationColumn = columns.find((col) => col.id === columnId);
+    if (!destinationColumn) return;
+    const isAlreadyInThisColumn = destinationColumn.members.some(
+      (m) => m.id === memberId
+    );
+    if (isAlreadyInThisColumn) {
+      alert("이 역할에는 이미 배정된 멤버입니다.");
+      return;
+    }
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: [...col.members, { id: memberId, status: "작업전" }],
+            }
+          : col
+      )
+    );
+  };
+
   const handleMoveMemberBetweenColumns = (
-    mid: number,
-    from: number,
-    to: number
+    memberId: number,
+    sourceColumnId: number,
+    destinationColumnId: number
   ) => {
-    /* ... */
+    if (sourceColumnId === destinationColumnId) return;
+    let memberToMove: ProjectMember | undefined;
+    const columnsAfterRemoval = columns.map((col) => {
+      if (col.id === sourceColumnId) {
+        memberToMove = col.members.find((m) => m.id === memberId);
+        return {
+          ...col,
+          members: col.members.filter((m) => m.id !== memberId),
+        };
+      }
+      return col;
+    });
+    if (memberToMove) {
+      const columnsAfterAddition = columnsAfterRemoval.map((col) => {
+        if (col.id === destinationColumnId) {
+          return { ...col, members: [...col.members, memberToMove!] };
+        }
+        return col;
+      });
+      setColumns(columnsAfterAddition);
+    }
   };
-  const handleUpdateMemberStatus = (cid: number, mid: number, st: string) => {
-    /* ... */
+
+  const handleUpdateMemberStatus = (
+    columnId: number,
+    memberId: number,
+    status: string
+  ) => {
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: col.members.map((m) =>
+                m.id === memberId ? { ...m, status } : m
+              ),
+            }
+          : col
+      )
+    );
   };
-  const handleUpdateMemberMemo = (cid: number, mid: number, memo: string) => {
-    /* ... */
+
+  const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
+          : col
+      )
+    );
   };
-  const handleAddTask = (cid: number, title: string) => {
-    /* ... */
+
+  const handleUpdateMemberMemo = (
+    columnId: number,
+    memberId: number,
+    memo: string
+  ) => {
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: col.members.map((m) =>
+                m.id === memberId ? { ...m, memo } : m
+              ),
+            }
+          : col
+      )
+    );
   };
+
+  const handleAddTask = (columnId: number, title: string) => {
+    const newTask: Task = {
+      id: Date.now(),
+      title,
+      description: "",
+      columnId,
+      members: [],
+    };
+    setTasks((prev) => [...prev, newTask]);
+  };
+
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
+
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
 
+  // --- 초기 데이터 로드 ---
   useEffect(() => {
     if (!token) return;
     const myList = getProjectsForUser(token);
@@ -138,14 +315,10 @@ const Project: React.FC = () => {
             isOnline: true,
           }))
         );
-        if (columns.length === 0) {
-          // 초기화 방지용 체크
-          setColumns([
-            { id: 101, name: "기획", members: [] },
-            { id: 102, name: "개발", members: [] },
-            { id: 103, name: "테스트", members: [] },
-          ]);
-        }
+
+        // 🔥 [수정] 기본 컬럼("기획", "개발" 등)을 강제로 넣는 코드 삭제
+        // 이제 columns 상태는 빈 배열([])로 시작합니다.
+        // 사용자가 UI에서 직접 '새 역할'을 추가해야 합니다.
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -164,7 +337,7 @@ const Project: React.FC = () => {
 
       <div
         className="workspace-container"
-        style={{ marginLeft: isSlideoutOpen ? 280 : 0 }} // Slideout은 transform이라 마진 조정 필요
+        style={{ marginLeft: isSlideoutOpen ? 280 : 0 }}
       >
         {/* 왼쪽 사이드바 */}
         <aside
@@ -220,8 +393,11 @@ const Project: React.FC = () => {
                 onDeleteMember={handleDeleteMemberFromColumn}
                 onUpdateMemberMemo={handleUpdateMemberMemo}
                 onInviteFriend={handleInviteFriendToColumn}
-                onAddTask={handleAddTask}
+                // onAddTask={handleAddTask} // 👈 이제 작업 추가 안 하므로 필요 없거나 더미 함수 전달
+                onAddTask={() => {}}
                 onSelectTask={handleSelectTask}
+                // 🔥 [변경] Task 드롭 핸들러 대신 -> Column 드롭 핸들러 전달
+                onDropMemberOnColumn={handleDropMemberOnColumn}
               />
             )}
             {activeTab === "taskDetails" && (
