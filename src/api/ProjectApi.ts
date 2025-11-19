@@ -1,4 +1,4 @@
-import axiosInstance from "./AxiosInstance";
+import axiosInstance from "./axiosInstance";
 
 export const getMyProjects = async () => {
   const res = await axiosInstance.get("/api/projects/my");

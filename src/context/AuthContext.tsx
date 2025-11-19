@@ -1,81 +1,66 @@
-import React, {
-  createContext,
-  useState,
-  useContext,
-  ReactNode,
-  useEffect,
-} from "react";
+// src/context/AuthContext.tsx
+import React, { createContext, useContext, useState, ReactNode } from "react";
 
-// ✅ Context 타입 정의
-export interface AuthContextType {
-  isAuthenticated: boolean;
-  token: string | null;
-  userName: string | null;
-  login: (token: string, userName?: string) => void;
-  logout: () => void;
+// --- 컨텍스트에서 제공할 값 타입 ---
+interface AuthContextType {
+  isAuthenticated: boolean; // 로그인 여부
+  token: string | null; // 인증 토큰(지금은 단순 문자열)
+  login: (token: string) => void; // 로그인 처리
+  logout: () => void; // 로그아웃 처리
 }
 
-// ✅ Context 생성 (초기값은 null)
+// 컨텍스트 생성
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// ✅ Provider 컴포넌트
+// --- Provider 컴포넌트 ---
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem("token")
-  );
-  const [userName, setUserName] = useState<string | null>(
-    localStorage.getItem("userName")
-  );
-  const [expiresAt, setExpiresAt] = useState<number | null>(
-    Number(localStorage.getItem("expiresAt")) || null
-  );
-
-  // ✅ 유효성 체크
-  const isAuthenticated =
-    !!token && !!expiresAt && new Date().getTime() < expiresAt;
-
-  const login = (newToken: string, newUserName?: string) => {
-    const expirationTime = new Date().getTime() + 24 * 60 * 60 * 1000; // 24시간
-
-    setToken(newToken);
-    if (newUserName) {
-      setUserName(newUserName);
-      localStorage.setItem("userName", newUserName);
+  // 새로고침해도 로그인 유지되도록 localStorage에서 초기값 로드
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem("authToken");
+    } catch {
+      return null;
     }
+  });
 
-    localStorage.setItem("token", newToken);
-    localStorage.setItem("expiresAt", expirationTime.toString());
+  const isAuthenticated = !!token;
+
+  const login = (newToken: string) => {
+    setToken(newToken);
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("authToken", newToken);
+      }
+    } catch {
+      // localStorage 접근 실패해도 앱은 계속 동작하도록 조용히 무시
+    }
   };
 
   const logout = () => {
     setToken(null);
-    setUserName(null);
-    setExpiresAt(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("userName");
-    localStorage.removeItem("expiresAt");
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("authToken");
+      }
+    } catch {
+      // 마찬가지로 에러는 무시
+    }
   };
 
-  // ✅ 만료 시간 감시 (자동 로그아웃)
-  useEffect(() => {
-    if (expiresAt && new Date().getTime() >= expiresAt) {
-      console.warn("JWT 만료됨. 자동 로그아웃 처리");
-      logout();
-    }
-  }, [expiresAt]);
+  const value: AuthContextType = {
+    isAuthenticated,
+    token,
+    login,
+    logout,
+  };
 
-  return (
-    <AuthContext.Provider
-      value={{ isAuthenticated, token, userName, login, logout }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-// ✅ 커스텀 훅 (안전한 Context 접근)
+// --- 커스텀 훅 ---
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (!context) {

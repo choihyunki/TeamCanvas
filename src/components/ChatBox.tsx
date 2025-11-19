@@ -1,210 +1,99 @@
+// src/components/ChatBox.tsx
+
 import React, { useState, useEffect, useRef } from "react";
-import SockJS from "sockjs-client";
-import { Client, IMessage } from "@stomp/stompjs";
 import "../styles/ChatBox.css";
-import axiosInstance from "../api/AxiosInstance";
 
-type Message = UserMessage | SystemMessage | DateSeparator;
-
-interface UserMessage {
-  type: "user";
+interface ChatMessage {
   id: number;
-  user: { name: string; avatarInitial: string };
-  text: string;
-  time: string;
-  isMe: boolean;
-}
-
-interface SystemMessage {
-  type: "system";
-  id: number;
-  text: string;
-}
-
-interface DateSeparator {
-  type: "date";
-  id: number;
-  date: string;
-}
-
-interface ChatMessageResponse {
-  roomId: number;
-  userId: number;
-  userName: string;
+  sender: string;
   message: string;
-  createdAt: string;
+  timestamp: string;
 }
 
-const ChatBox: React.FC<{ roomId: number }> = ({ roomId }) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+interface Props {
+  projectId: number | null;
+}
+
+const ChatBox: React.FC<Props> = ({ projectId }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
-  const messageEndRef = useRef<HTMLDivElement>(null);
-  const clientRef = useRef<Client | null>(null);
+  const chatEndRef = useRef<HTMLDivElement | null>(null);
 
-  const userId = localStorage.getItem("userId") || "0";
-  const userName = localStorage.getItem("userName") || "나";
+  const STORAGE_KEY = projectId ? `chat_project_${projectId}` : "chat_default";
 
-  // ✅ WebSocket + 초기 메시지 로딩
+  // 🔥 프로젝트별 채팅 로드
   useEffect(() => {
-    if (!roomId) return;
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        setMessages(JSON.parse(saved));
+      } catch {
+        setMessages([]);
+      }
+    }
+  }, [STORAGE_KEY]);
 
-    console.log(`💬 Connecting to chat room: ${roomId}`);
+  // 🔥 메시지 보내기
+  const sendMessage = () => {
+    if (!input.trim()) return;
 
-    axiosInstance
-      .get(`/api/chat/${roomId}/messages`)
-      .then((res) => {
-        const formatted = res.data.map((m: ChatMessageResponse) => ({
-          type: "user" as const,
-          id: Date.now() + Math.random(),
-          user: { name: m.userName, avatarInitial: m.userName.charAt(0) },
-          text: m.message,
-          time: new Date(m.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          isMe: m.userId.toString() === userId,
-        }));
-        setMessages(formatted);
-      })
-      .catch((err) => console.error("⚠️ 메시지 불러오기 실패:", err));
-
-    // WebSocket 연결 설정
-    const socket = new SockJS("http://localhost:8080/ws-chat");
-    const client = new Client({
-      webSocketFactory: () => socket as any,
-      reconnectDelay: 5000,
-      onConnect: () => {
-        console.log("✅ WebSocket connected:", roomId);
-
-        // 방 구독
-        client.subscribe(`/topic/room.${roomId}`, (msg: IMessage) => {
-          const body: ChatMessageResponse = JSON.parse(msg.body);
-          const newMessage: UserMessage = {
-            type: "user",
-            id: Date.now(),
-            user: {
-              name: body.userName,
-              avatarInitial: body.userName.charAt(0),
-            },
-            text: body.message,
-            time: new Date(body.createdAt).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            isMe: body.userId.toString() === userId,
-          };
-          setMessages((prev) => [...prev, newMessage]);
-        });
-      },
-      onStompError: (frame) => {
-        console.error("❌ STOMP error:", frame.headers["message"]);
-      },
-    });
-
-    client.activate();
-    clientRef.current = client;
-
-    return () => {
-      console.log("🔌 Disconnecting from chat room");
-      client.deactivate();
-    };
-  }, [roomId]);
-
-  // ✅ 스크롤 자동 이동
-  useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // ✅ 메시지 전송
-  const handleSend = () => {
-    if (!input.trim() || !clientRef.current?.connected) return;
-
-    const payload = {
-      roomId,
-      userId: Number(userId),
-      userName,
+    const newMsg: ChatMessage = {
+      id: Date.now(),
+      sender: "나", // 로그인 사용자 이름 넣고 싶으면 AuthContext에서 token 가져와도 됨
       message: input.trim(),
+      timestamp: new Date().toLocaleTimeString(),
     };
 
-    clientRef.current.publish({
-      destination: "/app/chat.send",
-      body: JSON.stringify(payload),
-    });
+    const updated = [...messages, newMsg];
+
+    setMessages(updated);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); // 🔥 저장
 
     setInput("");
+    scrollToBottom();
   };
 
+  // Enter로 전송
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") sendMessage();
+  };
+
+  // 🔥 스크롤 아래로 내리기
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   return (
-    <div className="chat-container">
-      {/* 헤더 */}
-      <div className="chat-header">
-        <span className="online-indicator">온라인</span>
-        <h3 className="chat-header-title">팀 채팅</h3>
-        <p className="chat-header-subtitle">
-          #{roomId}번 방 | 실시간으로 팀원들과 소통하세요
-        </p>
+    <div className="chatbox-container">
+      <div className="chatbox-header">프로젝트 채팅</div>
+
+      <div className="chatbox-messages">
+        {messages.map((msg) => (
+          <div key={msg.id} className="chat-message">
+            <div className="chat-sender">{msg.sender}</div>
+            <div className="chat-text">{msg.message}</div>
+            <div className="chat-time">{msg.timestamp}</div>
+          </div>
+        ))}
+        <div ref={chatEndRef} />
       </div>
 
-      {/* 메시지 리스트 */}
-      <div className="message-list">
-        {messages.map((msg) => {
-          switch (msg.type) {
-            case "date":
-              return (
-                <div key={msg.id} className="message-separator">
-                  <span>{msg.date}</span>
-                </div>
-              );
-            case "system":
-              return (
-                <div key={msg.id} className="system-message">
-                  {msg.text}
-                </div>
-              );
-            case "user":
-              return (
-                <div
-                  key={msg.id}
-                  className={`message-row ${msg.isMe ? "is-me" : ""}`}
-                >
-                  <div className="avatar">{msg.user.avatarInitial}</div>
-                  <div className="message-info">
-                    {!msg.isMe && (
-                      <div className="username">{msg.user.name}</div>
-                    )}
-                    <div className="message-content">
-                      <div className="message-bubble">{msg.text}</div>
-                      <div className="timestamp">{msg.time}</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            default:
-              return null;
-          }
-        })}
-        <div ref={messageEndRef} />
-      </div>
-
-      {/* 입력창 */}
-      <div className="input-area">
-        <button className="icon-button">📎</button>
-        <button className="icon-button">🙂</button>
-        <textarea
-          rows={1}
-          placeholder="메시지를 입력하세요..."
-          className="input-field"
+      <div className="chatbox-input-area">
+        <input
+          className="chatbox-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
+          onKeyDown={handleKeyDown}
+          placeholder="메시지를 입력하세요..."
         />
-        <button onClick={handleSend} className="send-button">
-          ➢
+        <button className="chatbox-send-btn" onClick={sendMessage}>
+          전송
         </button>
       </div>
     </div>
