@@ -1,274 +1,63 @@
+// src/pages/Login.tsx
+
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import "../styles/index.css";
 import { useAuth } from "../context/AuthContext";
-import axiosInstance from "../api/AxiosInstance";
-
-const css = `
-  .login-page {
-    display: flex;
-    min-height: 100vh;
-    font-family: 'Arial', sans-serif;
-    overflow: hidden;
-  }
-
-  .branding-panel {
-    width: 50%;
-    background: linear-gradient(-45deg, #4f46e5, #818cf8, #3b82f6, #60a5fa);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    padding: 40px;
-    box-sizing: border-box;
-  }
-
-  .branding-panel img {
-    width: 180px;
-    margin-bottom: 20px;
-  }
-
-  .branding-panel h1 {
-    font-size: 36px;
-    margin-bottom: 10px;
-  }
-
-  .branding-panel p {
-    font-size: 18px;
-    color: rgba(255, 255, 255, 0.9);
-  }
-
-  @keyframes gradientBG {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-
-  .form-panel {
-    width: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #f0f2f5;
-  }
-
-  .form-container {
-    background-color: #fff;
-    padding: 50px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    width: 100%;
-    max-width: 420px;
-    box-sizing: border-box;
-  }
-
-  .form-container h2 {
-    margin-top: 0;
-    margin-bottom: 25px;
-    color: #333;
-    text-align: center;
-    font-size: 28px;
-  }
-
-  .input-group {
-    position: relative;
-    margin-bottom: 25px;
-  }
-
-  .input-field {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    box-sizing: border-box;
-    font-size: 16px;
-    transition: border-color 0.3s, box-shadow 0.3s;
-  }
-
-  .input-field:focus {
-    outline: none;
-    border-color: #4f46e5;
-    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-  }
-
-  .password-toggle-btn {
-    position: absolute;
-    top: 50%;
-    right: 15px;
-    transform: translateY(-50%);
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #888;
-    font-size: 14px;
-  }
-
-  .login-btn {
-    width: 100%;
-    padding: 14px;
-    background-color: #4f46e5;
-    color: #fff;
-    border: none;
-    border-radius: 6px;
-    font-size: 18px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: background-color 0.3s ease;
-  }
-
-  .login-btn:hover {
-    background-color: #4338ca;
-  }
-
-  .social-login {
-    margin-top: 25px;
-    text-align: center;
-  }
-
-  .social-login p {
-      color: #888;
-      margin-bottom: 15px;
-  }
-
-  .social-btn {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      background-color: #fff;
-      cursor: pointer;
-      margin-bottom: 10px;
-      font-size: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      transition: background-color 0.2s;
-  }
-
-  .social-btn:hover {
-      background-color: #f7f7f7;
-  }
-  
-  .links {
-    margin-top: 20px;
-    font-size: 14px;
-    text-align: center;
-  }
-
-  .links a {
-    color: #4f46e5;
-    text-decoration: none;
-    margin: 0 10px;
-  }
-`;
+import { loginUser } from "../data/mockDb";
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
   const { login } = useAuth();
-  const [email, setEmail] = useState("");
+  const navigate = useNavigate();
+
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  // ✅ 백엔드 로그인 연동
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
 
-    try {
-      const response = await axiosInstance.post("/api/users/login", {
-        email,
-        password,
-      });
+    const user = loginUser(username, password);
 
-      const { token } = response.data;
-
-      // ✅ AuthContext에 저장 (24시간 JWT)
-      login(token, email.split("@")[0]);
-      navigate("/main");
-    } catch (err: any) {
-      console.error("로그인 실패:", err);
-      if (err.response?.status === 400) {
-        setError("이메일 또는 비밀번호가 잘못되었습니다.");
-      } else {
-        setError("서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-      }
+    if (!user) {
+      setErrorMsg("아이디 또는 비밀번호가 올바르지 않습니다.");
+      return;
     }
+
+    // 로그인 성공 → 토큰 저장
+    login(user.username);
+
+    navigate("/main");
   };
 
   return (
-    <>
-      <style>{css}</style>
-      <div className="login-page">
-        {/* 왼쪽 DropIn 브랜딩 */}
-        <div className="branding-panel">
-          <img src="/DropInLogo.png" alt="Drop In Logo" />
-          <h1>Drop In</h1>
-          <p>당신의 프로젝트를 한 곳에서, 손쉽게.</p>
-        </div>
+    <div className="login-container">
+      <h1 className="login-title">TeamCanvas 로그인</h1>
 
-        {/* 오른쪽 로그인 폼 */}
-        <div className="form-panel">
-          <div className="form-container">
-            <h2>로그인</h2>
-            <form onSubmit={handleLogin}>
-              <div className="input-group">
-                <input
-                  type="email"
-                  placeholder="이메일"
-                  className="input-field"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="input-group">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="비밀번호"
-                  className="input-field"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="password-toggle-btn"
-                >
-                  {showPassword ? "숨기기" : "보이기"}
-                </button>
-              </div>
-              {error && (
-                <p style={{ color: "red", textAlign: "center" }}>{error}</p>
-              )}
-              <button type="submit" className="login-btn">
-                로그인
-              </button>
-            </form>
+      <form className="login-form" onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="아이디 입력"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="login-input"
+        />
 
-            <div className="social-login">
-              <p>또는 소셜 계정으로 로그인</p>
-              <button className="social-btn">
-                <img
-                  src="https://img.icons8.com/color/16/000000/google-logo.png"
-                  alt="Google"
-                />
-                Google 계정으로 로그인
-              </button>
-            </div>
+        <input
+          type="password"
+          placeholder="비밀번호 입력"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="login-input"
+        />
 
-            <div className="links">
-              <a href="/forgot-password">비밀번호 찾기</a>|
-              <a href="/register">회원가입</a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </>
+        {errorMsg && <p className="login-error">{errorMsg}</p>}
+
+        <button type="submit" className="login-button">
+          로그인
+        </button>
+      </form>
+    </div>
   );
 };
 

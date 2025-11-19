@@ -1,91 +1,90 @@
-import React from "react";
+// src/components/MemberCard.tsx
 
-// ✅ 1. Member 타입에 isOnline 속성 추가
-interface Member {
-  id: number;
-  name: string;
-  role?: string;
-  isOnline?: boolean; // 온라인 상태
-}
+import React from "react";
+import { Member } from "../types/Member";
 
 interface Props {
   member: Member;
-  children?: React.ReactNode;
-  onDragStart?: (e: React.DragEvent<HTMLDivElement>) => void;
+  onClick?: () => void; // 카드 클릭 이벤트
+  onDelete?: (id: number) => void; // 삭제 버튼 눌렀을 때
+  showDelete?: boolean; // 삭제 버튼 표시 여부
 }
 
-const MemberCard: React.FC<Props> = ({ member, children, onDragStart }) => {
+const MemberCard: React.FC<Props> = ({
+  member,
+  onClick,
+  onDelete,
+  showDelete = false,
+}) => {
   return (
     <div
-      draggable={!!onDragStart}
-      onDragStart={onDragStart}
+      onClick={onClick}
       style={{
         display: "flex",
+        justifyContent: "space-between",
         alignItems: "center",
-        gap: "10px",
-        padding: "8px 12px",
-        borderRadius: "12px",
-        background: "#e0f7fa",
-        boxShadow: "0 2px 4px rgba(0,0,0,0.05)",
-        cursor: onDragStart ? "grab" : "default",
-        width: "100%",
-        boxSizing: 'border-box',
-        justifyContent: 'space-between',
+        padding: "10px",
+        borderRadius: "8px",
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        cursor: onClick ? "pointer" : "default",
+        transition: "0.2s",
+        marginBottom: "8px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", minWidth: 0 }}>
-        {/* ✅ 2. 아바타 컨테이너에 relative 포지션 설정 */}
-        <div style={{ position: 'relative', marginRight: '8px', flexShrink: 0 }}>
-          {/* 아바타 */}
-          <div
-            style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "50%",
-              background: "#80deea",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: "bold",
-              fontSize: "14px",
-            }}
-          >
-            {member.name.charAt(0)}
-          </div>
-
-          {/* ✅ 3. 온라인 상태 표시 점(dot) 추가 */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              right: 0,
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              backgroundColor: member.isOnline ? '#4caf50' : '#9e9e9e', // 온라인이면 초록, 오프라인이면 회색
-              border: '2px solid white', // 아바타와 겹칠 때 경계를 선명하게
-            }}
-            title={member.isOnline ? "온라인" : "오프라인"}
-          />
-        </div>
-        
-        {/* 이름 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* 프로필 원 */}
         <div
           style={{
-            fontSize: "15px",
-            fontWeight: "500",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            background: "#6366f1",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            color: "white",
+            fontSize: 16,
+            fontWeight: "bold",
           }}
         >
-          {member.name}
+          {member.name.charAt(0)}
+        </div>
+
+        {/* 사용자 이름 */}
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>{member.name}</div>
+          <div
+            style={{
+              fontSize: 12,
+              color: member.isOnline ? "#10b981" : "#6b7280",
+              fontWeight: 500,
+            }}
+          >
+            {member.isOnline ? "온라인" : "오프라인"}
+          </div>
         </div>
       </div>
-      
-      {/* 상태 변경 UI 등 추가적인 요소가 들어갈 자리 */}
-      <div>{children}</div>
+
+      {/* 삭제 버튼 */}
+      {showDelete && onDelete && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation(); // 카드 클릭과 충돌 방지
+            onDelete(member.id);
+          }}
+          style={{
+            border: "none",
+            background: "transparent",
+            color: "#ef4444",
+            cursor: "pointer",
+            fontSize: 18,
+            fontWeight: "bold",
+          }}
+        >
+          ✕
+        </button>
+      )}
     </div>
   );
 };

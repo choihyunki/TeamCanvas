@@ -1,16 +1,32 @@
-import axiosInstance from "../api/AxiosInstance";
+// src/services/ProjectService.ts
+import {
+  getProjectsForUser,
+  getProjectById,
+  createProjectForUser,
+  addMemberToProject,
+  removeMemberFromProject,
+} from "../data/mockDb";
 
-export interface ProjectPayload {
-  name: string;
-  description?: string;
-}
+const ProjectService = {
+  getMyProjects: (username: string) => {
+    return getProjectsForUser(username);
+  },
 
-export const projectService = {
-  getProjects: () => axiosInstance.get("/api/projects"),
-  getProjectById: (id: number) => axiosInstance.get(`/api/projects/${id}`),
-  createProject: (payload: ProjectPayload) =>
-    axiosInstance.post("/api/projects", payload),
-  updateProject: (id: number, payload: ProjectPayload) =>
-    axiosInstance.put(`/api/projects/${id}`, payload),
-  deleteProject: (id: number) => axiosInstance.delete(`/api/projects/${id}`),
+  getProject: (projectId: number) => {
+    return getProjectById(projectId);
+  },
+
+  createProject: (username: string, name: string, description?: string) => {
+    return createProjectForUser(username, name, description);
+  },
+
+  addMember: (projectId: number, memberName: string) => {
+    return addMemberToProject(projectId, memberName);
+  },
+
+  removeMember: (projectId: number, memberName: string) => {
+    return removeMemberFromProject(projectId, memberName);
+  },
 };
+
+export default ProjectService;

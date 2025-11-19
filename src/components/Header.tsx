@@ -1,101 +1,74 @@
+// src/components/Header.tsx
+
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 interface HeaderProps {
-  onMenuClick: () => void;
+  onMenuClick?: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+  const { logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
-  const getPublicPath = (filename: string, extension: string = "png") =>
-    process.env.PUBLIC_URL + `/${filename}.${extension}`;
-
-  const iconSize = "32px";
-  const iconGap = "25px";
-
-  const iconStyle: React.CSSProperties = {
-    width: iconSize,
-    height: iconSize,
-    cursor: "pointer",
-    padding: "0",
-    border: "none",
-    backgroundColor: "transparent",
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
     <header
       style={{
-        height: "50px",
-        borderBottom: "1px solid #ddd",
+        width: "100%",
+        padding: "15px 25px",
+        background: "#4f46e5",
+        color: "#fff",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0 20px",
-        backgroundColor: "#ffffff",
+        boxSizing: "border-box",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-        {/* ☰ 메뉴 버튼 */}
-        <button
-          onClick={onMenuClick}
-          style={{
-            fontSize: "20px",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            lineHeight: "1",
-          }}
-        >
-          ☰
-        </button>
+        {onMenuClick && (
+          <button
+            onClick={onMenuClick}
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "#fff",
+              fontSize: "22px",
+              cursor: "pointer",
+            }}
+          >
+            ☰
+          </button>
+        )}
 
-        {/* ✅ 로고 클릭 시 /main 으로 이동 */}
-        <img
-          src={getPublicPath("DropInLogo", "png")}
-          alt="Drop In Logo"
-          style={{ height: "40px", cursor: "pointer" }}
+        <h1
+          style={{ fontSize: "20px", cursor: "pointer" }}
           onClick={() => navigate("/main")}
-        />
+        >
+          TeamCanvas
+        </h1>
       </div>
 
-      <nav style={{ display: "flex", gap: iconGap }}>
-        <button style={iconStyle}>
-          <img
-            src={getPublicPath("Bell", "jpg")}
-            alt="알림"
-            style={{
-              width: "100%",
-              height: "100%",
-              verticalAlign: "middle",
-            }}
-          />
+      {isAuthenticated && (
+        <button
+          onClick={handleLogout}
+          style={{
+            background: "transparent",
+            border: "1px solid #fff",
+            color: "#fff",
+            padding: "5px 12px",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          로그아웃
         </button>
-
-        <button style={iconStyle}>
-          <img
-            src={getPublicPath("Setting", "jpg")}
-            alt="설정"
-            style={{
-              width: "100%",
-              height: "100%",
-              verticalAlign: "middle",
-            }}
-          />
-        </button>
-
-        <button style={iconStyle}>
-          <img
-            src={getPublicPath("Profile", "jpg")}
-            alt="프로필"
-            style={{
-              width: "100%",
-              height: "100%",
-              verticalAlign: "middle",
-            }}
-          />
-        </button>
-      </nav>
+      )}
     </header>
   );
 };

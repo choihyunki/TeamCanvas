@@ -1,9 +1,18 @@
-import axiosInstance from "../api/AxiosInstance";
+// src/services/UserService.ts
+import { loginUser, users, createUser } from "../data/mockDb";
 
-export const userService = {
-  signup: (email: string, password: string, name: string) =>
-    axiosInstance.post("/api/users/signup", { email, password, name }),
+const UserService = {
+  login: (username: string, password: string) => {
+    return loginUser(username, password);
+  },
 
-  login: (email: string, password: string) =>
-    axiosInstance.post("/api/users/login", { email, password }),
+  register: (username: string, password: string, name: string) => {
+    return createUser(username, password, name);
+  },
+
+  getAllUsers: () => {
+    return users ?? [];
+  },
 };
+
+export default UserService;

@@ -1,88 +1,74 @@
+// src/pages/Main.tsx
+
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import { useAuth } from "../context/AuthContext";
-import axiosInstance from "../api/AxiosInstance";
-import { Navigate, useNavigate } from "react-router-dom";
-
-interface Project {
-  id: number;
-  name: string;
-  chatRoomId?: number;
-  members?: string[];
-  description?: string;
-}
+import {
+  getProjectsForUser,
+  createProjectForUser,
+  ProjectRecord,
+} from "../data/mockDb";
 
 const Main: React.FC = () => {
-  const { logout } = useAuth();
+  const { token, logout } = useAuth(); // token = username
   const navigate = useNavigate();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [showModal, setShowModal] = useState(false);
+
+  const [projects, setProjects] = useState<ProjectRecord[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
-  const [error, setError] = useState("");
+  const [newProjectDesc, setNewProjectDesc] = useState("");
 
-  /** ✅ 내 프로젝트 불러오기 */
-  const fetchProjects = async () => {
-    try {
-      const res = await axiosInstance.get("/api/projects/my");
-      if (Array.isArray(res.data)) {
-        setProjects(res.data);
-      } else {
-        setProjects([]);
-      }
-    } catch (err) {
-      console.error("❌ 프로젝트 목록 불러오기 실패:", err);
-      setProjects([]);
-    }
-  };
-
+  // 🔹 로그인 안 되어 있으면 로그인 페이지로 보냄
   useEffect(() => {
-    fetchProjects();
-  }, []);
-
-  /** ✅ 프로젝트 선택 */
-  const handleSelectProject = (project: Project) => {
-    setSelectedProject(project);
-    navigate(`/project/${project.id}`); // ✅ 상세 페이지 이동
-  };
-
-  /** ✅ 새 프로젝트 생성 */
-  const handleCreateProject = async () => {
-    if (newProjectName.trim() === "") {
-      setError("프로젝트 이름을 입력해주세요!");
+    if (!token) {
+      navigate("/login");
       return;
     }
 
-    try {
-      const { data: created } = await axiosInstance.post("/api/projects", {
-        name: newProjectName.trim(),
-      });
+    const list = getProjectsForUser(token);
+    setProjects(list);
+  }, [token, navigate]);
 
-      // ✅ 새 프로젝트 자동 반영 및 선택
-      setProjects((prev) => [...prev, created]);
-      setSelectedProject(created);
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
-      // ✅ UI 정리
-      setNewProjectName("");
-      setError("");
-      setShowModal(false);
-    } catch (err) {
-      console.error("❌ 프로젝트 생성 실패:", err);
-      setError("프로젝트 생성 중 오류가 발생했습니다.");
+  const handleEnterProject = (id: number) => {
+    navigate(`/project/${id}`);
+  };
+
+  const handleCreateProject = () => {
+    if (!token) {
+      alert("로그인이 필요합니다.");
+      return;
     }
+    const name = newProjectName.trim();
+    if (!name) {
+      alert("프로젝트 이름을 입력해주세요.");
+      return;
+    }
+
+    const created = createProjectForUser(token, name, newProjectDesc.trim());
+    setProjects((prev) => [...prev, created]);
+
+    setNewProjectName("");
+    setNewProjectDesc("");
+
+    navigate(`/project/${created.id}`);
   };
 
   return (
     <div
       style={{
+        minHeight: "100vh",
         display: "flex",
         flexDirection: "column",
-        minHeight: "100vh",
         backgroundColor: "#f9fafb",
       }}
     >
-      <Header onMenuClick={() => console.log("Menu clicked")} />
+      <Header onMenuClick={() => {}} />
 
       <main
         style={{
@@ -93,197 +79,205 @@ const Main: React.FC = () => {
           boxSizing: "border-box",
         }}
       >
-        {/* ✅ 왼쪽 프로젝트 리스트 */}
-        <aside
-          style={{
-            width: "25%",
-            minWidth: "250px",
-            background: "#fff",
-            borderRadius: "10px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-            padding: "16px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
-            <h3>내 프로젝트</h3>
-            <button
-              onClick={() => setShowModal(true)}
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                border: "none",
-                background: "#4f46e5",
-                color: "#fff",
-                fontSize: "20px",
-                lineHeight: "1",
-                cursor: "pointer",
-              }}
-            >
-              +
-            </button>
-          </div>
-
-          {/* ✅ 프로젝트 리스트 or 안내 메시지 */}
-          {projects.length === 0 ? (
-            <div
-              style={{ textAlign: "center", color: "#666", marginTop: "20px" }}
-            >
-              <p>현재 참여 중인 프로젝트가 없습니다.</p>
-              <button
-                onClick={() => setShowModal(true)}
-                style={{
-                  marginTop: "10px",
-                  background: "#4f46e5",
-                  color: "#fff",
-                  border: "none",
-                  padding: "8px 16px",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                ➕ 새 프로젝트 만들기
-              </button>
-            </div>
-          ) : (
-            projects.map((proj) => (
-              <div
-                key={proj.id}
-                onClick={() => handleSelectProject(proj)}
-                style={{
-                  padding: "12px",
-                  borderRadius: "8px",
-                  border:
-                    selectedProject?.id === proj.id
-                      ? "2px solid #4f46e5"
-                      : "1px solid #ddd",
-                  background:
-                    selectedProject?.id === proj.id ? "#eef2ff" : "#fff",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                <strong>{proj.name}</strong>
-                <p
-                  style={{
-                    margin: "4px 0 0",
-                    fontSize: "13px",
-                    color: "#666",
-                  }}
-                >
-                  {proj.description || "설명이 없습니다."}
-                </p>
-              </div>
-            ))
-          )}
-        </aside>
-
-        {/* ✅ 오른쪽 프로젝트 상세 */}
+        {/* 🔹 왼쪽 영역: 유저 정보 / 로그아웃 / 새 프로젝트 생성 */}
         <section
           style={{
-            flex: 1,
-            background: "#fff",
-            borderRadius: "10px",
-            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-            padding: "20px",
-          }}
-        >
-          {selectedProject ? (
-            <>
-              <h2>{selectedProject.name}</h2>
-              <p>{selectedProject.description || "설명 없음"}</p>
-              <h4>팀원</h4>
-              <ul>
-                {(selectedProject.members || []).map((m, i) => (
-                  <li key={i}>{m}</li>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <p>왼쪽에서 프로젝트를 선택하세요.</p>
-          )}
-        </section>
-      </main>
-
-      {/* ✅ 프로젝트 생성 모달 */}
-      {showModal && (
-        <div
-          onClick={() => setShowModal(false)}
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.5)",
+            width: "280px",
+            padding: "16px",
+            background: "#ffffff",
+            borderRadius: "12px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            flexDirection: "column",
+            gap: "16px",
           }}
         >
-          <div
-            onClick={(e) => e.stopPropagation()}
+          <div>
+            <h2 style={{ marginBottom: "8px", fontSize: "18px" }}>
+              환영합니다 👋
+            </h2>
+            <p style={{ color: "#4b5563", fontSize: "14px" }}>
+              로그인 계정: <strong>{token}</strong>
+            </p>
+          </div>
+
+          <button
+            onClick={handleLogout}
             style={{
-              background: "#fff",
-              borderRadius: "12px",
-              padding: "25px",
-              width: "320px",
-              boxShadow: "0 8px 20px rgba(0,0,0,0.2)",
+              padding: "10px",
+              background: "#ef4444",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              cursor: "pointer",
+              fontWeight: 600,
             }}
           >
-            <h3>새 프로젝트 만들기</h3>
+            로그아웃
+          </button>
+
+          <hr />
+
+          <div>
+            <h3 style={{ marginBottom: "8px", fontSize: "16px" }}>
+              새 프로젝트 만들기
+            </h3>
+
             <input
-              type="text"
-              placeholder="프로젝트 이름을 입력하세요"
+              placeholder="프로젝트 이름"
               value={newProjectName}
-              onChange={(e) => {
-                setNewProjectName(e.target.value);
-                setError("");
+              onChange={(e) => setNewProjectName(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                marginBottom: "8px",
+                fontSize: "14px",
               }}
+            />
+
+            <textarea
+              placeholder="프로젝트 설명 (선택)"
+              value={newProjectDesc}
+              onChange={(e) => setNewProjectDesc(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: "70px",
+                padding: "8px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                marginBottom: "8px",
+                fontSize: "14px",
+                resize: "vertical",
+              }}
+            />
+
+            <button
+              onClick={handleCreateProject}
               style={{
                 width: "100%",
                 padding: "10px",
-                border: "1px solid #ccc",
-                borderRadius: "6px",
-                marginBottom: "10px",
+                background: "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontWeight: 600,
               }}
-            />
-            {error && <p style={{ color: "red" }}>{error}</p>}
-            <div style={{ textAlign: "right" }}>
-              <button
-                onClick={() => setShowModal(false)}
-                style={{
-                  marginRight: "8px",
-                  background: "#f3f4f6",
-                  border: "1px solid #ccc",
-                  borderRadius: "6px",
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                }}
-              >
-                취소
-              </button>
-              <button
-                onClick={handleCreateProject}
-                style={{
-                  background: "#4f46e5",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: "6px",
-                  padding: "8px 16px",
-                  cursor: "pointer",
-                }}
-              >
-                생성
-              </button>
-            </div>
+            >
+              + 프로젝트 생성
+            </button>
           </div>
-        </div>
-      )}
+        </section>
+
+        {/* 🔹 오른쪽 영역: 내가 참여중인 프로젝트 목록 */}
+        <section
+          style={{
+            flex: 1,
+            padding: "16px",
+            background: "#ffffff",
+            borderRadius: "12px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div
+            style={{
+              marginBottom: "12px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <h2 style={{ fontSize: "18px" }}>내 프로젝트</h2>
+            <span style={{ fontSize: "14px", color: "#6b7280" }}>
+              총 {projects.length}개
+            </span>
+          </div>
+
+          {projects.length === 0 ? (
+            <p style={{ color: "#6b7280", fontSize: "14px" }}>
+              아직 생성된 프로젝트가 없습니다. 왼쪽에서 새 프로젝트를
+              만들어보세요.
+            </p>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                gap: "16px",
+              }}
+            >
+              {projects.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    padding: "14px",
+                    borderRadius: "10px",
+                    border: "1px solid #e5e7eb",
+                    background: "#f9fafb",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    minHeight: "120px",
+                  }}
+                >
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: "16px",
+                        marginBottom: "4px",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {p.name}
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        marginBottom: "6px",
+                        minHeight: "34px",
+                      }}
+                    >
+                      {p.description || "설명 없음"}
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#9ca3af",
+                      }}
+                    >
+                      멤버: {p.members?.length ?? 0}명
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => handleEnterProject(p.id)}
+                    style={{
+                      marginTop: "10px",
+                      padding: "8px",
+                      background: "#4f46e5",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    프로젝트 들어가기
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </main>
 
       <Footer />
     </div>
