@@ -91,8 +91,6 @@ const TaskBoard: React.FC<Props> = ({
               </button>
             </div>
 
-            {/* 🗑️ [삭제됨] 복잡했던 '작업 리스트(Task Items)' 렌더링 부분 제거 완료 */}
-
             {/* --- 멤버 리스트 영역 (여기가 메인) --- */}
             <div className="taskboard-members" style={{ flex: 1 }}>
               <h4 style={{ marginTop: 15, marginBottom: 10, color: "#666" }}>
@@ -119,6 +117,16 @@ const TaskBoard: React.FC<Props> = ({
                 <ul style={{ padding: 0, listStyle: "none" }}>
                   {col.members.map((m) => {
                     const memberInfo = members.find((mm) => mm.id === m.id);
+
+                    // 🔥 [계산] 진행률 계산
+                    const subTasks = m.subTasks || [];
+                    const total = subTasks.length;
+                    const completed = subTasks.filter(
+                      (t) => t.completed
+                    ).length;
+                    const percent =
+                      total === 0 ? 0 : Math.round((completed / total) * 100);
+
                     if (!memberInfo) return null;
                     return (
                       <li key={m.id} className="member-item-row">
@@ -157,6 +165,37 @@ const TaskBoard: React.FC<Props> = ({
                         >
                           ✕
                         </button>
+                        {/* 🔥 [추가] 진행률 게이지 바 */}
+                        <div
+                          style={{
+                            marginTop: 6,
+                            background: "#e5e7eb",
+                            height: 6,
+                            borderRadius: 3,
+                            overflow: "hidden",
+                            width: "100%",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${percent}%`,
+                              height: "100%",
+                              background:
+                                percent === 100 ? "#10b981" : "#4f46e5",
+                              transition: "width 0.3s ease",
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#888",
+                            textAlign: "right",
+                            marginTop: 2,
+                          }}
+                        >
+                          {completed}/{total} 완료 ({percent}%)
+                        </div>
                       </li>
                     );
                   })}

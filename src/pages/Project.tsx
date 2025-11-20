@@ -11,7 +11,8 @@ import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
 
 import { Member } from "../types/Member";
-import { RoleColumn, ProjectMember } from "../types/Project";
+// 🔥 [수정 1] SubTask 타입 import 추가
+import { RoleColumn, ProjectMember, SubTask } from "../types/Project";
 import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
@@ -41,8 +42,8 @@ const Project: React.FC = () => {
 
   // --- 상태 관리 ---
   const [members, setMembers] = useState<Member[]>([]);
-  const [columns, setColumns] = useState<RoleColumn[]>([]); // 🔥 초기값 빈 배열
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [columns, setColumns] = useState<RoleColumn[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]); // (구) 태스크 - 에러 방지용 유지
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
   const [friends] = useState<Friend[]>([
@@ -65,31 +66,106 @@ const Project: React.FC = () => {
 
   // --- Handlers ---
 
+  // 🔥 [수정 2] 멤버를 '컬럼(작업 보드)'에 드롭했을 때 (subTasks 초기화 추가)
   const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
-    // 1. 드롭된 멤버 정보 찾기
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
 
-    // 2. 해당 컬럼(작업 보드) 찾기
     const targetColumn = columns.find((col) => col.id === columnId);
     if (!targetColumn) return;
 
-    // 3. 중복 체크 (이미 해당 보드에 있는 멤버인지)
     if (targetColumn.members.some((m) => m.id === memberId)) {
       alert(`${member.name}님은 이미 이 작업 보드에 배정되어 있습니다.`);
       return;
     }
 
-    // 4. 컬럼 상태 업데이트 (멤버 추가)
     setColumns((prev) =>
       prev.map((col) =>
         col.id === columnId
           ? {
               ...col,
-              members: [...col.members, { id: memberId, status: "작업전" }],
+              // 🔥 subTasks: [] 추가
+              members: [
+                ...col.members,
+                { id: memberId, status: "작업전", subTasks: [] },
+              ],
             }
           : col
       )
+    );
+  };
+
+  // 🔥 세부 작업 추가 핸들러
+  const handleAddSubTask = (
+    columnId: number,
+    memberId: number,
+    content: string
+  ) => {
+    setColumns((prev) =>
+      prev.map((col) => {
+        if (col.id !== columnId) return col;
+        return {
+          ...col,
+          members: col.members.map((m) => {
+            if (m.id !== memberId) return m;
+            const newSubTask: SubTask = {
+              id: Date.now(),
+              content,
+              completed: false,
+            };
+            const currentSubTasks = m.subTasks || [];
+            return { ...m, subTasks: [...currentSubTasks, newSubTask] };
+          }),
+        };
+      })
+    );
+  };
+
+  // 🔥 세부 작업 완료 토글 핸들러
+  const handleToggleSubTask = (
+    columnId: number,
+    memberId: number,
+    subTaskId: number
+  ) => {
+    setColumns((prev) =>
+      prev.map((col) => {
+        if (col.id !== columnId) return col;
+        return {
+          ...col,
+          members: col.members.map((m) => {
+            if (m.id !== memberId) return m;
+            return {
+              ...m,
+              subTasks: m.subTasks.map((t) =>
+                t.id === subTaskId ? { ...t, completed: !t.completed } : t
+              ),
+            };
+          }),
+        };
+      })
+    );
+  };
+
+  // 🔥 세부 작업 삭제 핸들러
+  const handleDeleteSubTask = (
+    columnId: number,
+    memberId: number,
+    subTaskId: number
+  ) => {
+    setColumns((prev) =>
+      prev.map((col) => {
+        if (col.id !== columnId) return col;
+        return {
+          ...col,
+          members: col.members.map((m) => {
+            if (m.id !== memberId) return m;
+            return {
+              ...m,
+              subTasks: m.subTasks.filter((t) => t.id !== subTaskId),
+            };
+          }),
+        };
+      })
     );
   };
 
@@ -127,7 +203,14 @@ const Project: React.FC = () => {
       setColumns((prev) =>
         prev.map((col) =>
           col.id === columnId
-            ? { ...col, members: [...col.members, { id, status: "작업전" }] }
+            ? // 🔥 subTasks: [] 추가
+              {
+                ...col,
+                members: [
+                  ...col.members,
+                  { id, status: "작업전", subTasks: [] },
+                ],
+              }
             : col
         )
       );
@@ -195,7 +278,11 @@ const Project: React.FC = () => {
         col.id === columnId
           ? {
               ...col,
-              members: [...col.members, { id: memberId, status: "작업전" }],
+              // 🔥 subTasks: [] 추가
+              members: [
+                ...col.members,
+                { id: memberId, status: "작업전", subTasks: [] },
+              ],
             }
           : col
       )
@@ -315,10 +402,6 @@ const Project: React.FC = () => {
             isOnline: true,
           }))
         );
-
-        // 🔥 [수정] 기본 컬럼("기획", "개발" 등)을 강제로 넣는 코드 삭제
-        // 이제 columns 상태는 빈 배열([])로 시작합니다.
-        // 사용자가 UI에서 직접 '새 역할'을 추가해야 합니다.
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -393,10 +476,8 @@ const Project: React.FC = () => {
                 onDeleteMember={handleDeleteMemberFromColumn}
                 onUpdateMemberMemo={handleUpdateMemberMemo}
                 onInviteFriend={handleInviteFriendToColumn}
-                // onAddTask={handleAddTask} // 👈 이제 작업 추가 안 하므로 필요 없거나 더미 함수 전달
-                onAddTask={() => {}}
+                onAddTask={handleAddTask}
                 onSelectTask={handleSelectTask}
-                // 🔥 [변경] Task 드롭 핸들러 대신 -> Column 드롭 핸들러 전달
                 onDropMemberOnColumn={handleDropMemberOnColumn}
               />
             )}
@@ -404,9 +485,10 @@ const Project: React.FC = () => {
               <TaskDetails
                 columns={columns}
                 members={members}
-                tasks={tasks}
-                selectedTaskId={selectedTaskId}
-                onUpdateTask={handleUpdateTask}
+                // 🔥 [수정 3] TaskDetails에 불필요한 props 제거
+                onAddSubTask={handleAddSubTask}
+                onToggleSubTask={handleToggleSubTask}
+                onDeleteSubTask={handleDeleteSubTask}
               />
             )}
             {activeTab === "schedule" && (
