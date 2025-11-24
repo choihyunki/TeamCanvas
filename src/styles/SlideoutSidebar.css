@@ -12,15 +12,13 @@
   flex-direction: column;
 }
 
-/* 닫혀있을 때의 상태 (JSX에서 클래스로 제어 가능하지만, transform은 인라인이 편함) */
-
 .sidebar-header {
   padding: 20px;
   border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #4f46e5;
+  background: #9747FF;
   color: white;
 }
 
@@ -83,7 +81,7 @@
   width: 32px;
   height: 32px;
   background: #e0e7ff;
-  color: #4f46e5;
+  color: #9747FF;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -107,7 +105,7 @@
 
 .sidebar-btn {
   padding: 8px;
-  background: #4f46e5;
+  background: #9747FF;
   color: white;
   border: none;
   border-radius: 6px;
@@ -116,5 +114,5 @@
 }
 
 .sidebar-btn:hover {
-  background: #4338ca;
+  background: #9747FF;
 }

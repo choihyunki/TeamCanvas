@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import MemberList from "../components/MemberList";
@@ -11,7 +11,7 @@ import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
 
 import { Member } from "../types/Member";
-import { RoleColumn, ProjectMember } from "../types/Project";
+import { RoleColumn } from "../types/Project";
 import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
@@ -19,11 +19,9 @@ import {
   getProjectsForUser,
   getProjectById,
   ProjectRecord,
-  addMemberToProject,
-  removeMemberFromProject,
 } from "../data/mockDb";
 
-import "../styles/Project.css"; // CSS import
+import "../styles/Project.css";
 
 interface Friend {
   id: number;
@@ -39,7 +37,6 @@ const Project: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [, setCurrentProject] = useState<ProjectRecord | null>(null);
 
-  // --- 상태 관리 ---
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -55,8 +52,7 @@ const Project: React.FC = () => {
   );
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
-  // const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false); // 필요시 사용
-  const isRightSidebarCollapsed = false; // 지금은 항상 열림으로 둠
+  const isRightSidebarCollapsed = false;
 
   const [activeTab, setActiveTab] = useState("taskBoard");
 
@@ -64,62 +60,148 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // ... (핸들러 함수들은 이전과 동일하므로 생략하거나,
-  //      아까 보내주신 코드에서 로직 부분만 그대로 유지해주세요.
-  //      여기서는 CSS 적용을 위한 return 부분 위주로 보여드립니다.)
+  // --- 핸들러 로직 ---
 
-  // (핸들러 로직 생략: handleAddMember, handleDeleteMember, handleAddColumn 등...
-  //  위에서 완성해드린 로직 그대로 사용하시면 됩니다.)
-
-  // 👇 간략화를 위해 핸들러 로직 부분은 "..." 으로 표시했습니다.
-  // 실제 파일엔 아까 수정한 로직을 그대로 두세요!
   const handleAddMember = () => {
-    /* ... */
+    const newMemberName = prompt("추가할 멤버의 이름을 입력하세요.");
+
+    if (newMemberName && newMemberName.trim()) {
+        const trimmedName = newMemberName.trim();
+        
+        if (members.some(m => m.name === trimmedName)) {
+            alert(`${trimmedName} 님은 이미 프로젝트 멤버입니다.`);
+            return;
+        }
+
+        const newMember: Member = {
+            id: Date.now(),
+            name: trimmedName,
+            isOnline: true,
+        };
+
+        setMembers(prev => [...prev, newMember]);
+        alert(`${trimmedName} 님이 프로젝트에 추가되었습니다.`);
+
+    } else if (newMemberName !== null) {
+        alert("유효한 멤버 이름을 입력해주세요.");
+    }
   };
+
   const handleDeleteMember = (id: number) => {
-    /* ... */
+    if (window.confirm("멤버를 삭제하시겠습니까?")) {
+      setMembers((prev) => prev.filter((m) => m.id !== id));
+      setColumns((prev) =>
+        prev.map((col) => ({
+          ...col,
+          members: col.members.filter((pm) => pm.id !== id),
+        }))
+      );
+    }
   };
-  const handleAddColumn = (name: string) => {
-    /* ... */
+  
+  const handleDeleteRoleColumn = (roleId: number) => {
+    if (window.confirm("경고: 해당 역할(로우)을 삭제하면 관련된 모든 태스크가 영구적으로 삭제됩니다. 계속하시겠습니까?")) {
+        setColumns(prev => prev.filter(col => col.id !== roleId));
+        setTasks(prev => prev.filter(t => t.columnId !== roleId));
+    }
   };
-  const handleDeleteColumn = (id: number) => {
-    /* ... */
+  
+  const handleAddRoleColumn = (name: string) => {
+    const newRole: RoleColumn = {
+      id: Date.now(),
+      name: name,
+      members: [],
+    };
+    setColumns(prev => [...prev, newRole]);
+  }
+
+  const handleUpdateMemberStatusInRole = (roleId: number, memberId: number, newStatus: string) => {
+    setColumns(prev => 
+      prev.map(col => {
+        if (col.id === roleId) {
+          const updatedMembers = col.members.map(pm => 
+            pm.id === memberId 
+              ? { ...pm, status: newStatus }
+              : pm
+          );
+          return { ...col, members: updatedMembers };
+        }
+        return col;
+      })
+    );
   };
-  const handleAddMemberToColumn = (cid: number, mid: number) => {
-    /* ... */
+
+  const handleAddMemberToRole = (roleId: number, memberId: number) => {
+    setColumns((prev) =>
+      prev.map((col) => {
+        if (col.id === roleId) {
+          if (col.members.some(m => m.id === memberId)) {
+            return col;
+          }
+          return {
+            ...col,
+            members: [...col.members, { id: memberId, status: "TODO", memo: "" }],
+          };
+        }
+        return col;
+      })
+    );
   };
-  const handleDeleteMemberFromColumn = (cid: number, mid: number) => {
-    /* ... */
+  
+  const handleAssignMemberToTask = (taskId: number, memberId: number) => {
+    setTasks((prev) =>
+        prev.map((t) => {
+            if (t.id === taskId) {
+                const memberData = members.find(m => m.id === memberId);
+                if (!memberData) return t;
+
+                const taskStatus = t.status || "TODO"; 
+
+                // Task.members가 string[]이므로 이름으로 할당
+                return {
+                    ...t,
+                    members: [memberData.name], 
+                };
+            }
+            return t;
+        })
+    );
   };
-  const handleInviteFriendToColumn = (
-    cid: number,
-    fid: string,
-    fname: string
-  ) => {
-    /* ... */
+
+
+  const handleAddTask = (roleId: number, status: string) => {
+    const inputTitle = prompt("할 일을 입력하세요");
+    if (!inputTitle) return;
+    
+    const newTask: Task = {
+      id: Date.now(),
+      columnId: roleId,
+      status: status,
+      title: inputTitle, 
+      members: [], 
+    };
+    setTasks((prev) => [...prev, newTask]);
   };
-  const handleMoveMemberBetweenColumns = (
-    mid: number,
-    from: number,
-    to: number
-  ) => {
-    /* ... */
+
+  const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
   };
-  const handleUpdateMemberStatus = (cid: number, mid: number, st: string) => {
-    /* ... */
+
+  const handleDeleteTask = (taskId: number) => {
+    if(window.confirm("삭제하시겠습니까?")) {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    }
+  }
+
+  const handleUpdateTask = (t: Task) => {
+    setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
-  const handleUpdateMemberMemo = (cid: number, mid: number, memo: string) => {
-    /* ... */
-  };
-  const handleAddTask = (cid: number, title: string) => {
-    /* ... */
-  };
+
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
-  };
-  const handleUpdateTask = (t: Task) => {
-    setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
 
   useEffect(() => {
@@ -139,11 +221,10 @@ const Project: React.FC = () => {
           }))
         );
         if (columns.length === 0) {
-          // 초기화 방지용 체크
           setColumns([
-            { id: 101, name: "기획", members: [] },
-            { id: 102, name: "개발", members: [] },
-            { id: 103, name: "테스트", members: [] },
+            { id: 101, name: "기획팀", members: [] },
+            { id: 102, name: "디자인팀", members: [] },
+            { id: 103, name: "개발팀", members: [] },
           ]);
         }
       }
@@ -153,8 +234,7 @@ const Project: React.FC = () => {
 
   return (
     <div className="project-layout">
-      <Header onMenuClick={toggleSlideout} />
-
+      
       <SlideoutSidebar
         isOpen={isSlideoutOpen}
         onClose={toggleSlideout}
@@ -162,94 +242,101 @@ const Project: React.FC = () => {
         friends={friends}
       />
 
-      <div
-        className="workspace-container"
-        style={{ marginLeft: isSlideoutOpen ? 280 : 0 }} // Slideout은 transform이라 마진 조정 필요
+      {/* [MODIFIED] Header와 Workspace를 감싸는 Wrapper 추가 */}
+      <div 
+        style={{ 
+          marginLeft: isSlideoutOpen ? "280px" : "0px",
+          width: isSlideoutOpen ? "calc(100% - 280px)" : "100%",
+          transition: "all 0.3s ease-in-out",
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+        }}
       >
-        {/* 왼쪽 사이드바 */}
-        <aside
-          className={`left-sidebar ${
-            isLeftSidebarCollapsed ? "collapsed" : ""
-          }`}
-        >
-          <MemberList
-            members={members}
-            onAddMemberClick={handleAddMember}
-            onDeleteMember={handleDeleteMember}
-          />
-        </aside>
+        {/* Header가 Wrapper 안에 들어와서 같이 밀립니다. */}
+        <Header onMenuClick={toggleSlideout} />
 
-        {/* 메인 영역 */}
-        <main className="project-main">
-          {/* 왼쪽 토글 버튼 */}
-          <button className="toggle-btn left" onClick={toggleLeftSidebar}>
-            {isLeftSidebarCollapsed ? "▶" : "◀"}
-          </button>
+        <div className="workspace-container">
+          <aside
+            className={`left-sidebar ${
+              isLeftSidebarCollapsed ? "collapsed" : ""
+            }`}
+          >
+            <MemberList
+              members={members}
+              onAddMemberClick={handleAddMember}
+              onDeleteMember={handleDeleteMember}
+            />
+          </aside>
 
-          {/* 탭 헤더 */}
-          <div className="tabs-container">
-            {[
-              { key: "taskBoard", label: "작업 보드" },
-              { key: "taskDetails", label: "세부 작업 내용" },
-              { key: "schedule", label: "작업 일정" },
-            ].map((tab) => (
-              <button
-                key={tab.key}
-                className={`tab-btn ${activeTab === tab.key ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.key)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <main className="project-main">
+            <button className="toggle-btn left" onClick={toggleLeftSidebar}>
+              {isLeftSidebarCollapsed ? "▶" : "◀"}
+            </button>
 
-          <ProgressBar tasks={tasks} />
+            <div className="tabs-container">
+              {[
+                { key: "taskBoard", label: "작업 보드" }, 
+                { key: "taskDetails", label: "세부 작업 내용" },
+                { key: "schedule", label: "작업 일정" },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  className={`tab-btn ${activeTab === tab.key ? "active" : ""}`}
+                  onClick={() => setActiveTab(tab.key)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
 
-          {/* 탭 내용 */}
-          <div className="tab-content-area">
-            {activeTab === "taskBoard" && (
-              <TaskBoard
-                columns={columns}
-                members={members}
-                tasks={tasks}
-                onAddColumn={handleAddColumn}
-                onDeleteColumn={handleDeleteColumn}
-                onAddMemberToColumn={handleAddMemberToColumn}
-                onMoveMember={handleMoveMemberBetweenColumns}
-                onUpdateStatus={handleUpdateMemberStatus}
-                onDeleteMember={handleDeleteMemberFromColumn}
-                onUpdateMemberMemo={handleUpdateMemberMemo}
-                onInviteFriend={handleInviteFriendToColumn}
-                onAddTask={handleAddTask}
-                onSelectTask={handleSelectTask}
-              />
-            )}
-            {activeTab === "taskDetails" && (
-              <TaskDetails
-                columns={columns}
-                members={members}
-                tasks={tasks}
-                selectedTaskId={selectedTaskId}
-                onUpdateTask={handleUpdateTask}
-              />
-            )}
-            {activeTab === "schedule" && (
-              <Schedule tasks={tasks} onUpdateTask={handleUpdateTask} />
-            )}
-          </div>
-        </main>
+            <ProgressBar tasks={tasks} />
 
-        {/* 오른쪽 채팅 사이드바 */}
-        <aside
-          className={`right-sidebar ${
-            isRightSidebarCollapsed ? "collapsed" : ""
-          }`}
-        >
-          <ChatBox projectId={numericProjectId} />
-        </aside>
+            <div className="tab-content-area">
+              {activeTab === "taskBoard" && (
+                <TaskBoard 
+                  columns={columns}
+                  tasks={tasks}
+                  members={members}
+                  onAddTask={handleAddTask}
+                  onUpdateTaskStatus={handleUpdateTaskStatus}
+                  onDeleteTask={handleDeleteTask}
+                  onSelectTask={handleSelectTask}
+                  onAddRoleColumn={handleAddRoleColumn}
+                  onAddMemberToRole={handleAddMemberToRole}
+                  onDeleteRoleColumn={handleDeleteRoleColumn}
+                  onUpdateMemberStatusInRole={handleUpdateMemberStatusInRole}
+                  onAssignMemberToTask={handleAssignMemberToTask} 
+                />
+              )}
+              
+              {activeTab === "taskDetails" && (
+                <TaskDetails
+                  columns={columns}
+                  members={members}
+                  tasks={tasks}
+                  selectedTaskId={selectedTaskId}
+                  onUpdateTask={handleUpdateTask}
+                />
+              )}
+              
+              {activeTab === "schedule" && (
+                <Schedule tasks={tasks} onUpdateTask={handleUpdateTask} />
+              )}
+            </div>
+          </main>
+
+          <aside
+            className={`right-sidebar ${
+              isRightSidebarCollapsed ? "collapsed" : ""
+            }`}
+          >
+            <ChatBox projectId={numericProjectId} />
+          </aside>
+        </div>
+
+        <Footer />
       </div>
-
-      <Footer />
     </div>
   );
 };

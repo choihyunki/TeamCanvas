@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { createProjectForUser } from "../data/mockDb";
+import { createProjectForUser, addMemberToProject } from "../data/mockDb";
 import { useAuth } from "../context/AuthContext";
-import "../styles/SlideoutSidebar.css"; // CSS import
+import "../styles/SlideoutSidebar.css";
 
 interface Friend {
   id: number;
@@ -37,18 +37,31 @@ const SlideoutSidebar: React.FC<Props> = ({
     if (!token) return;
 
     const project = createProjectForUser(token, newProjectName.trim());
-    alert("프로젝트가 생성되었습니다!");
+    
+    alert("새 프로젝트가 생성되었습니다! 메인에서 목록을 확인하세요.");
 
     setNewProjectName("");
     navigate(`/project/${project.id}`);
     onClose();
   };
 
+  // 드롭 핸들러: 프로젝트에 친구를 멤버로 추가
+  const handleDropFriendOnProject = (e: React.DragEvent, projectId: number) => {
+    e.preventDefault();
+    const friendName = e.dataTransfer.getData("friendName");
+    
+    if (friendName) {
+      addMemberToProject(projectId, friendName); 
+      alert(`${friendName} 님이 프로젝트 [${projectId}]에 추가되었습니다!`);
+    }
+  };
+
+
   return (
     <div
       className="slideout-sidebar"
       style={{
-        transform: isOpen ? "translateX(0)" : "translateX(-100%)", // 동적 스타일 유지
+        transform: isOpen ? "translateX(0)" : "translateX(-100%)", 
       }}
     >
       <div className="sidebar-header">
@@ -59,7 +72,7 @@ const SlideoutSidebar: React.FC<Props> = ({
       </div>
 
       <div className="sidebar-content">
-        {/* 내 프로젝트 목록 */}
+        {/* 내 프로젝트 목록 (드롭 대상) */}
         <section className="sidebar-section">
           <h4>내 프로젝트</h4>
           {projects.length === 0 ? (
@@ -69,8 +82,17 @@ const SlideoutSidebar: React.FC<Props> = ({
               {projects.map((p) => (
                 <li
                   key={p.id}
-                  className="sidebar-item"
+                  className="sidebar-item project-droppable"
                   onClick={() => handleProjectClick(p.id)}
+                  
+                  // [FIXED] 드래그 영역 진입 시 드롭 허용 신호 (두 가지 이벤트 모두)
+                  onDragEnter={(e) => e.preventDefault()} 
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy'; 
+                  }} 
+                  
+                  onDrop={(e) => handleDropFriendOnProject(e, p.id)} 
                 >
                   📁 {p.name}
                 </li>
@@ -92,12 +114,21 @@ const SlideoutSidebar: React.FC<Props> = ({
           </div>
         </section>
 
-        {/* 친구 목록 */}
+        {/* 친구 목록 (드래그 소스) */}
         <section className="sidebar-section">
           <h4>친구 목록</h4>
           <ul className="sidebar-list">
             {friends.map((f) => (
-              <li key={f.id} className="sidebar-item friend-item">
+              <li 
+                key={f.id} 
+                className="sidebar-item friend-item"
+                draggable="true" 
+                onDragStart={(e) => { 
+                    e.dataTransfer.setData("friendId", f.id.toString());
+                    e.dataTransfer.setData("friendName", f.name);
+                    e.dataTransfer.effectAllowed = "copy"; 
+                }}
+              >
                 <div className="friend-avatar">{f.avatarInitial}</div>
                 <span>{f.name}</span>
               </li>
