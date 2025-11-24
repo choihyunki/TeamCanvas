@@ -14,7 +14,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   projects: { id: number; name: string }[];
-  friends: Friend[];
+  friends: Friend[]; // 친구 데이터 받음
 }
 
 const SlideoutSidebar: React.FC<Props> = ({
@@ -26,6 +26,9 @@ const SlideoutSidebar: React.FC<Props> = ({
   const navigate = useNavigate();
   const { token } = useAuth();
   const [newProjectName, setNewProjectName] = useState("");
+  
+  const [dragTargetId, setDragTargetId] = useState<number | null>(null);
+
 
   const handleProjectClick = (id: number) => {
     navigate(`/project/${id}`);
@@ -48,11 +51,13 @@ const SlideoutSidebar: React.FC<Props> = ({
   // 드롭 핸들러: 프로젝트에 친구를 멤버로 추가
   const handleDropFriendOnProject = (e: React.DragEvent, projectId: number) => {
     e.preventDefault();
+    setDragTargetId(null); 
+    
     const friendName = e.dataTransfer.getData("friendName");
     
     if (friendName) {
       addMemberToProject(projectId, friendName); 
-      alert(`${friendName} 님이 프로젝트 [${projectId}]에 추가되었습니다!`);
+      alert(`${friendName} 님이 프로젝트 [${projectId}]에 추가되었습니다! (새로고침 필요)`);
     }
   };
 
@@ -85,13 +90,19 @@ const SlideoutSidebar: React.FC<Props> = ({
                   className="sidebar-item project-droppable"
                   onClick={() => handleProjectClick(p.id)}
                   
-                  // [FIXED] 드래그 영역 진입 시 드롭 허용 신호 (두 가지 이벤트 모두)
-                  onDragEnter={(e) => e.preventDefault()} 
+                  // [D&D TARGET LOGIC]
+                  style={{
+                      border: dragTargetId === p.id ? '1px solid #3B82F6' : '1px solid transparent',
+                      backgroundColor: dragTargetId === p.id ? '#F0F7FF' : 'transparent',
+                      transition: 'all 0.1s ease',
+                      cursor: 'pointer'
+                  }}
+                  onDragEnter={() => setDragTargetId(p.id)} 
+                  onDragLeave={() => setDragTargetId(null)}
                   onDragOver={(e) => {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = 'copy'; 
                   }} 
-                  
                   onDrop={(e) => handleDropFriendOnProject(e, p.id)} 
                 >
                   📁 {p.name}
@@ -123,9 +134,10 @@ const SlideoutSidebar: React.FC<Props> = ({
                 key={f.id} 
                 className="sidebar-item friend-item"
                 draggable="true" 
+                // [D&D SOURCE LOGIC]
                 onDragStart={(e) => { 
                     e.dataTransfer.setData("friendId", f.id.toString());
-                    e.dataTransfer.setData("friendName", f.name);
+                    e.dataTransfer.setData("friendName", f.name); // 이름 문자열 전달
                     e.dataTransfer.effectAllowed = "copy"; 
                 }}
               >

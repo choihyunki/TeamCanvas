@@ -9,6 +9,8 @@ import {
   createProjectForUser,
   deleteProject,
   ProjectRecord,
+  getFriends, 
+  Friend, // Friend 인터페이스 임포트
 } from "../data/mockDb";
 import "../styles/Main.css";
 
@@ -24,19 +26,19 @@ const Main: React.FC = () => {
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDesc, setNewProjectDesc] = useState("");
+  
+  const [friends, setFriends] = useState<Friend[]>([]); 
 
-  // [NEW] 프로젝트 데이터를 Mock DB에서 불러와 상태를 업데이트하는 재사용 함수
+  // [MODIFIED] 프로젝트 데이터를 Mock DB에서 불러와 상태를 업데이트하는 재사용 함수
   const fetchProjects = () => {
     if (!token) return;
 
-    const list = getProjectsForUser(token); 
-
-    const projectsWithProgress = list.map(p => ({
-        ...p,
-        progressPercent: Math.round((p.id * 13) % 100) 
-    })) as ProjectCardData[];
+    // [FIXED] Mock DB 함수가 이제 진행률을 계산해서 반환
+    const list = getProjectsForUser(token) as ProjectCardData[]; 
     
-    setProjects(projectsWithProgress);
+    setProjects(list);
+    
+    setFriends(getFriends());
   };
   
   // [MODIFIED] 컴포넌트 마운트 시 데이터 로딩
@@ -57,7 +59,6 @@ const Main: React.FC = () => {
     navigate(`/project/${id}`);
   };
 
-  // [MODIFIED] 삭제 후 상태 동기화
   const handleDeleteProject = (id: number) => {
     if (window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
       deleteProject(id);
@@ -65,7 +66,6 @@ const Main: React.FC = () => {
     }
   };
 
-  // [MODIFIED] 생성 후 상태 동기화
   const handleCreateProject = () => {
     if (!token) {
       alert("로그인이 필요합니다.");
@@ -93,7 +93,7 @@ const Main: React.FC = () => {
         isOpen={isSidebarOpen} 
         onClose={() => setIsSidebarOpen(false)} 
         projects={projects} 
-        friends={[]}         
+        friends={friends} 
       />
 
       <div 

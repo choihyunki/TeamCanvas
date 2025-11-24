@@ -65,7 +65,7 @@
 
 .drag-button.active {
   background-color: #2563EB;
-  cursor: grab;
+  cursor: move;
 }
 
 .drag-button.dragging {

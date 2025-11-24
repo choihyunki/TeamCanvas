@@ -13,10 +13,9 @@ interface Props {
   onDeleteTask: (taskId: number) => void;
   onSelectTask: (taskId: number) => void;
   onAddRoleColumn: (name: string) => void;
-  onAddMemberToRole: (roleId: number, memberId: number) => void;
   onDeleteRoleColumn: (roleId: number) => void;
-  onUpdateMemberStatusInRole: (roleId: number, memberId: number, newStatus: string) => void;
-  onAssignMemberToTask: (taskId: number, memberId: number) => void;
+  // [MODIFIED] Role에 멤버를 직접 추가/이동하는 Prop 제거
+  onAssignMemberToTask: (taskId: number, memberId: number) => void; 
 }
 
 const STATUSES = [
@@ -34,13 +33,10 @@ const TaskBoard: React.FC<Props> = ({
   onDeleteTask,
   onSelectTask,
   onAddRoleColumn,
-  onAddMemberToRole,
   onDeleteRoleColumn,
-  onUpdateMemberStatusInRole,
   onAssignMemberToTask,
 }) => {
   
-  const getMemberById = (id: number) => members.find(m => m.id === id);
   const getMemberByName = (name: string) => members.find(m => m.name === name); 
 
 
@@ -75,7 +71,7 @@ const TaskBoard: React.FC<Props> = ({
       target.style.visibility = 'visible';
   };
 
-  // --- 드롭 핸들러 (Task Status 변경 / Member 상태 변경) ---
+  // --- 드롭 핸들러 (Task Status 변경 / Task 담당자 할당) ---
   const handleDrop = (e: React.DragEvent, roleId: number, status: string) => {
     e.preventDefault();
     const dataType = e.dataTransfer.getData("type");
@@ -83,39 +79,25 @@ const TaskBoard: React.FC<Props> = ({
     if (dataType === "TASK") {
         const taskId = Number(e.dataTransfer.getData("taskId"));
         if (taskId && !isNaN(taskId)) {
-            onUpdateTaskStatus(taskId, status); 
+            onUpdateTaskStatus(taskId, status); // Task 상태 변경
         }
-    } else if (dataType === "MEMBER") {
-        const memberId = Number(e.dataTransfer.getData("memberId"));
-        if (memberId && !isNaN(memberId)) {
-            onUpdateMemberStatusInRole(roleId, memberId, status); 
-        }
-    }
+    } 
+    // Note: TaskBoard Cell에는 멤버 상태 변경 로직이 제거됨
   };
 
-  // [NEW] Task Card에 멤버 드롭 시 담당자 할당
+  // Task Card에 멤버 드롭 시 담당자 할당
   const handleDropMemberOnTaskCard = (e: React.DragEvent, taskId: number) => {
       e.preventDefault();
       const memberIdStr = e.dataTransfer.getData("memberId");
       const memberId = Number(memberIdStr);
       
       if (memberId && !isNaN(memberId)) {
-          onAssignMemberToTask(taskId, memberId);
-      }
-  };
-
-  // --- 드롭 핸들러 (Member Role 할당) ---
-  const handleDropMemberOnRole = (e: React.DragEvent, roleId: number) => {
-      e.preventDefault();
-      const memberIdStr = e.dataTransfer.getData("memberId");
-      const memberId = Number(memberIdStr);
-      if (memberId && !isNaN(memberId)) {
-          onAddMemberToRole(roleId, memberId);
+          onAssignMemberToTask(taskId, memberId); // Task 할당 로직 호출
       }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // 👈 이 부분이 드롭을 허용하는 핵심입니다.
+    e.preventDefault();
   };
 
   const handleAddRoleClick = () => {
@@ -137,114 +119,133 @@ const TaskBoard: React.FC<Props> = ({
         </div>
       </div>
       <div className="swimlane-body">
-        {columns.map((role) => (
-          <div key={role.id} className="swimlane-row">
-            {/* 2-1. 역할 이름 (왼쪽 헤더) - 멤버 드롭 영역 */}
-            <div 
-                className="row-header role-delete-area"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDropMemberOnRole(e, role.id)}
-            >
-              <span className="role-name">{role.name}</span>
-              <span className="role-count">
-                멤버: {role.members.length}명
-              </span>
-              
-              {/* 역할에 배정된 멤버들을 아바타로 표시 (드래그 소스) */}
-              <div className="role-member-avatars">
-                  {role.members.map(pm => {
-                      const memberData = getMemberById(pm.id);
-                      if (!memberData) return null;
-                      
-                      const statusColor = STATUSES.find(s => s.key === pm.status)?.color || '#9ca3af';
+        {columns.map((role) => {
+            // [NEW] 이 역할(로우)에 속한 모든 태스크에 배정된 멤버 이름 목록을 추출
+            const assignedMembersInRole = tasks
+                .filter(t => t.columnId === role.id)
+                .flatMap(t => t.members)
+                .filter((v, i, a) => a.indexOf(v) === i); // 중복 제거
+
+            return (
+                <div key={role.id} className="swimlane-row">
+                    {/* 2-1. 역할 이름 (왼쪽 헤더) - 멤버 목록 표시 */}
+                    <div 
+                        className="row-header role-delete-area"
+                        // [MODIFIED] 역할 Header에 멤버 드롭 로직 제거
+                        onDragOver={handleDragOver} 
+                    >
+                        <span className="role-name">{role.name}</span>
+                        <span className="role-count">
+                            배정된 멤버: {assignedMembersInRole.length}명
+                        </span>
+                        
+                        {/* [NEW] Task에 배정된 멤버들을 아바타로 표시 */}
+                        <div className="role-member-avatars">
+                            {assignedMembersInRole.map(name => {
+                                const member = getMemberByName(name);
+                                if (!member) return null;
+                                
+                                return (
+                                    <div 
+                                        key={name}
+                                        className="member-avatar-mini"
+                                        title={name}
+                                        // [MODIFIED] Task에 배정된 멤버를 TaskCard로 드래그할 수 있도록 소스 활성화
+                                        draggable="true"
+                                        onDragStart={(e) => handleMemberDragStart(e, member.id)}
+                                        onDragEnd={handleMemberDragEnd}
+                                    >
+                                        {member.name.charAt(0)}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <button 
+                            className="delete-role-btn" 
+                            onClick={() => onDeleteRoleColumn(role.id)}
+                        >
+                            ✕
+                        </button>
+                    </div>
+
+                    {/* 2-2. 상태별 칸 (셀) */}
+                    {STATUSES.map((status) => {
+                      const cellTasks = tasks.filter(
+                        (t) => t.columnId === role.id && t.status === status.key
+                      );
 
                       return (
-                          <div 
-                              key={pm.id}
-                              className="member-avatar-mini"
-                              title={`${memberData.name} (${pm.status})`}
-                              draggable="true" 
-                              onDragStart={(e) => handleMemberDragStart(e, pm.id)} 
-                              onDragEnd={handleMemberDragEnd}
-                          >
-                              {memberData.name.charAt(0)}
-                              <span className="member-status-dot" style={{ backgroundColor: statusColor }} />
-                          </div>
-                      );
-                  })}
-              </div>
-              
-              <button 
-                className="delete-role-btn" 
-                onClick={() => onDeleteRoleColumn(role.id)}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* 2-2. 상태별 칸 (셀) */}
-            {STATUSES.map((status) => {
-              const cellTasks = tasks.filter(
-                (t) => t.columnId === role.id && t.status === status.key
-              );
-
-              return (
-                <div
-                  key={`${role.id}-${status.key}`}
-                  className="swimlane-cell"
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, role.id, status.key)} 
-                >
-                  {cellTasks.map((task) => {
-                    const assigneeName = task.members.length > 0 ? task.members[0] : null; 
-                    const assignee = assigneeName ? getMemberByName(assigneeName) : null;
-                    
-                    return (
                         <div
-                          key={task.id}
-                          className="task-card-mini"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          onDragEnd={handleDragEnd}
-                          onClick={() => onSelectTask(task.id)}
-                          onDragOver={handleDragOver} 
-                          onDrop={(e) => handleDropMemberOnTaskCard(e, task.id)} 
+                          key={`${role.id}-${status.key}`}
+                          className="swimlane-cell"
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, role.id, status.key)} // Task Status Drop Target
                         >
-                          <div className="task-title">{task.title}</div>
-                          
-                          {/* 담당자 아바타 표시 */}
-                          {assignee && (
-                              <div className="task-assignee-avatar" title={assignee.name}>
-                                  {assignee.name.charAt(0)}
-                              </div>
+                          {cellTasks.map((task) => {
+                            // Task.members는 이름 문자열 배열 (string[])
+                            const assigneeNames = task.members;
+                            
+                            return (
+                                <div
+                                  key={task.id}
+                                  className="task-card-mini"
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, task.id)}
+                                  onDragEnd={handleDragEnd}
+                                  onClick={() => onSelectTask(task.id)}
+                                  onDragOver={handleDragOver} 
+                                  onDrop={(e) => handleDropMemberOnTaskCard(e, task.id)} // Task 할당 드롭 처리
+                                >
+                                  <div className="task-title">{task.title}</div>
+                                  
+                                  {/* [MODIFIED] 다중 담당자 아바타 표시 */}
+                                  {assigneeNames.length > 0 && (
+                                      <div className="task-assignee-container">
+                                          {assigneeNames.map((name) => {
+                                              const assignee = getMemberByName(name);
+                                              if (!assignee) return null;
+                                              
+                                              return (
+                                                  <div 
+                                                      key={name}
+                                                      className="task-assignee-avatar" 
+                                                      title={name}
+                                                  >
+                                                      {name.charAt(0)}
+                                                  </div>
+                                              );
+                                          })}
+                                      </div>
+                                  )}
+
+                                  <button
+                                    className="task-delete-btn"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDeleteTask(task.id);
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                            );
+                          })}
+
+                          {status.key === "TODO" && (
+                            <button
+                              className="add-task-btn-mini"
+                              onClick={() => onAddTask(role.id, status.key)}
+                            >
+                              + 할 일 추가
+                            </button>
                           )}
-
-                          <button
-                            className="task-delete-btn"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteTask(task.id);
-                            }}
-                          >
-                            ✕
-                          </button>
                         </div>
-                    );
-                  })}
-
-                  {status.key === "TODO" && (
-                    <button
-                      className="add-task-btn-mini"
-                      onClick={() => onAddTask(role.id, status.key)}
-                    >
-                      + 할 일 추가
-                    </button>
-                  )}
+                      );
+                    })}
                 </div>
-              );
-            })}
-          </div>
-        ))}
+            );
+        })}
       </div>
 
       <div className="add-role-area">

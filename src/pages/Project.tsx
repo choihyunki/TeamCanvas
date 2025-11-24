@@ -18,7 +18,8 @@ import { useAuth } from "../context/AuthContext";
 import {
   getProjectsForUser,
   getProjectById,
-  ProjectRecord,
+  ProjectRecord, // [FIXED 1] ProjectRecord 임포트 추가
+  getFriends,
 } from "../data/mockDb";
 
 import "../styles/Project.css";
@@ -42,10 +43,7 @@ const Project: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
-  const [friends] = useState<Friend[]>([
-    { id: 201, name: "김유신", avatarInitial: "김" },
-    { id: 202, name: "이순신", avatarInitial: "이" },
-  ]);
+  const [friends, setFriends] = useState<Friend[]>([]);
 
   const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
     []
@@ -61,6 +59,23 @@ const Project: React.FC = () => {
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
   // --- 핸들러 로직 ---
+
+  const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
+    if (members.some(m => m.id === friendId)) {
+        alert(`${friendName} 님은 이미 프로젝트 멤버입니다.`);
+        return;
+    }
+
+    const newMember: Member = {
+        id: friendId, 
+        name: friendName, 
+        isOnline: true, 
+    };
+    setMembers(prev => [...prev, newMember]);
+    
+    alert(`${friendName} 님을 멤버 목록에 추가했습니다!`);
+  };
+
 
   const handleAddMember = () => {
     const newMemberName = prompt("추가할 멤버의 이름을 입력하세요.");
@@ -94,6 +109,15 @@ const Project: React.FC = () => {
         prev.map((col) => ({
           ...col,
           members: col.members.filter((pm) => pm.id !== id),
+        }))
+      );
+      setTasks((prev) =>
+        prev.map((t) => ({
+            ...t,
+            members: t.members.filter(name => {
+                const member = members.find(m => m.id === id);
+                return member ? name !== member.name : true;
+            })
         }))
       );
     }
@@ -155,13 +179,19 @@ const Project: React.FC = () => {
                 const memberData = members.find(m => m.id === memberId);
                 if (!memberData) return t;
 
-                const taskStatus = t.status || "TODO"; 
-
-                // Task.members가 string[]이므로 이름으로 할당
-                return {
-                    ...t,
-                    members: [memberData.name], 
-                };
+                const memberName = memberData.name;
+                
+                if (t.members.includes(memberName)) {
+                    return {
+                        ...t,
+                        members: t.members.filter(name => name !== memberName),
+                    };
+                } else {
+                    return {
+                        ...t,
+                        members: [...t.members, memberName], 
+                    };
+                }
             }
             return t;
         })
@@ -180,23 +210,23 @@ const Project: React.FC = () => {
       title: inputTitle, 
       members: [], 
     };
-    setTasks((prev) => [...prev, newTask]);
+    setTasks(prev => [...prev, newTask]);
   };
 
   const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    setTasks(prev =>
+      prev.map(t => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
   };
 
   const handleDeleteTask = (taskId: number) => {
     if(window.confirm("삭제하시겠습니까?")) {
-        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+        setTasks(prev => prev.filter(t => t.id !== taskId));
     }
   }
 
   const handleUpdateTask = (t: Task) => {
-    setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
+    setTasks(prev => prev.map(tk => (tk.id === t.id ? t : tk)));
   };
 
   const handleSelectTask = (tid: number) => {
@@ -207,7 +237,10 @@ const Project: React.FC = () => {
   useEffect(() => {
     if (!token) return;
     const myList = getProjectsForUser(token);
-    setMyProjects(myList.map((p) => ({ id: p.id, name: p.name })));
+    setMyProjects(myList.map(p => ({ id: p.id, name: p.name })));
+    
+    setFriends(getFriends());
+
 
     if (numericProjectId !== null) {
       const record = getProjectById(numericProjectId);
@@ -242,7 +275,6 @@ const Project: React.FC = () => {
         friends={friends}
       />
 
-      {/* [MODIFIED] Header와 Workspace를 감싸는 Wrapper 추가 */}
       <div 
         style={{ 
           marginLeft: isSlideoutOpen ? "280px" : "0px",
@@ -253,7 +285,6 @@ const Project: React.FC = () => {
           flex: 1,
         }}
       >
-        {/* Header가 Wrapper 안에 들어와서 같이 밀립니다. */}
         <Header onMenuClick={toggleSlideout} />
 
         <div className="workspace-container">
@@ -266,6 +297,7 @@ const Project: React.FC = () => {
               members={members}
               onAddMemberClick={handleAddMember}
               onDeleteMember={handleDeleteMember}
+              onAddMemberFromFriend={handleAddMemberFromFriend}
             />
           </aside>
 
@@ -298,14 +330,14 @@ const Project: React.FC = () => {
                   columns={columns}
                   tasks={tasks}
                   members={members}
-                  onAddTask={handleAddTask}
+                  onAddTask={handleAddTask} // [FIXED 2] handleAddTask로 수정
                   onUpdateTaskStatus={handleUpdateTaskStatus}
                   onDeleteTask={handleDeleteTask}
                   onSelectTask={handleSelectTask}
                   onAddRoleColumn={handleAddRoleColumn}
-                  onAddMemberToRole={handleAddMemberToRole}
+                  // [REMOVED] onAddMemberToRole 제거
                   onDeleteRoleColumn={handleDeleteRoleColumn}
-                  onUpdateMemberStatusInRole={handleUpdateMemberStatusInRole}
+                  // [REMOVED] onUpdateMemberStatusInRole 제거
                   onAssignMemberToTask={handleAssignMemberToTask} 
                 />
               )}

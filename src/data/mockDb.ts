@@ -17,6 +17,21 @@ export interface ProjectRecord {
     ownerUsername: string;
 }
 
+// 🔹 친구 타입 정의
+export interface Friend {
+    id: number;
+    name: string;
+    avatarInitial: string;
+}
+
+// 🔹 더미 태스크 타입 정의
+interface DummyTask {
+    id: number;
+    status: string; // "DONE", "TODO", "IN_PROGRESS"
+    projectId: number;
+}
+
+
 // --- Local Storage 관리 함수 (핵심) ---
 
 const STORAGE_KEY = 'teamcanvasProjects';
@@ -41,13 +56,24 @@ function saveProjects(currentProjects: ProjectRecord[]): void {
 }
 
 
-// --- 유저 데이터 (메모리 유지) ---
+// --- 유저 및 친구 데이터 ---
 
 export const users: User[] = [
     { id: 1, username: "admin", password: "1234", name: "관리자" },
     { id: 2, username: "hyeonki", password: "1234", name: "현기" },
     { id: 3, username: "gunil", password: "1234", name: "건일" },
 ];
+
+const demoFriends: Friend[] = [
+    { id: 201, name: "김유신", avatarInitial: "김" },
+    { id: 202, name: "이순신", avatarInitial: "이" },
+    { id: 203, name: "세종대왕", avatarInitial: "세" },
+    { id: 204, name: "장영실", avatarInitial: "장" },
+];
+
+export function getFriends(): Friend[] {
+    return demoFriends;
+}
 
 export function createUser(
     username: string,
@@ -72,18 +98,55 @@ export function loginUser(username: string, password: string): User | null {
 }
 
 
-// --- 프로젝트 CRUD (Local Storage 반영) ---
+// --- 태스크 데이터 및 진행률 계산 ---
 
-export function getProjectsForUser(username: string): ProjectRecord[] {
+// 🔹 더미 태스크 데이터 (진행률 계산의 기준)
+const dummyTasks: DummyTask[] = [
+    { id: 1, status: "DONE", projectId: 101 },
+    { id: 2, status: "IN_PROGRESS", projectId: 101 },
+    { id: 3, status: "TODO", projectId: 101 },
+    { id: 4, status: "DONE", projectId: 201 },
+    { id: 5, status: "TODO", projectId: 201 },
+    { id: 6, status: "IN_PROGRESS", projectId: 301 },
+    { id: 7, status: "TODO", projectId: 301 },
+    { id: 8, status: "DONE", projectId: 101 },
+    { id: 9, status: "DONE", projectId: 101 },
+];
+
+export function getProjectTasks(projectId: number): DummyTask[] {
+    return dummyTasks.filter(t => t.projectId === projectId);
+}
+
+// [NEW] 진행률 계산 헬퍼 함수
+function calculateProjectProgress(projectId: number): number {
+    const tasks = getProjectTasks(projectId);
+    const total = tasks.length;
+    if (total === 0) return 0;
+    
+    // "DONE" 상태의 태스크를 기준으로 진행률 계산
+    const completedTasks = tasks.filter((t) => t.status === "DONE").length;
+    return Math.round((completedTasks / total) * 100);
+}
+
+
+// --- 프로젝트 CRUD (Local Storage 반영 및 진행률 포함) ---
+
+export function getProjectsForUser(username: string): (ProjectRecord & { progressPercent: number })[] {
     const currentProjects = loadProjects(); 
     const user = users.find((u) => u.username === username);
     if (!user) return [];
 
-    return currentProjects.filter(
+    const userProjects = currentProjects.filter(
         (p) =>
             p.ownerUsername === username || 
             p.members.includes(user.name) 
     );
+    
+    // 진행률 계산 로직을 여기서 실행하여 progressPercent를 추가
+    return userProjects.map(p => ({
+        ...p,
+        progressPercent: calculateProjectProgress(p.id),
+    })) as (ProjectRecord & { progressPercent: number })[];
 }
 
 export function getProjectById(projectId: number): ProjectRecord | undefined {
@@ -115,7 +178,6 @@ export function createProjectForUser(
     return newProject;
 }
 
-// ✅ 프로젝트에 멤버 이름 추가 (SlideoutSidebar에서 호출)
 export function addMemberToProject(
     projectId: number,
     memberName: string
@@ -154,27 +216,3 @@ export const deleteProject = (id: number): void => {
     const updatedProjects = currentProjects.filter((p) => p.id !== id);
     saveProjects(updatedProjects);
 };
-
-// 🔹 더미 태스크 타입 정의
-interface DummyTask {
-    id: number;
-    status: string; // "DONE", "TODO", "IN_PROGRESS"
-    projectId: number;
-}
-
-// 🔹 더미 태스크 데이터
-const dummyTasks: DummyTask[] = [
-    { id: 1, status: "DONE", projectId: 101 },
-    { id: 2, status: "IN_PROGRESS", projectId: 101 },
-    { id: 3, status: "TODO", projectId: 101 },
-    { id: 4, status: "DONE", projectId: 201 },
-    { id: 5, status: "TODO", projectId: 201 },
-    { id: 6, status: "IN_PROGRESS", projectId: 301 },
-    { id: 7, status: "TODO", projectId: 301 },
-    { id: 8, status: "DONE", projectId: 101 },
-    { id: 9, status: "DONE", projectId: 101 },
-];
-
-export function getProjectTasks(projectId: number): DummyTask[] {
-    return dummyTasks.filter(t => t.projectId === projectId);
-}

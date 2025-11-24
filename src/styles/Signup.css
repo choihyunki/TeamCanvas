@@ -89,7 +89,7 @@
 /* 활성 상태: 로그인과 동일하게 #2563EB (파랑) 적용 */
 .signup-drag-button.active {
   background-color: #2563EB;
-  cursor: grab;
+  cursor: move;
 }
 
 .signup-drag-button.dragging {

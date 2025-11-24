@@ -1,21 +1,20 @@
 .swimlane-wrapper {
   height: 100%;
-  overflow-y: auto; /* 전체 스크롤 기능을 래퍼로 이동 */
-  padding: 0 10px 10px 0; /* 우측과 하단에 약간의 여백 확보 */
+  overflow-y: auto;
+  padding: 0 10px 10px 0;
   box-sizing: border-box;
 }
 
 .swimlane-container {
   display: flex;
   flex-direction: column;
-  /* height: 100%; 제거 - 래퍼에 맡김 */
   min-width: 900px;
-  width: 100%; /* 부모 너비에 맞게 조정 */
+  width: 100%;
   background-color: #ffffff;
   border-radius: 8px;
   border: 1px solid #e5e7eb;
   box-sizing: border-box;
-  overflow: hidden; /* 내부적으로는 오버플로우 숨김 */
+  overflow: hidden;
 }
 
 .swimlane-header {
@@ -52,7 +51,6 @@
 }
 
 .swimlane-body {
-  /* overflow-y: auto; 속성 제거 (wrapper로 이동) */
   flex: 1;
 }
 
@@ -84,23 +82,21 @@
     margin-top: 8px;
 }
 
-/* 멤버 아바타 미니 스타일 */
 .member-avatar-mini {
     width: 24px;
     height: 24px;
-    background-color: #e0e7ff; /* 연한 파랑 배경 */
-    color: #3B82F6; /* 파랑 글씨 */
+    background-color: #e0e7ff;
+    color: #3B82F6;
     border-radius: 50%;
     font-size: 11px;
     font-weight: 700;
     display: flex;
     justify-content: center;
     align-items: center;
-    cursor: grab; /* 드래그 가능함을 표시 */
+    cursor: move; 
     position: relative;
 }
 
-/* 멤버 상태 점 (Role 내에서 상태를 표시) */
 .member-status-dot {
     position: absolute;
     bottom: 0;
@@ -151,7 +147,6 @@
     color: #B91C1C;
 }
 
-/* 태스크 셀 */
 .swimlane-cell {
   background-color: #ffffff;
   padding: 12px;
@@ -176,16 +171,16 @@
   border: 1px solid #e5e7eb;
   padding: 10px;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
   font-size: 14px;
   color: #374151;
-  cursor: grab;
+  cursor: move; 
   position: relative;
   transition: transform 0.1s, box-shadow 0.1s;
 }
 
 .task-card-mini:active {
-  cursor: grabbing;
+  cursor: move;
 }
 
 .task-card-mini:hover {
