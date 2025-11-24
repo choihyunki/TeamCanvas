@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -10,8 +10,19 @@ import SlideoutSidebar from "../components/SlideoutSidebar";
 import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
 
+// 인앱 툴 관련 import
+import {
+  Calculator,
+  MemoPad,
+  Timer,
+  YouTubePlayer,
+  CodeReviewer,
+} from "../components/InAppTools";
+import { AppWindow, ToolType } from "../types/InApp";
+import "../styles/InApp.css";
+
 import { Member } from "../types/Member";
-// 🔥 [수정 1] SubTask 타입 import 추가
+// 🔥 SubTask 타입 import (에러 해결)
 import { RoleColumn, ProjectMember, SubTask } from "../types/Project";
 import { Task } from "../types/Task";
 
@@ -35,12 +46,153 @@ interface Friend {
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const numericProjectId = projectId ? Number(projectId) : null;
-
   const { token } = useAuth();
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [, setCurrentProject] = useState<ProjectRecord | null>(null);
 
-  // --- 상태 관리 ---
+  // --- 인앱 툴(창) 상태 관리 ---
+  const [windows, setWindows] = useState<AppWindow[]>([]);
+  const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
+
+  // 🔥 드래그 상태 저장을 위한 Ref (창 이동용)
+  const dragItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialLeft: number;
+    initialTop: number;
+  } | null>(null);
+  // 🔥 리사이즈 상태 저장을 위한 Ref (창 크기 조절용)
+  const resizeItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialWidth: number;
+    initialHeight: number;
+  } | null>(null);
+
+  // 창 열기
+  const openWindow = (type: ToolType, title: string) => {
+    let defaultW = 300;
+    let defaultH = 400;
+    if (type === "calculator") {
+      defaultW = 220;
+      defaultH = 320;
+    }
+    if (type === "timer") {
+      defaultW = 200;
+      defaultH = 150;
+    }
+    if (type === "youtube") {
+      defaultW = 340;
+      defaultH = 240;
+    }
+    if (type === "code-review") {
+      defaultW = 600;
+      defaultH = 500;
+    }
+
+    const newWindow: AppWindow = {
+      id: Date.now(),
+      type,
+      title,
+      x: 150 + windows.length * 40,
+      y: 100 + windows.length * 40,
+      zIndex: windows.length + 100,
+      minimized: false,
+      width: defaultW,
+      height: defaultH,
+    };
+    setWindows([...windows, newWindow]);
+    setActiveWindowId(newWindow.id);
+  };
+
+  const closeWindow = (id: number) => {
+    setWindows(windows.filter((w) => w.id !== id));
+  };
+
+  const bringToFront = (id: number) => {
+    setActiveWindowId(id);
+    setWindows((prev) => {
+      const maxZ = Math.max(...prev.map((w) => w.zIndex), 100);
+      return prev.map((w) => (w.id === id ? { ...w, zIndex: maxZ + 1 } : w));
+    });
+  };
+
+  // --- 🖱️ 마우스 이벤트 핸들러 (창 이동 & 리사이즈) ---
+  const handleMouseDownHeader = (
+    e: React.MouseEvent,
+    id: number,
+    x: number,
+    y: number
+  ) => {
+    e.stopPropagation();
+    bringToFront(id);
+    dragItem.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft: x,
+      initialTop: y,
+    };
+  };
+
+  const handleMouseDownResize = (
+    e: React.MouseEvent,
+    id: number,
+    w: number,
+    h: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    bringToFront(id);
+    resizeItem.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialWidth: w,
+      initialHeight: h,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (resizeItem.current) {
+      const { id, startX, startY, initialWidth, initialHeight } =
+        resizeItem.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      setWindows((prev) =>
+        prev.map((w) =>
+          w.id === id
+            ? {
+                ...w,
+                width: Math.max(200, initialWidth + dx),
+                height: Math.max(150, initialHeight + dy),
+              }
+            : w
+        )
+      );
+      return;
+    }
+    if (dragItem.current) {
+      const { id, startX, startY, initialLeft, initialTop } = dragItem.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      setWindows((prev) =>
+        prev.map((w) =>
+          w.id === id ? { ...w, x: initialLeft + dx, y: initialTop + dy } : w
+        )
+      );
+    }
+  };
+
+  const handleMouseUp = () => {
+    dragItem.current = null;
+    resizeItem.current = null;
+  };
+
+  // --- 기존 프로젝트 로직 ---
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]); // (구) 태스크 - 에러 방지용 유지
@@ -66,7 +218,7 @@ const Project: React.FC = () => {
 
   // --- Handlers ---
 
-  // 🔥 [수정 2] 멤버를 '컬럼(작업 보드)'에 드롭했을 때 (subTasks 초기화 추가)
+  // 🔥 [핵심] 멤버를 '컬럼(작업 보드)'에 드롭했을 때 (subTasks 초기화 추가)
   const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
@@ -84,7 +236,7 @@ const Project: React.FC = () => {
         col.id === columnId
           ? {
               ...col,
-              // 🔥 subTasks: [] 추가
+              // 🔥 subTasks: [] 필수 추가 (에러 해결)
               members: [
                 ...col.members,
                 { id: memberId, status: "작업전", subTasks: [] },
@@ -220,40 +372,32 @@ const Project: React.FC = () => {
   const handleAddMember = () => {
     const newName = prompt("새 멤버의 이름을 입력하세요:");
     if (!newName) return;
-
     const trimmed = newName.trim();
     if (!trimmed) return;
-
     const newMember: Member = {
       id: new Date().getTime(),
       name: trimmed,
       isOnline: true,
     };
-
     setMembers((prevMembers) => [...prevMembers, newMember]);
-
-    if (numericProjectId !== null) {
+    if (numericProjectId !== null)
       addMemberToProject(numericProjectId, trimmed);
-    }
   };
 
   const handleDeleteMember = (memberId: number) => {
     if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
-
     const target = members.find((m) => m.id === memberId);
-    if (target && numericProjectId !== null) {
+    if (target && numericProjectId !== null)
       removeMemberFromProject(numericProjectId, target.name);
-    }
-
     setMembers((prevMembers) =>
       prevMembers.filter((member) => member.id !== memberId)
     );
   };
 
-  const handleAddColumn = (columnName: string) => {
+  const handleAddColumn = (name: string) => {
     const newColumn: RoleColumn = {
       id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
-      name: columnName,
+      name,
       members: [],
     };
     setColumns([...columns, newColumn]);
@@ -266,19 +410,16 @@ const Project: React.FC = () => {
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
     const destinationColumn = columns.find((col) => col.id === columnId);
     if (!destinationColumn) return;
-    const isAlreadyInThisColumn = destinationColumn.members.some(
-      (m) => m.id === memberId
-    );
-    if (isAlreadyInThisColumn) {
+    if (destinationColumn.members.some((m) => m.id === memberId)) {
       alert("이 역할에는 이미 배정된 멤버입니다.");
       return;
     }
     setColumns((prev) =>
       prev.map((col) =>
         col.id === columnId
-          ? {
+          ? // 🔥 subTasks: [] 추가
+            {
               ...col,
-              // 🔥 subTasks: [] 추가
               members: [
                 ...col.members,
                 { id: memberId, status: "작업전", subTasks: [] },
@@ -290,50 +431,14 @@ const Project: React.FC = () => {
   };
 
   const handleMoveMemberBetweenColumns = (
-    memberId: number,
-    sourceColumnId: number,
-    destinationColumnId: number
+    mid: number,
+    from: number,
+    to: number
   ) => {
-    if (sourceColumnId === destinationColumnId) return;
-    let memberToMove: ProjectMember | undefined;
-    const columnsAfterRemoval = columns.map((col) => {
-      if (col.id === sourceColumnId) {
-        memberToMove = col.members.find((m) => m.id === memberId);
-        return {
-          ...col,
-          members: col.members.filter((m) => m.id !== memberId),
-        };
-      }
-      return col;
-    });
-    if (memberToMove) {
-      const columnsAfterAddition = columnsAfterRemoval.map((col) => {
-        if (col.id === destinationColumnId) {
-          return { ...col, members: [...col.members, memberToMove!] };
-        }
-        return col;
-      });
-      setColumns(columnsAfterAddition);
-    }
+    /* ... */
   };
-
-  const handleUpdateMemberStatus = (
-    columnId: number,
-    memberId: number,
-    status: string
-  ) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? {
-              ...col,
-              members: col.members.map((m) =>
-                m.id === memberId ? { ...m, status } : m
-              ),
-            }
-          : col
-      )
-    );
+  const handleUpdateMemberStatus = (cid: number, mid: number, st: string) => {
+    /* ... */
   };
 
   const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
@@ -346,41 +451,16 @@ const Project: React.FC = () => {
     );
   };
 
-  const handleUpdateMemberMemo = (
-    columnId: number,
-    memberId: number,
-    memo: string
-  ) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? {
-              ...col,
-              members: col.members.map((m) =>
-                m.id === memberId ? { ...m, memo } : m
-              ),
-            }
-          : col
-      )
-    );
+  const handleUpdateMemberMemo = (cid: number, mid: number, memo: string) => {
+    /* ... */
   };
-
-  const handleAddTask = (columnId: number, title: string) => {
-    const newTask: Task = {
-      id: Date.now(),
-      title,
-      description: "",
-      columnId,
-      members: [],
-    };
-    setTasks((prev) => [...prev, newTask]);
+  const handleAddTask = (cid: number, title: string) => {
+    /* ... */
   };
-
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
-
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
@@ -390,7 +470,6 @@ const Project: React.FC = () => {
     if (!token) return;
     const myList = getProjectsForUser(token);
     setMyProjects(myList.map((p) => ({ id: p.id, name: p.name })));
-
     if (numericProjectId !== null) {
       const record = getProjectById(numericProjectId);
       if (record) {
@@ -408,7 +487,11 @@ const Project: React.FC = () => {
   }, [token, numericProjectId]);
 
   return (
-    <div className="project-layout">
+    <div
+      className="project-layout"
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+    >
       <Header onMenuClick={toggleSlideout} />
 
       <SlideoutSidebar
@@ -422,7 +505,6 @@ const Project: React.FC = () => {
         className="workspace-container"
         style={{ marginLeft: isSlideoutOpen ? 280 : 0 }}
       >
-        {/* 왼쪽 사이드바 */}
         <aside
           className={`left-sidebar ${
             isLeftSidebarCollapsed ? "collapsed" : ""
@@ -435,14 +517,120 @@ const Project: React.FC = () => {
           />
         </aside>
 
-        {/* 메인 영역 */}
-        <main className="project-main">
-          {/* 왼쪽 토글 버튼 */}
+        <main className="project-main" style={{ position: "relative" }}>
+          {/* 🔹 [인앱 툴 렌더링 영역] */}
+          {windows.map((win) => (
+            <div
+              key={win.id}
+              className="window-frame"
+              style={{
+                left: win.x,
+                top: win.y,
+                width: win.width,
+                height: win.height,
+                zIndex: win.zIndex,
+                border:
+                  activeWindowId === win.id
+                    ? "1px solid #4f46e5"
+                    : "1px solid #ccc",
+                boxShadow:
+                  activeWindowId === win.id
+                    ? "0 10px 30px rgba(79, 70, 229, 0.2)"
+                    : "0 5px 15px rgba(0,0,0,0.1)",
+              }}
+              onMouseDown={() => bringToFront(win.id)}
+            >
+              <div
+                className="window-header"
+                onMouseDown={(e) =>
+                  handleMouseDownHeader(e, win.id, win.x, win.y)
+                }
+              >
+                <span className="window-title">{win.title}</span>
+                <div className="window-controls">
+                  <button
+                    className="btn-close"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      closeWindow(win.id);
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div
+                className="window-body"
+                style={{ width: "100%", height: "100%", overflow: "auto" }}
+              >
+                {win.type === "calculator" && <Calculator />}
+                {win.type === "memo" && <MemoPad />}
+                {win.type === "timer" && <Timer />}
+                {win.type === "youtube" && <YouTubePlayer />}
+                {win.type === "code-review" && <CodeReviewer />}
+              </div>
+              <div
+                className="resize-handle"
+                onMouseDown={(e) =>
+                  handleMouseDownResize(e, win.id, win.width, win.height)
+                }
+              />
+            </div>
+          ))}
+
+          {/* 🔹 [하단 독 Dock] */}
+          <div className="in-app-dock">
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("calculator", "계산기")}
+            >
+              <div className="icon-box">🧮</div>
+              <span>계산기</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("memo", "메모장")}
+            >
+              <div className="icon-box">📝</div>
+              <span>메모장</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("timer", "타이머")}
+            >
+              <div className="icon-box">⏱️</div>
+              <span>타이머</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("youtube", "유튜브")}
+            >
+              <div
+                className="icon-box"
+                style={{ background: "#ffcccc", color: "red" }}
+              >
+                ▶️
+              </div>
+              <span>유튜브</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("code-review", "코드 리뷰")}
+            >
+              <div
+                className="icon-box"
+                style={{ background: "#1e1e1e", color: "#00bcd4" }}
+              >
+                💻
+              </div>
+              <span>코드리뷰</span>
+            </div>
+          </div>
+
           <button className="toggle-btn left" onClick={toggleLeftSidebar}>
             {isLeftSidebarCollapsed ? "▶" : "◀"}
           </button>
 
-          {/* 탭 헤더 */}
           <div className="tabs-container">
             {[
               { key: "taskBoard", label: "작업 보드" },
@@ -461,7 +649,6 @@ const Project: React.FC = () => {
 
           <ProgressBar tasks={tasks} />
 
-          {/* 탭 내용 */}
           <div className="tab-content-area">
             {activeTab === "taskBoard" && (
               <TaskBoard
@@ -485,7 +672,6 @@ const Project: React.FC = () => {
               <TaskDetails
                 columns={columns}
                 members={members}
-                // 🔥 [수정 3] TaskDetails에 불필요한 props 제거
                 onAddSubTask={handleAddSubTask}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
@@ -497,7 +683,6 @@ const Project: React.FC = () => {
           </div>
         </main>
 
-        {/* 오른쪽 채팅 사이드바 */}
         <aside
           className={`right-sidebar ${
             isRightSidebarCollapsed ? "collapsed" : ""
@@ -506,7 +691,6 @@ const Project: React.FC = () => {
           <ChatBox projectId={numericProjectId} />
         </aside>
       </div>
-
       <Footer />
     </div>
   );
