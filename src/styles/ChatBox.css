@@ -71,3 +71,44 @@
   color: #fff;
   cursor: pointer;
 }
+
+.chatbox-input-area {
+  padding: 15px;
+  border-top: 1px solid #eee;
+  display: flex;
+  gap: 8px;
+  background: #fff;
+}
+
+.chatbox-input {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+}
+
+.chatbox-send-btn {
+  padding: 10px 16px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.chatbox-header {
+  padding: 15px;
+  font-weight: bold;
+  border-bottom: 1px solid #eee;
+  background: #f9fafb;
+  font-size: 16px;
+}
+
+.chatbox-messages {
+  flex: 1; /* 남은 공간 모두 차지 */
+  overflow-y: auto;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

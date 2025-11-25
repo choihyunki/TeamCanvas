@@ -39,7 +39,7 @@ const Project: React.FC = () => {
   const [, setCurrentProject] = useState<ProjectRecord | null>(null);
 
   const [members, setMembers] = useState<Member[]>([]);
-  const [columns, setColumns] = useState<RoleColumn[]>([]);
+  const [columns, setColumns] = useState<RoleColumn[]>([]); // 🔥 초기값 빈 배열
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
@@ -234,6 +234,11 @@ const Project: React.FC = () => {
     setActiveTab("taskDetails");
   };
 
+  const handleUpdateTask = (t: Task) => {
+    setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
+  };
+
+  // --- 초기 데이터 로드 ---
   useEffect(() => {
     if (!token) return;
     const myList = getProjectsForUser(token);

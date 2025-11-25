@@ -6,16 +6,29 @@ import "../styles/TaskBoard.css";
 
 interface Props {
   columns: RoleColumn[];
-  tasks: Task[];
   members: Member[];
-  onAddTask: (roleId: number, status: string) => void;
-  onUpdateTaskStatus: (taskId: number, newStatus: string) => void;
-  onDeleteTask: (taskId: number) => void;
+  tasks: Task[]; // (에러 방지용 유지)
+  onAddColumn: (name: string) => void;
+  onDeleteColumn: (columnId: number) => void;
+  onAddMemberToColumn: (columnId: number, memberId: number) => void;
+  onMoveMember: (memberId: number, from: number, to: number) => void;
+  onUpdateStatus: (columnId: number, memberId: number, status: string) => void;
+  onDeleteMember: (columnId: number, memberId: number) => void;
+  onUpdateMemberMemo: (
+    columnId: number,
+    memberId: number,
+    memo: string
+  ) => void;
+  onInviteFriend: (
+    columnId: number,
+    friendId: string,
+    friendName: string
+  ) => void;
+  onAddTask: (columnId: number, title: string) => void;
   onSelectTask: (taskId: number) => void;
-  onAddRoleColumn: (name: string) => void;
-  onDeleteRoleColumn: (roleId: number) => void;
-  // [MODIFIED] Role에 멤버를 직접 추가/이동하는 Prop 제거
-  onAssignMemberToTask: (taskId: number, memberId: number) => void; 
+
+  // 🔥 [핵심] 컬럼(보드)에 멤버를 드롭했을 때 실행되는 함수
+  onDropMemberOnColumn: (columnId: number, memberId: number) => void;
 }
 
 const STATUSES = [
