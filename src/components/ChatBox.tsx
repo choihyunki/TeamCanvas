@@ -1,100 +1,110 @@
-// src/components/ChatBox.tsx
-
 import React, { useState, useEffect, useRef } from "react";
 import "../styles/ChatBox.css";
+import { useAuth } from "../context/AuthContext";
+import { useChatSocket } from "../hooks/useChatSocket";
 
-interface ChatMessage {
-  id: number;
-  sender: string;
-  message: string;
-  timestamp: string;
-}
-
-interface Props {
+interface ChatBoxProps {
   projectId: number | null;
 }
 
-const ChatBox: React.FC<Props> = ({ projectId }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const chatEndRef = useRef<HTMLDivElement | null>(null);
+const ChatBox: React.FC<ChatBoxProps> = ({ projectId }) => {
+  const { token } = useAuth();
+  const [currentMessage, setCurrentMessage] = useState("");
+  const { messages, sendMessage } = useChatSocket(projectId, token || "익명");
 
-  const STORAGE_KEY = projectId ? `chat_project_${projectId}` : "chat_default";
+  // 🔥 스크롤 자동 이동을 위한 Ref
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 🔥 프로젝트별 채팅 로드
+  // 메시지가 올 때마다 스크롤을 맨 아래로 내림
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        setMessages(JSON.parse(saved));
-      } catch {
-        setMessages([]);
-      }
-    }
-  }, [STORAGE_KEY]);
-
-  // 🔥 메시지 보내기
-  const sendMessage = () => {
-    if (!input.trim()) return;
-
-    const newMsg: ChatMessage = {
-      id: Date.now(),
-      sender: "나", // 로그인 사용자 이름 넣고 싶으면 AuthContext에서 token 가져와도 됨
-      message: input.trim(),
-      timestamp: new Date().toLocaleTimeString(),
-    };
-
-    const updated = [...messages, newMsg];
-
-    setMessages(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); // 🔥 저장
-
-    setInput("");
-    scrollToBottom();
-  };
-
-  // Enter로 전송
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") sendMessage();
-  };
-
-  // 🔥 스크롤 아래로 내리기
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
-  };
-
-  useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  return (
-    <div className="chatbox-container">
-      <div className="chatbox-header">프로젝트 채팅</div>
+  const handleSend = () => {
+    if (!currentMessage.trim()) return;
+    sendMessage(currentMessage);
+    setCurrentMessage("");
+  };
 
-      <div className="chatbox-messages">
-        {messages.map((msg) => (
-          <div key={msg.id} className="chat-message">
-            <div className="chat-sender">{msg.sender}</div>
-            <div className="chat-text">{msg.message}</div>
-            <div className="chat-time">{msg.timestamp}</div>
-          </div>
-        ))}
-        <div ref={chatEndRef} />
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    // 한글 입력 중 조합(Composing) 상태일 때 중복 전송 방지
+    if (e.nativeEvent.isComposing) return;
+
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault(); // 엔터 키의 기본 동작(줄바꿈) 막기
+      handleSend();
+    }
+  };
+
+  if (!projectId) {
+    return (
+      <div
+        className="chat-box"
+        style={{
+          justifyContent: "center",
+          alignItems: "center",
+          color: "#888",
+        }}
+      >
+        <p>프로젝트를 선택해주세요.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chat-box">
+      {/* 1. 헤더 */}
+      <div className="chat-header">
+        <h3>💬 팀 채팅</h3>
       </div>
 
-      <div className="chatbox-input-area">
-        <input
-          className="chatbox-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="메시지를 입력하세요..."
+      {/* 2. 메시지 영역 (스크롤됨) */}
+      <div className="chat-messages">
+        {messages.length === 0 ? (
+          <p style={{ textAlign: "center", color: "#aaa", marginTop: "20px" }}>
+            아직 대화가 없습니다.
+            <br />첫 메시지를 보내보세요! 👋
+          </p>
+        ) : (
+          messages.map((msg, idx) => (
+            <div
+              key={idx}
+              className={`message-bubble ${
+                msg.author === token ? "my-message" : "other-message"
+              }`}
+            >
+              <div className="message-info">
+                <span className="author">{msg.author}</span>
+                <span className="time">{msg.time}</span>
+              </div>
+              <div className="text">{msg.message}</div>
+            </div>
+          ))
+        )}
+        {/* 스크롤을 여기로 내리기 위한 투명한 div */}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* 3. 입력창 영역 (input -> textarea로 변경) */}
+      <div className="chat-input-area">
+        <textarea
+          value={currentMessage}
+          onChange={(e) => setCurrentMessage(e.target.value)}
+          onKeyDown={handleKeyPress}
+          placeholder="메시지 입력... (Shift+Enter 줄바꿈)"
+          style={{
+            resize: "none", // 사용자 임의 크기 조절 방지
+            height: "40px", // 기본 높이 설정
+            lineHeight: "1.4",
+            padding: "10px",
+            borderRadius: "12px", // 둥글게
+            border: "1px solid #ddd",
+            outline: "none",
+            flex: 1, // 영역 채우기
+            fontFamily: "inherit",
+          }}
         />
-        <button className="chatbox-send-btn" onClick={sendMessage}>
-          전송
-        </button>
+        <button onClick={handleSend}>전송</button>
       </div>
     </div>
   );

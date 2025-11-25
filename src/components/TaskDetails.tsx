@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Member } from "../types/Member";
-import { Task } from "../types/Task";
 import { RoleColumn } from "../types/Project";
+import { Task } from "../types/Task"; // 🔥 [수정] Task 타입 임포트 추가!
 import "../styles/TaskDetails.css";
 
 interface Props {

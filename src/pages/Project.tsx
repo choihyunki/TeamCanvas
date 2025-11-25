@@ -25,7 +25,6 @@ import {
 import { AppWindow, ToolType } from "../types/InApp";
 import "../styles/InApp.css";
 
-// 타입 (Project.ts 수정 필수!)
 import { Member } from "../types/Member";
 import { RoleColumn, SubTask } from "../types/Project";
 import { Task } from "../types/Task";
@@ -56,14 +55,16 @@ const Project: React.FC = () => {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [, setCurrentProject] = useState<ProjectRecord | null>(null);
 
-  // 🔥 [수정] 훅 이름 매칭 (useLiveCursors 반환값 확인 필요, 여기선 handleLiveMouseMove로 가정)
+  // 🔥 실시간 커서 훅
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
     token || "Anonymous"
   );
 
-  // --- 인앱 툴(창) 상태 ---
+  // --- 인앱 툴(창) 상태 관리 ---
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
+
+  // 창 이동용 Ref
   const dragItem = useRef<{
     id: number;
     startX: number;
@@ -71,6 +72,8 @@ const Project: React.FC = () => {
     initialLeft: number;
     initialTop: number;
   } | null>(null);
+
+  // 창 리사이즈용 Ref
   const resizeItem = useRef<{
     id: number;
     startX: number;
@@ -115,8 +118,10 @@ const Project: React.FC = () => {
     setActiveWindowId(newWindow.id);
   };
 
-  const closeWindow = (id: number) =>
+  const closeWindow = (id: number) => {
     setWindows(windows.filter((w) => w.id !== id));
+  };
+
   const bringToFront = (id: number) => {
     setActiveWindowId(id);
     setWindows((prev) => {
@@ -125,7 +130,7 @@ const Project: React.FC = () => {
     });
   };
 
-  // 마우스 핸들러
+  // --- 🖱️ 마우스 이벤트 핸들러 (창 이동 & 리사이즈) ---
   const handleMouseDownHeader = (
     e: React.MouseEvent,
     id: number,
@@ -142,6 +147,7 @@ const Project: React.FC = () => {
       initialTop: y,
     };
   };
+
   const handleMouseDownResize = (
     e: React.MouseEvent,
     id: number,
@@ -159,6 +165,7 @@ const Project: React.FC = () => {
       initialHeight: h,
     };
   };
+
   const handleWindowMouseMove = (e: React.MouseEvent) => {
     if (resizeItem.current) {
       const { id, startX, startY, initialWidth, initialHeight } =
@@ -170,8 +177,8 @@ const Project: React.FC = () => {
           w.id === id
             ? {
                 ...w,
-                width: Math.max(300, initialWidth + dx),
-                height: Math.max(200, initialHeight + dy),
+                width: Math.max(200, initialWidth + dx),
+                height: Math.max(150, initialHeight + dy),
               }
             : w
         )
@@ -189,6 +196,7 @@ const Project: React.FC = () => {
       );
     }
   };
+
   const handleMouseUp = () => {
     dragItem.current = null;
     resizeItem.current = null;
@@ -198,6 +206,7 @@ const Project: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
@@ -212,43 +221,77 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // --- 핸들러 ---
+  // --- Handlers ---
+
   const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
     if (members.some((m) => m.id === friendId)) {
       alert("이미 존재");
       return;
     }
-    setMembers((prev) => [
-      ...prev,
-      { id: friendId, name: friendName, isOnline: true },
-    ]);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const newMember: Member = {
+      id: friendId,
+      name: friendName,
+      isOnline: true,
+      role: "팀원",
+    };
+    setMembers((prev) => [...prev, newMember]);
+    if (numericProjectId !== null) {
+      addMemberToProject(numericProjectId, friendName);
+    }
   };
+
   const handleAddMember = () => {
-    const newName = prompt("이름 입력:");
-    if (!newName?.trim()) return;
-    setMembers((prev) => [
-      ...prev,
-      { id: Date.now(), name: newName.trim(), isOnline: true },
-    ]);
+    const newName = prompt("새 멤버의 이름을 입력하세요:");
+    if (!newName) return;
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    const newMember: Member = {
+      id: new Date().getTime(),
+      name: trimmed,
+      isOnline: true,
+    };
+    setMembers((prevMembers) => [...prevMembers, newMember]);
+    if (numericProjectId !== null)
+      addMemberToProject(numericProjectId, trimmed);
   };
-  const handleDeleteMember = (id: number) => {
-    if (!window.confirm("삭제?")) return;
-    setMembers((prev) => prev.filter((m) => m.id !== id));
+
+  const handleDeleteMember = (memberId: number) => {
+    if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
+    const target = members.find((m) => m.id === memberId);
+    if (target && numericProjectId !== null)
+      removeMemberFromProject(numericProjectId, target.name);
+    setMembers((prevMembers) =>
+      prevMembers.filter((member) => member.id !== memberId)
+    );
     setColumns((prev) =>
       prev.map((col) => ({
         ...col,
-        members: col.members.filter((m) => m.id !== id),
+        members: col.members.filter((m) => m.id !== memberId),
       }))
     );
   };
 
   const handleAddColumn = (name: string) => {
-    setColumns((prev) => [...prev, { id: Date.now(), name, members: [] }]);
+    const newColumn: RoleColumn = {
+      id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
+      name,
+      members: [],
+    };
+    setColumns([...columns, newColumn]);
   };
+
   const handleDeleteColumn = (columnId: number) => {
     setColumns((prev) => prev.filter((col) => col.id !== columnId));
   };
+
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
+    const destinationColumn = columns.find((col) => col.id === columnId);
+    if (!destinationColumn) return;
+    if (destinationColumn.members.some((m) => m.id === memberId)) {
+      alert("이 역할에는 이미 배정된 멤버입니다.");
+      return;
+    }
     setColumns((prev) =>
       prev.map((col) =>
         col.id === columnId
@@ -258,7 +301,7 @@ const Project: React.FC = () => {
                 ...col.members,
                 { id: memberId, status: "작업전", subTasks: [] },
               ],
-            } // 🔥 subTasks 초기화 필수
+            }
           : col
       )
     );
@@ -287,12 +330,13 @@ const Project: React.FC = () => {
           ...col,
           members: col.members.map((m) => {
             if (m.id !== memberId) return m;
-            const newSub: SubTask = {
+            const newSubTask: SubTask = {
               id: Date.now(),
               content,
               completed: false,
             };
-            return { ...m, subTasks: [...(m.subTasks || []), newSub] };
+            const currentSubTasks = m.subTasks || [];
+            return { ...m, subTasks: [...currentSubTasks, newSubTask] };
           }),
         };
       })
@@ -345,21 +389,70 @@ const Project: React.FC = () => {
     );
   };
 
+  const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
+    setColumns((prev) =>
+      prev.map((col) =>
+        col.id === columnId
+          ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
+          : col
+      )
+    );
+  };
+
+  const handleInviteFriendToColumn = (
+    columnId: number,
+    friendId: string,
+    friendName: string
+  ) => {
+    const id = parseInt(friendId, 10);
+    const isAlreadyMember = members.some((member) => member.id === id);
+    const targetColumn = columns.find((col) => col.id === columnId);
+    const isAlreadyInThisColumn = targetColumn?.members.some(
+      (m) => m.id === id
+    );
+
+    if (isAlreadyInThisColumn) {
+      alert("이 역할에는 이미 배정된 멤버입니다.");
+      return;
+    }
+
+    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
+      if (!isAlreadyMember) {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const newMember: Member = {
+          id,
+          name: friendName,
+          isOnline: false,
+          role: "팀원",
+        };
+        setMembers((prev) => [...prev, newMember]);
+      }
+      if (numericProjectId !== null) {
+        addMemberToProject(numericProjectId, friendName);
+      }
+
+      setColumns((prev) =>
+        prev.map((col) =>
+          col.id === columnId
+            ? {
+                ...col,
+                members: [
+                  ...col.members,
+                  { id, status: "작업전", subTasks: [] },
+                ],
+              }
+            : col
+        )
+      );
+    }
+  };
+
   // 더미 핸들러 (에러 방지)
   const handleMoveMemberBetweenColumns = () => {};
   const handleUpdateMemberStatus = () => {};
   const handleUpdateMemberMemo = () => {};
   const handleAddTask = () => {};
-  const handleInviteFriendToColumn = () => {};
-  const handleDeleteMemberFromColumn = (cid: number, mid: number) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === cid
-          ? { ...col, members: col.members.filter((m) => m.id !== mid) }
-          : col
-      )
-    );
-  };
+
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
@@ -399,7 +492,8 @@ const Project: React.FC = () => {
       onMouseUp={handleMouseUp}
     >
       <LiveCursors cursors={cursors} />
-      <Header onMenuClick={toggleSlideout} onOpenWindow={openWindow} />
+      {/* Header에 openWindow 전달이 필요하다면 props 추가 필요 */}
+      <Header onMenuClick={toggleSlideout} />
 
       <SlideoutSidebar
         isOpen={isSlideoutOpen}
@@ -426,7 +520,7 @@ const Project: React.FC = () => {
         </aside>
 
         <main className="project-main" style={{ position: "relative" }}>
-          {/* 창 렌더링 */}
+          {/* 🔹 [인앱 툴 렌더링 영역] */}
           {windows.map((win) => (
             <div
               key={win.id}
@@ -486,6 +580,55 @@ const Project: React.FC = () => {
             </div>
           ))}
 
+          {/* 🔹 [하단 독 Dock] */}
+          <div className="in-app-dock">
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("calculator", "계산기")}
+            >
+              <div className="icon-box">🧮</div>
+              <span>계산기</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("memo", "메모장")}
+            >
+              <div className="icon-box">📝</div>
+              <span>메모장</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("timer", "타이머")}
+            >
+              <div className="icon-box">⏱️</div>
+              <span>타이머</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("youtube", "유튜브")}
+            >
+              <div
+                className="icon-box"
+                style={{ background: "#ffcccc", color: "red" }}
+              >
+                ▶️
+              </div>
+              <span>유튜브</span>
+            </div>
+            <div
+              className="dock-icon"
+              onClick={() => openWindow("code-review", "코드 리뷰")}
+            >
+              <div
+                className="icon-box"
+                style={{ background: "#1e1e1e", color: "#00bcd4" }}
+              >
+                💻
+              </div>
+              <span>코드리뷰</span>
+            </div>
+          </div>
+
           <button className="toggle-btn left" onClick={toggleLeftSidebar}>
             {isLeftSidebarCollapsed ? "▶" : "◀"}
           </button>
@@ -514,7 +657,6 @@ const Project: React.FC = () => {
                 columns={columns}
                 members={members}
                 tasks={tasks}
-                // 🔥 [수정 완료] TaskBoard Props 일치
                 onAddColumn={handleAddColumn}
                 onDeleteColumn={handleDeleteColumn}
                 onAddMemberToColumn={handleAddMemberToColumn}
@@ -534,7 +676,6 @@ const Project: React.FC = () => {
               <TaskDetails
                 columns={columns}
                 members={members}
-                // 🔥 [수정 완료] TaskDetails Props 일치
                 onAddSubTask={handleAddSubTask}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
