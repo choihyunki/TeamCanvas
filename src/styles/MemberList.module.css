@@ -8,7 +8,7 @@
   background: #fdfdfd;
   border-radius: 8px;
   height: 100%;
-  border: 1px solid #eee; /* 외곽선 살짝 추가 */
+  border: 1px solid #eee;
 }
 
 .header {
@@ -22,7 +22,7 @@
 .title {
   margin: 0;
   font-weight: bold;
-  font-size: 16px; /* 18px -> 16px 약간 조정 */
+  font-size: 16px;
   color: #333;
 }
 
@@ -50,12 +50,14 @@
   padding: 0;
   margin: 0;
   list-style: none;
-  overflow-y: auto; /* 목록이 길어지면 스크롤 */
+  overflow-y: auto;
   flex: 1;
 }
 
 .cardWrapper {
   position: relative;
+  /* [NEW] 드래그 가능한 요소에 move 커서 적용 */
+  cursor: move; 
 }
 
 /* 🔥 새로 추가된 멤버 카드 스타일 */
@@ -67,6 +69,8 @@
   border: 1px solid #eee;
   border-radius: 8px;
   transition: transform 0.1s, box-shadow 0.1s;
+  /* [NEW] 드래그 중인 상태를 명시 */
+  cursor: move; 
 }
 
 .memberCard:hover {
@@ -87,7 +91,7 @@
   margin-right: 12px;
   font-size: 14px;
   font-weight: bold;
-  flex-shrink: 0; /* 이름 길어도 찌그러짐 방지 */
+  flex-shrink: 0;
 }
 
 .memberName {
@@ -100,7 +104,7 @@
   position: absolute;
   top: 50%;
   right: 10px;
-  transform: translateY(-50%); /* 수직 중앙 정렬 */
+  transform: translateY(-50%);
   background: transparent;
   border: none;
   font-size: 18px;

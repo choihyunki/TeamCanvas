@@ -1,77 +1,51 @@
 /* src/styles/Header.css */
 
-.app-header {
-  width: 100%;
-  padding: 15px 25px;
-  background: #4f46e5;
-  color: #fff;
+.header-container {
+  height: 50px;
+  border-bottom: 1px solid #ddd;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-sizing: border-box;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  z-index: 100; /* 사이드바보다 아래, 컨텐츠보다 위 */
-  position: relative;
+  padding: 0 20px;
+  background-color: #ffffff;
 }
 
-/* 왼쪽: 메뉴 버튼 + 로고 */
 .header-left {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-.menu-btn {
-  background: transparent;
+.hamburger-btn {
+  font-size: 20px;
+  background: none;
   border: none;
-  color: #fff;
-  font-size: 22px;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.logo {
+  height: 40px;
+  cursor: pointer; 
+}
+
+.nav-container {
+  display: flex;
+  gap: 25px; 
+}
+
+.icon-btn {
+  width: 32px; 
+  height: 32px;
   cursor: pointer;
   padding: 0;
-  display: flex;
-  align-items: center;
+  border: none;
+  background-color: transparent;
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: bold;
-  margin: 0;
-  cursor: pointer;
-  letter-spacing: -0.5px;
-}
-
-/* 오른쪽: 유저 정보 + 로그아웃 */
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.user-info {
-  font-size: 14px;
-  color: #e0e7ff; /* 연한 흰색/파란색 */
-  font-weight: 500;
-}
-
-.user-name {
-  color: #fff;
-  font-weight: bold;
-}
-
-.logout-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.2s;
-}
-
-.logout-btn:hover {
-  background: #fff;
-  color: #4f46e5;
-  border-color: #fff;
+.icon-img {
+  width: 100%;
+  height: 100%;
+  vertical-align: middle;
 }

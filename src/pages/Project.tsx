@@ -30,9 +30,8 @@ import { useAuth } from "../context/AuthContext";
 import {
   getProjectsForUser,
   getProjectById,
-  ProjectRecord,
-  addMemberToProject,
-  removeMemberFromProject,
+  ProjectRecord, // [FIXED 1] ProjectRecord 임포트 추가
+  getFriends,
 } from "../data/mockDb";
 
 import "../styles/Project.css";
@@ -198,10 +197,7 @@ const Project: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]); // (구) 태스크 - 에러 방지용 유지
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
 
-  const [friends] = useState<Friend[]>([
-    { id: 201, name: "김유신", avatarInitial: "김" },
-    { id: 202, name: "이순신", avatarInitial: "이" },
-  ]);
+  const [friends, setFriends] = useState<Friend[]>([]);
 
   const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
     []
@@ -216,246 +212,175 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // --- Handlers ---
+  // --- 핸들러 로직 ---
 
-  // 🔥 [핵심] 멤버를 '컬럼(작업 보드)'에 드롭했을 때 (subTasks 초기화 추가)
-  const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
-    const member = members.find((m) => m.id === memberId);
-    if (!member) return;
-
-    const targetColumn = columns.find((col) => col.id === columnId);
-    if (!targetColumn) return;
-
-    if (targetColumn.members.some((m) => m.id === memberId)) {
-      alert(`${member.name}님은 이미 이 작업 보드에 배정되어 있습니다.`);
-      return;
+  const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
+    if (members.some(m => m.id === friendId)) {
+        alert(`${friendName} 님은 이미 프로젝트 멤버입니다.`);
+        return;
     }
 
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? {
-              ...col,
-              // 🔥 subTasks: [] 필수 추가 (에러 해결)
-              members: [
-                ...col.members,
-                { id: memberId, status: "작업전", subTasks: [] },
-              ],
-            }
-          : col
-      )
-    );
+    const newMember: Member = {
+        id: friendId, 
+        name: friendName, 
+        isOnline: true, 
+    };
+    setMembers(prev => [...prev, newMember]);
+    
+    alert(`${friendName} 님을 멤버 목록에 추가했습니다!`);
   };
 
-  // 🔥 세부 작업 추가 핸들러
-  const handleAddSubTask = (
-    columnId: number,
-    memberId: number,
-    content: string
-  ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            const newSubTask: SubTask = {
-              id: Date.now(),
-              content,
-              completed: false,
-            };
-            const currentSubTasks = m.subTasks || [];
-            return { ...m, subTasks: [...currentSubTasks, newSubTask] };
-          }),
-        };
-      })
-    );
-  };
 
-  // 🔥 세부 작업 완료 토글 핸들러
-  const handleToggleSubTask = (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            return {
-              ...m,
-              subTasks: m.subTasks.map((t) =>
-                t.id === subTaskId ? { ...t, completed: !t.completed } : t
-              ),
-            };
-          }),
-        };
-      })
-    );
-  };
+  const handleAddMember = () => {
+    const newMemberName = prompt("추가할 멤버의 이름을 입력하세요.");
 
-  // 🔥 세부 작업 삭제 핸들러
-  const handleDeleteSubTask = (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            return {
-              ...m,
-              subTasks: m.subTasks.filter((t) => t.id !== subTaskId),
-            };
-          }),
-        };
-      })
-    );
-  };
+    if (newMemberName && newMemberName.trim()) {
+        const trimmedName = newMemberName.trim();
+        
+        if (members.some(m => m.name === trimmedName)) {
+            alert(`${trimmedName} 님은 이미 프로젝트 멤버입니다.`);
+            return;
+        }
 
-  const handleInviteFriendToColumn = (
-    columnId: number,
-    friendId: string,
-    friendName: string
-  ) => {
-    const id = parseInt(friendId, 10);
-    const isAlreadyMember = members.some((member) => member.id === id);
-    const targetColumn = columns.find((col) => col.id === columnId);
-    const isAlreadyInThisColumn = targetColumn?.members.some(
-      (m) => m.id === id
-    );
-
-    if (isAlreadyInThisColumn) {
-      alert("이 역할에는 이미 배정된 멤버입니다.");
-      return;
-    }
-
-    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
-      if (!isAlreadyMember) {
         const newMember: Member = {
-          id,
-          name: friendName,
-          isOnline: false,
-          role: "팀원",
+            id: Date.now(),
+            name: trimmedName,
+            isOnline: true,
         };
-        setMembers((prev) => [...prev, newMember]);
-      }
-      if (numericProjectId !== null) {
-        addMemberToProject(numericProjectId, friendName);
-      }
 
+        setMembers(prev => [...prev, newMember]);
+        alert(`${trimmedName} 님이 프로젝트에 추가되었습니다.`);
+
+    } else if (newMemberName !== null) {
+        alert("유효한 멤버 이름을 입력해주세요.");
+    }
+  };
+
+  const handleDeleteMember = (id: number) => {
+    if (window.confirm("멤버를 삭제하시겠습니까?")) {
+      setMembers((prev) => prev.filter((m) => m.id !== id));
       setColumns((prev) =>
-        prev.map((col) =>
-          col.id === columnId
-            ? // 🔥 subTasks: [] 추가
-              {
-                ...col,
-                members: [
-                  ...col.members,
-                  { id, status: "작업전", subTasks: [] },
-                ],
-              }
-            : col
-        )
+        prev.map((col) => ({
+          ...col,
+          members: col.members.filter((pm) => pm.id !== id),
+        }))
+      );
+      setTasks((prev) =>
+        prev.map((t) => ({
+            ...t,
+            members: t.members.filter(name => {
+                const member = members.find(m => m.id === id);
+                return member ? name !== member.name : true;
+            })
+        }))
       );
     }
   };
-
-  const handleAddMember = () => {
-    const newName = prompt("새 멤버의 이름을 입력하세요:");
-    if (!newName) return;
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    const newMember: Member = {
-      id: new Date().getTime(),
-      name: trimmed,
-      isOnline: true,
-    };
-    setMembers((prevMembers) => [...prevMembers, newMember]);
-    if (numericProjectId !== null)
-      addMemberToProject(numericProjectId, trimmed);
+  
+  const handleDeleteRoleColumn = (roleId: number) => {
+    if (window.confirm("경고: 해당 역할(로우)을 삭제하면 관련된 모든 태스크가 영구적으로 삭제됩니다. 계속하시겠습니까?")) {
+        setColumns(prev => prev.filter(col => col.id !== roleId));
+        setTasks(prev => prev.filter(t => t.columnId !== roleId));
+    }
   };
-
-  const handleDeleteMember = (memberId: number) => {
-    if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
-    const target = members.find((m) => m.id === memberId);
-    if (target && numericProjectId !== null)
-      removeMemberFromProject(numericProjectId, target.name);
-    setMembers((prevMembers) =>
-      prevMembers.filter((member) => member.id !== memberId)
-    );
-  };
-
-  const handleAddColumn = (name: string) => {
-    const newColumn: RoleColumn = {
-      id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
-      name,
+  
+  const handleAddRoleColumn = (name: string) => {
+    const newRole: RoleColumn = {
+      id: Date.now(),
+      name: name,
       members: [],
     };
-    setColumns([...columns, newColumn]);
+    setColumns(prev => [...prev, newRole]);
+  }
+
+  const handleUpdateMemberStatusInRole = (roleId: number, memberId: number, newStatus: string) => {
+    setColumns(prev => 
+      prev.map(col => {
+        if (col.id === roleId) {
+          const updatedMembers = col.members.map(pm => 
+            pm.id === memberId 
+              ? { ...pm, status: newStatus }
+              : pm
+          );
+          return { ...col, members: updatedMembers };
+        }
+        return col;
+      })
+    );
   };
 
-  const handleDeleteColumn = (columnId: number) => {
-    setColumns((prev) => prev.filter((col) => col.id !== columnId));
-  };
-
-  const handleAddMemberToColumn = (columnId: number, memberId: number) => {
-    const destinationColumn = columns.find((col) => col.id === columnId);
-    if (!destinationColumn) return;
-    if (destinationColumn.members.some((m) => m.id === memberId)) {
-      alert("이 역할에는 이미 배정된 멤버입니다.");
-      return;
-    }
+  const handleAddMemberToRole = (roleId: number, memberId: number) => {
     setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? // 🔥 subTasks: [] 추가
-            {
-              ...col,
-              members: [
-                ...col.members,
-                { id: memberId, status: "작업전", subTasks: [] },
-              ],
+      prev.map((col) => {
+        if (col.id === roleId) {
+          if (col.members.some(m => m.id === memberId)) {
+            return col;
+          }
+          return {
+            ...col,
+            members: [...col.members, { id: memberId, status: "TODO", memo: "" }],
+          };
+        }
+        return col;
+      })
+    );
+  };
+  
+  const handleAssignMemberToTask = (taskId: number, memberId: number) => {
+    setTasks((prev) =>
+        prev.map((t) => {
+            if (t.id === taskId) {
+                const memberData = members.find(m => m.id === memberId);
+                if (!memberData) return t;
+
+                const memberName = memberData.name;
+                
+                if (t.members.includes(memberName)) {
+                    return {
+                        ...t,
+                        members: t.members.filter(name => name !== memberName),
+                    };
+                } else {
+                    return {
+                        ...t,
+                        members: [...t.members, memberName], 
+                    };
+                }
             }
-          : col
-      )
+            return t;
+        })
     );
   };
 
-  const handleMoveMemberBetweenColumns = (
-    mid: number,
-    from: number,
-    to: number
-  ) => {
-    /* ... */
-  };
-  const handleUpdateMemberStatus = (cid: number, mid: number, st: string) => {
-    /* ... */
+
+  const handleAddTask = (roleId: number, status: string) => {
+    const inputTitle = prompt("할 일을 입력하세요");
+    if (!inputTitle) return;
+    
+    const newTask: Task = {
+      id: Date.now(),
+      columnId: roleId,
+      status: status,
+      title: inputTitle, 
+      members: [], 
+    };
+    setTasks(prev => [...prev, newTask]);
   };
 
-  const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
-          : col
-      )
+  const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
+    setTasks(prev =>
+      prev.map(t => (t.id === taskId ? { ...t, status: newStatus } : t))
     );
   };
 
-  const handleUpdateMemberMemo = (cid: number, mid: number, memo: string) => {
-    /* ... */
-  };
-  const handleAddTask = (cid: number, title: string) => {
-    /* ... */
+  const handleDeleteTask = (taskId: number) => {
+    if(window.confirm("삭제하시겠습니까?")) {
+        setTasks(prev => prev.filter(t => t.id !== taskId));
+    }
+  }
+
+  const handleUpdateTask = (t: Task) => {
+    setTasks(prev => prev.map(tk => (tk.id === t.id ? t : tk)));
   };
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
@@ -469,7 +394,11 @@ const Project: React.FC = () => {
   useEffect(() => {
     if (!token) return;
     const myList = getProjectsForUser(token);
-    setMyProjects(myList.map((p) => ({ id: p.id, name: p.name })));
+    setMyProjects(myList.map(p => ({ id: p.id, name: p.name })));
+    
+    setFriends(getFriends());
+
+
     if (numericProjectId !== null) {
       const record = getProjectById(numericProjectId);
       if (record) {
@@ -481,6 +410,13 @@ const Project: React.FC = () => {
             isOnline: true,
           }))
         );
+        if (columns.length === 0) {
+          setColumns([
+            { id: 101, name: "기획팀", members: [] },
+            { id: 102, name: "디자인팀", members: [] },
+            { id: 103, name: "개발팀", members: [] },
+          ]);
+        }
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -501,9 +437,15 @@ const Project: React.FC = () => {
         friends={friends}
       />
 
-      <div
-        className="workspace-container"
-        style={{ marginLeft: isSlideoutOpen ? 280 : 0 }}
+      <div 
+        style={{ 
+          marginLeft: isSlideoutOpen ? "280px" : "0px",
+          width: isSlideoutOpen ? "calc(100% - 280px)" : "100%",
+          transition: "all 0.3s ease-in-out",
+          display: "flex",
+          flexDirection: "column",
+          flex: 1,
+        }}
       >
         <aside
           className={`left-sidebar ${

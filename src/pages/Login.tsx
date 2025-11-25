@@ -1,78 +1,157 @@
-import React, { useState } from "react";
-import { useNavigate, Link } from "react-router-dom"; // Link 추가
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { loginUser } from "../data/mockDb";
-import "../styles/Auth.css"; // Signup과 같은 스타일 사용
+import { loginUser } from "../data/mockDb"; 
+import "../styles/Auth.css";
 
 const Login: React.FC = () => {
-  const { login } = useAuth();
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDropped, setIsDropped] = useState(false); 
+  const [isFormFilled, setIsFormFilled] = useState(false); 
+  const [isDragOver, setIsDragOver] = useState(false); 
+
+  const draggableButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const filled = username.trim() !== "" && password.trim() !== "";
+    setIsFormFilled(filled);
+    if (errorMsg) setErrorMsg("");
+  }, [username, password]);
+
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    if (!isFormFilled) {
+      e.preventDefault();
+      return;
+    }
+    setIsDragging(true);
+    e.dataTransfer.setData("text/plain", "login_action");
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); 
+    if (!isFormFilled || isDropped) return;
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    
+    if (!isFormFilled) return;
 
     const user = loginUser(username, password);
 
     if (!user) {
       setErrorMsg("아이디 또는 비밀번호가 올바르지 않습니다.");
+      setIsDragging(false);
+      setIsDragOver(false);
       return;
     }
 
-    // 로그인 성공 → 토큰 저장
+    setIsDropped(true);
+    setErrorMsg("");
+    
     login(user.username);
-    navigate("/main");
+
+    setTimeout(() => {
+      navigate("/main");
+    }, 800);
+  };
+
+  const getButtonClass = () => {
+    let classes = "drag-button";
+    if (isFormFilled) classes += " active";
+    if (isDragging) classes += " dragging";
+    if (isDropped) classes += " dropped";
+    return classes;
+  };
+
+  const getDropzoneClass = () => {
+    let classes = "drop-zone";
+    if (isDragOver) classes += " drag-over";
+    if (isDropped) classes += " success";
+    return classes;
   };
 
   return (
-    <div className="auth-container">
-      <h1 className="auth-title">TeamCanvas 로그인</h1>
+    <div className="login-container">
+      <div className="login-card">
+        <img
+          src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+          alt="Drop In Logo"
+          className="login-logo"
+        />
 
-      {errorMsg && <p className="auth-error">{errorMsg}</p>}
+        <h2 className="login-title">로그인</h2>
 
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div>
-          <label className="auth-label">아이디</label>
-          <input
-            type="text"
-            placeholder="아이디 입력"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="auth-input"
-          />
-        </div>
+        {errorMsg && <p className="error-msg">{errorMsg}</p>}
 
-        <div>
-          <label className="auth-label">비밀번호</label>
-          <input
-            type="password"
-            placeholder="비밀번호 입력"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="auth-input"
-          />
-        </div>
+        <input
+          type="text"
+          placeholder="아이디"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          className="login-input"
+        />
+        <input
+          type="password"
+          placeholder="비밀번호"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          className="login-input"
+        />
 
-        <button type="submit" className="auth-button">
-          로그인
-        </button>
-      </form>
-
-      <div style={{ marginTop: 20, fontSize: 14, color: "#666" }}>
-        아직 계정이 없으신가요?{" "}
-        <Link
-          to="/signup"
-          style={{
-            color: "#4f46e5",
-            fontWeight: "bold",
-            textDecoration: "none",
-          }}
+        <button
+          ref={draggableButtonRef}
+          draggable={isFormFilled && !isDropped} 
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          className={getButtonClass()}
         >
-          회원가입
-        </Link>
+          {isDropped
+            ? "환영합니다!"
+            : isFormFilled
+            ? "↓ 아래로 드롭하여 로그인"
+            : "아이디와 비밀번호를 입력하세요"}
+        </button>
+
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={getDropzoneClass()}
+        >
+          {isDropped
+            ? "로그인 성공!"
+            : isDragOver
+            ? "놓아서 로그인!"
+            : "이곳에 버튼을 놓으세요"}
+        </div>
+
+        <div className="login-footer">
+          계정이 없으신가요?
+          <Link to="/signup" className="signup-link">
+            회원가입
+          </Link>
+        </div>
       </div>
     </div>
   );

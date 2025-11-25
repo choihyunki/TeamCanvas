@@ -1,8 +1,8 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom"; // Link 추가
 import UserService from "../services/UserService";
 import { useAuth } from "../context/AuthContext";
-import "../styles/Auth.css"; // CSS import
+import "../styles/Signup.css";
 
 const Signup: React.FC = () => {
   const navigate = useNavigate();
@@ -16,78 +16,176 @@ const Signup: React.FC = () => {
 
   const [error, setError] = useState("");
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [isDropped, setIsDropped] = useState(false);
+  const [isFormFilled, setIsFormFilled] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  const draggableButtonRef = useRef<HTMLButtonElement>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    const { username, password, name } = form;
+    const filled =
+      username.trim() !== "" && password.trim() !== "" && name.trim() !== "";
+    setIsFormFilled(filled);
+    if (error) setError("");
+  }, [form, error]);
+
+  // --- 드래그 앤 드롭 핸들러 ---
+  const handleDragStart = (e: React.DragEvent<HTMLButtonElement>) => {
+    if (!isFormFilled) {
+      e.preventDefault();
+      return;
+    }
+    setIsDragging(true);
+    e.dataTransfer.setData("text/plain", "signup_action");
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+    setIsDragOver(false);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
-    setError("");
+    if (!isFormFilled || isDropped) return;
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!isFormFilled) return;
 
     const { username, password, name } = form;
 
-    if (!username || !password || !name) {
-      setError("모든 필드를 입력해주세요.");
-      return;
-    }
-
     try {
-      // 1) mockDb에 사용자 생성
       const newUser = UserService.register(username, password, name);
-      // 2) 자동 로그인
+      setIsDropped(true);
+      setError("");
       login(newUser.username);
-      // 3) 메인 이동
-      navigate("/main");
+
+      setTimeout(() => {
+        navigate("/main");
+      }, 800);
     } catch (err: any) {
       setError(err.message || "회원가입 실패");
+      setIsDragging(false);
+      setIsDragOver(false);
     }
   };
 
+  const getButtonClass = () => {
+    let classes = "signup-drag-button";
+    if (isFormFilled) classes += " active";
+    if (isDragging) classes += " dragging";
+    if (isDropped) classes += " dropped";
+    return classes;
+  };
+
+  const getDropzoneClass = () => {
+    let classes = "signup-drop-zone";
+    if (isDragOver) classes += " drag-over";
+    if (isDropped) classes += " success";
+    return classes;
+  };
+
   return (
-    <div className="auth-container">
-      <h2 className="auth-title">회원가입</h2>
+    <div className="signup-container">
+      <div className="signup-card">
+        {/* 로고 */}
+        <img
+          src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+          alt="Drop In Logo"
+          className="signup-logo"
+        />
 
-      {error && <p className="auth-error">{error}</p>}
+        <h2 className="signup-title">회원가입</h2>
 
-      <form className="auth-form" onSubmit={handleSubmit}>
-        <div>
-          <label className="auth-label">이름</label>
-          <input
-            className="auth-input"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            placeholder="실명을 입력하세요"
-          />
+        {error && <p className="signup-error">{error}</p>}
+
+        <form className="signup-form" onSubmit={(e) => e.preventDefault()}>
+          <div>
+            <label className="signup-label">이름</label>
+            <input
+              className="signup-input"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder="실명을 입력하세요"
+              autoComplete="name"
+            />
+          </div>
+
+          <div>
+            <label className="signup-label">아이디</label>
+            <input
+              className="signup-input"
+              name="username"
+              value={form.username}
+              onChange={handleChange}
+              placeholder="사용할 아이디"
+              autoComplete="username"
+            />
+          </div>
+
+          <div style={{ marginBottom: "20px" }}>
+            <label className="signup-label">비밀번호</label>
+            <input
+              type="password"
+              className="signup-input"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder="비밀번호"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <button
+            ref={draggableButtonRef}
+            draggable={isFormFilled && !isDropped}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            className={getButtonClass()}
+            type="button"
+          >
+            {isDropped
+              ? "가입 완료!"
+              : isFormFilled
+              ? "↓ 아래로 드롭하여 가입하기"
+              : "모든 필드를 입력해주세요"}
+          </button>
+
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={getDropzoneClass()}
+          >
+            {isDropped
+              ? "환영합니다!"
+              : isDragOver
+              ? "놓아서 가입 완료!"
+              : "이곳에 버튼을 놓으세요"}
+          </div>
+        </form>
+
+        <div className="signup-footer">
+          이미 계정이 있으신가요?
+          <Link to="/login" className="login-link">
+            로그인
+          </Link>
         </div>
-
-        <div>
-          <label className="auth-label">아이디</label>
-          <input
-            className="auth-input"
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            placeholder="사용할 아이디"
-          />
-        </div>
-
-        <div>
-          <label className="auth-label">비밀번호</label>
-          <input
-            type="password"
-            className="auth-input"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            placeholder="비밀번호"
-          />
-        </div>
-
-        <button type="submit" className="auth-button">
-          가입하기
-        </button>
-      </form>
+      </div>
     </div>
   );
 };
