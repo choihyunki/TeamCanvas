@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { loginUser } from "../data/mockDb"; 
+import UserService from "../services/UserService";
 import "../styles/Auth.css";
 
 const Login: React.FC = () => {
@@ -13,9 +13,9 @@ const Login: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState("");
 
   const [isDragging, setIsDragging] = useState(false);
-  const [isDropped, setIsDropped] = useState(false); 
-  const [isFormFilled, setIsFormFilled] = useState(false); 
-  const [isDragOver, setIsDragOver] = useState(false); 
+  const [isDropped, setIsDropped] = useState(false);
+  const [isFormFilled, setIsFormFilled] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const draggableButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -41,7 +41,7 @@ const Login: React.FC = () => {
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault(); 
+    e.preventDefault();
     if (!isFormFilled || isDropped) return;
     setIsDragOver(true);
   };
@@ -50,28 +50,28 @@ const Login: React.FC = () => {
     setIsDragOver(false);
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    // async 추가
     e.preventDefault();
-    
     if (!isFormFilled) return;
 
-    const user = loginUser(username, password);
+    try {
+      // 🔥 여기도 await 필수!
+      const user = await UserService.login(username, password);
 
-    if (!user) {
+      setIsDropped(true);
+      setErrorMsg("");
+      login(user.username);
+
+      setTimeout(() => {
+        navigate("/main");
+      }, 800);
+    } catch (err: any) {
+      // 에러 처리
       setErrorMsg("아이디 또는 비밀번호가 올바르지 않습니다.");
       setIsDragging(false);
       setIsDragOver(false);
-      return;
     }
-
-    setIsDropped(true);
-    setErrorMsg("");
-    
-    login(user.username);
-
-    setTimeout(() => {
-      navigate("/main");
-    }, 800);
   };
 
   const getButtonClass = () => {
@@ -121,7 +121,7 @@ const Login: React.FC = () => {
 
         <button
           ref={draggableButtonRef}
-          draggable={isFormFilled && !isDropped} 
+          draggable={isFormFilled && !isDropped}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           className={getButtonClass()}

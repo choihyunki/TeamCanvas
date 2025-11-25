@@ -5,10 +5,11 @@ export interface ChatMessage {
   author: string;
   message: string;
   time: string;
-  projectId?: number; // DB 저장용
+  projectId?: string; // 🔥 [수정] number -> string
 }
 
-export const useChatSocket = (projectId: number | null, userName: string) => {
+// 🔥 [수정] projectId 타입을 string | null 로 변경
+export const useChatSocket = (projectId: string | null, userName: string) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
@@ -22,12 +23,10 @@ export const useChatSocket = (projectId: number | null, userName: string) => {
     // 2. 방 입장
     socket.emit("join_room", projectId);
 
-    // 🔥 3. [추가됨] 이전 채팅 내역 한 번에 로드
     socket.on("load_messages", (history: ChatMessage[]) => {
       setMessages(history);
     });
 
-    // 4. 실시간 메시지 받기
     socket.on("receive_message", (data: ChatMessage) => {
       setMessages((prev) => [...prev, data]);
     });
@@ -49,7 +48,6 @@ export const useChatSocket = (projectId: number | null, userName: string) => {
         }),
       };
 
-      // 서버로 전송 (DB 저장은 서버가 알아서 함)
       await socketRef.current.emit("send_message", messageData);
     }
   };

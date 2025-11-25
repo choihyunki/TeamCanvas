@@ -68,16 +68,24 @@ const Signup: React.FC = () => {
     const { username, password, name } = form;
 
     try {
-      const newUser = UserService.register(username, password, name);
+      // 🔥 [수정] 여기에 await를 꼭 붙여야 합니다!
+      // 서버 요청이 끝날 때까지 기다렸다가 newUser 정보를 받아옵니다.
+      const newUser = await UserService.register(username, password, name);
+
       setIsDropped(true);
       setError("");
+
+      // 이제 newUser는 Promise가 아니라 실제 데이터이므로 .username 접근 가능!
       login(newUser.username);
 
       setTimeout(() => {
         navigate("/main");
       }, 800);
     } catch (err: any) {
-      setError(err.message || "회원가입 실패");
+      // 에러 처리도 조금 더 안전하게 수정
+      const msg = err.response?.data?.message || err.message || "회원가입 실패";
+      setError(msg);
+
       setIsDragging(false);
       setIsDragOver(false);
     }
