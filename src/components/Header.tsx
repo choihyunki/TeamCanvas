@@ -1,40 +1,69 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
-import "../styles/Header.css";
+import { useNavigate } from "react-router-dom"; 
+import "../styles/Header.css"; 
 
 interface HeaderProps {
-  onMenuClick?: () => void;
+    onMenuClick: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const navigate = useNavigate();
+    const navigate = useNavigate(); 
 
-  // 헤더에서 로그아웃/유저정보를 뺐으므로 useAuth는 여기서 사용하지 않아도 됩니다.
+    const getPublicPath = (filename: string, extension: string = "png") => 
+        process.env.PUBLIC_URL + `/${filename}.${extension}`;
 
-  return (
-    <header className="app-header">
-      <div className="header-left">
-        {onMenuClick && (
-          <button
-            onClick={onMenuClick}
-            className="menu-btn"
-            aria-label="메뉴 열기"
-          >
-            ☰
-          </button>
-        )}
+    const handleLogoClick = () => {
+        navigate("/main");
+    };
 
-        <h1 className="app-title" onClick={() => navigate("/main")}>
-          TeamCanvas
-        </h1>
-      </div>
+    return (
+        <header className="header-container">
+            {/* 왼쪽 영역 */}
+            <div className="header-left">
+                <button 
+                    onClick={onMenuClick} 
+                    className="hamburger-btn"
+                    aria-label="메뉴 열기"
+                >
+                    ☰
+                </button>
+            
+                <img
+                    src={getPublicPath("DropInLogo", "png")} 
+                    alt="Drop In Logo"
+                    className="logo"
+                    onClick={handleLogoClick}
+                />
+            </div>
 
-      {/* 오른쪽 영역 비움 (또는 div 자체를 삭제해도 됨) */}
-      <div className="header-right">
-        {/* 여기에 있던 유저 정보와 로그아웃 버튼 코드를 모두 삭제했습니다. */}
-      </div>
-    </header>
-  );
+            {/* 오른쪽 영역 */}
+            <nav className="nav-container">
+                <button className="icon-btn">
+                    <img 
+                        src={getPublicPath("Bell", "jpg")} 
+                        alt="알림" 
+                        className="icon-img"
+                    />
+                </button>
+            
+                <button className="icon-btn">
+                    <img 
+                        src={getPublicPath("Setting", "jpg")} 
+                        alt="설정" 
+                        className="icon-img"
+                    />
+                </button>
+
+                <button className="icon-btn">
+                    <img 
+                        src={getPublicPath("Profile", "jpg")} 
+                        alt="프로필" 
+                        className="icon-img"
+                    />
+                </button>
+            </nav>
+        </header>
+    );
 };
 
 export default Header;
