@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useChatSocket } from "../hooks/useChatSocket";
 
 interface ChatBoxProps {
-  projectId: number | null;
+  projectId: string | null;
 }
 
 const ChatBox: React.FC<ChatBoxProps> = ({ projectId }) => {

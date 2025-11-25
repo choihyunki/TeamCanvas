@@ -2,14 +2,15 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
-import SlideoutSidebar from "../components/SlideoutSidebar"; 
+import SlideoutSidebar from "../components/SlideoutSidebar";
 import { useAuth } from "../context/AuthContext";
+import ProjectService from "../services/ProjectService"; // 서비스 사용
 import {
   getProjectsForUser,
   createProjectForUser,
   deleteProject,
   ProjectRecord,
-  getFriends, 
+  getFriends,
   Friend, // Friend 인터페이스 임포트
 } from "../data/mockDb";
 import "../styles/Main.css";
@@ -26,28 +27,55 @@ const Main: React.FC = () => {
   const [projects, setProjects] = useState<ProjectCardData[]>([]);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDesc, setNewProjectDesc] = useState("");
-  
-  const [friends, setFriends] = useState<Friend[]>([]); 
+
+  const [friends, setFriends] = useState<Friend[]>([]);
 
   // [MODIFIED] 프로젝트 데이터를 Mock DB에서 불러와 상태를 업데이트하는 재사용 함수
-  const fetchProjects = () => {
+  const fetchProjects = async () => {
     if (!token) return;
+    try {
+      // 🔥 mock 함수 대신 Service 호출
+      const list = await ProjectService.getMyProjects(token);
 
-    // [FIXED] Mock DB 함수가 이제 진행률을 계산해서 반환
-    const list = getProjectsForUser(token) as ProjectCardData[]; 
-    
-    setProjects(list);
-    
-    setFriends(getFriends());
+      // 진행률 계산 로직 등은 필요하다면 여기서 가공하거나 서버에서 처리
+      // 일단 그대로 넣습니다.
+      const formattedList = list.map((p: any) => ({
+        ...p,
+        id: p._id, // MongoDB는 id가 _id로 옴
+        progressPercent: 0, // 임시 0% (나중에 로직 추가 가능)
+      }));
+
+      setProjects(formattedList);
+    } catch (e) {
+      console.error("프로젝트 로드 실패", e);
+    }
   };
-  
+
+  const handleCreateProject = async () => {
+    if (!token) return alert("로그인 필요");
+    const name = newProjectName.trim();
+    if (!name) return alert("이름 입력 필요");
+
+    try {
+      // 🔥 진짜 서버에 생성 요청
+      await ProjectService.createProject(token, name, newProjectDesc.trim());
+
+      fetchProjects(); // 목록 새로고침
+      setNewProjectName("");
+      setNewProjectDesc("");
+      alert("생성 완료!");
+    } catch (e) {
+      alert("생성 실패");
+    }
+  };
+
   // [MODIFIED] 컴포넌트 마운트 시 데이터 로딩
   useEffect(() => {
     if (!token) {
       navigate("/login");
       return;
     }
-    fetchProjects(); 
+    fetchProjects();
   }, [token, navigate]);
 
   const handleLogout = () => {
@@ -62,48 +90,29 @@ const Main: React.FC = () => {
   const handleDeleteProject = (id: number) => {
     if (window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
       deleteProject(id);
-      fetchProjects();   
+      fetchProjects();
     }
-  };
-
-  const handleCreateProject = () => {
-    if (!token) {
-      alert("로그인이 필요합니다.");
-      return;
-    }
-    const name = newProjectName.trim();
-    if (!name) {
-      alert("프로젝트 이름을 입력해주세요.");
-      return;
-    }
-
-    createProjectForUser(token, name, newProjectDesc.trim());
-    fetchProjects(); 
-
-    setNewProjectName("");
-    setNewProjectDesc("");
-    alert("새 프로젝트가 생성되었습니다!");
   };
 
   return (
     <div className="main-container">
       <Header onMenuClick={() => setIsSidebarOpen(true)} />
-      
-      <SlideoutSidebar 
-        isOpen={isSidebarOpen} 
-        onClose={() => setIsSidebarOpen(false)} 
-        projects={projects} 
-        friends={friends} 
+
+      <SlideoutSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        projects={projects}
+        friends={friends}
       />
 
-      <div 
-        style={{ 
+      <div
+        style={{
           marginLeft: isSidebarOpen ? "280px" : "0px",
           width: isSidebarOpen ? "calc(100% - 280px)" : "100%",
           transition: "all 0.3s ease-in-out",
           flex: 1,
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
         }}
       >
         <main className="main-content">
@@ -159,16 +168,18 @@ const Main: React.FC = () => {
                   <div key={p.id} className="project-card">
                     <div>
                       <h3 className="card-title">{p.name}</h3>
-                      <p className="card-desc">{p.description || "설명 없음"}</p>
-                      
+                      <p className="card-desc">
+                        {p.description || "설명 없음"}
+                      </p>
+
                       <p className="card-meta">
                         멤버: {p.members?.length ?? 0}명
                       </p>
-                      
+
                       <p className="card-progress">
                         진행률 : <strong>{p.progressPercent}%</strong>
                       </p>
-                      
+
                       <div className="progress-track-mini">
                         <div
                           className="progress-fill-mini"
