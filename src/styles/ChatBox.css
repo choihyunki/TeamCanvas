@@ -1,114 +1,129 @@
 /* src/styles/ChatBox.css */
 
-.chatbox-container {
+/* 전체 채팅 컨테이너: 사이드바 꽉 채우기 */
+.chat-box {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100%; /* 부모 높이(사이드바)를 꽉 채움 */
+  background-color: #ffffff;
+  border-left: 1px solid #e0e0e0;
 }
 
-.chat-title {
-  font-size: 18px;
-  margin-bottom: 10px;
-  color: #333;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding-right: 5px;
-}
-
-.chat-message {
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  background: #f8f9ff;
-  border-radius: 6px;
-  border: 1px solid #e0e7ff;
-}
-
-.chat-author {
-  font-weight: bold;
-  margin-bottom: 2px;
-  font-size: 14px;
-}
-
-.chat-text {
-  font-size: 14px;
-  margin-bottom: 4px;
-}
-
-.chat-time {
-  font-size: 12px;
-  color: #777;
-  text-align: right;
-}
-
-.chat-empty {
-  color: #aaa;
-  font-size: 14px;
-  text-align: center;
-  margin-top: 20px;
-}
-
-.chat-input-container {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.chat-input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #ddd;
-}
-
-.chat-send-button {
-  padding: 8px 12px;
-  background: #4f46e5;
-  border: none;
-  border-radius: 6px;
-  color: #fff;
-  cursor: pointer;
-}
-
-.chatbox-input-area {
+/* 1. 헤더 영역 */
+.chat-header {
   padding: 15px;
-  border-top: 1px solid #eee;
-  display: flex;
-  gap: 8px;
-  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #f8f9fa;
+  flex-shrink: 0; /* 크기 줄어들지 않음 */
 }
 
-.chatbox-input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-}
-
-.chatbox-send-btn {
-  padding: 10px 16px;
-  background: #4f46e5;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-}
-.chatbox-header {
-  padding: 15px;
-  font-weight: bold;
-  border-bottom: 1px solid #eee;
-  background: #f9fafb;
+.chat-header h3 {
+  margin: 0;
   font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.chatbox-messages {
-  flex: 1; /* 남은 공간 모두 차지 */
-  overflow-y: auto;
+/* 2. 메시지 리스트 영역 (가운데) - 여기가 늘어남 */
+.chat-messages {
+  flex: 1; /* 남은 공간을 모두 차지함 (핵심) */
+  overflow-y: auto; /* 내용이 많으면 스크롤 */
   padding: 15px;
+  background-color: #f1f3f5;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* 메시지 말풍선 공통 */
+.message-bubble {
+  max-width: 70%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  position: relative;
+  word-break: break-word;
+  /* 🔥 [핵심 수정] 이 속성을 추가해야 줄바꿈이 인식됩니다! */
+  white-space: pre-wrap;
+
+  /* 긴 단어가 있을 때 말풍선을 뚫고 나가는 것 방지 */
+  word-break: break-word;
+}
+
+/* 내가 보낸 메시지 (오른쪽) */
+.my-message {
+  align-self: flex-end;
+  background-color: #4f46e5; /* 보라색 계열 (앱 테마) */
+  color: white;
+  border-bottom-right-radius: 2px;
+}
+
+/* 남이 보낸 메시지 (왼쪽) */
+.other-message {
+  align-self: flex-start;
+  background-color: white;
+  color: #333;
+  border: 1px solid #ddd;
+  border-bottom-left-radius: 2px;
+}
+
+/* 메시지 정보 (작성자, 시간) */
+.message-info {
+  font-size: 11px;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  opacity: 0.8;
+}
+
+.my-message .message-info {
+  color: #e0e7ff;
+}
+
+.other-message .message-info {
+  color: #888;
+}
+
+/* 3. 입력창 영역 (하단 고정) */
+.chat-input-area {
+  padding: 15px;
+  background-color: white;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.chat-input-area input {
+  flex: 1; /* 버튼 제외한 공간 꽉 채우기 */
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 20px;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.chat-input-area input:focus {
+  border-color: #4f46e5;
+}
+
+.chat-input-area button {
+  padding: 0 16px;
+  background-color: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.chat-input-area button:hover {
+  background-color: #4338ca;
 }

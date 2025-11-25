@@ -79,53 +79,6 @@ const TaskBoard: React.FC<Props> = ({
             return total === 0 ? 0 : Math.round((done / total) * 100);
           };
 
-<<<<<<< HEAD
-            {/* --- 멤버 리스트 영역 (여기가 메인) --- */}
-            <div className="taskboard-members" style={{ flex: 1 }}>
-              <h4 style={{ marginTop: 15, marginBottom: 10, color: "#666" }}>
-                배정된 멤버
-              </h4>
-
-              {col.members.length === 0 ? (
-                <div
-                  style={{
-                    padding: "30px 0",
-                    color: "#aaa",
-                    fontSize: "13px",
-                    textAlign: "center",
-                    border: "2px dashed #e5e7eb",
-                    borderRadius: "8px",
-                    backgroundColor: "#f9fafb",
-                  }}
-                >
-                  왼쪽에서 멤버를
-                  <br />
-                  이곳으로 드래그하세요
-                </div>
-              ) : (
-                <ul style={{ padding: 0, listStyle: "none" }}>
-                  {col.members.map((m) => {
-                    const memberInfo = members.find((mm) => mm.id === m.id);
-
-                    // 🔥 [계산] 진행률 계산
-                    const subTasks = m.subTasks || [];
-                    const total = subTasks.length;
-                    const completed = subTasks.filter(
-                      (t) => t.completed
-                    ).length;
-                    const percent =
-                      total === 0 ? 0 : Math.round((completed / total) * 100);
-
-                    if (!memberInfo) return null;
-                    return (
-                      <li key={m.id} className="member-item-row">
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-=======
           return (
             <div
               key={col.id}
@@ -182,7 +135,6 @@ const TaskBoard: React.FC<Props> = ({
                           key={m.id}
                           className="member-item-row"
                           style={{ display: "block", marginBottom: 12 }}
->>>>>>> 908e4f68a413d81914a4a8cae795dca062e91544
                         >
                           <div
                             style={{
@@ -226,51 +178,6 @@ const TaskBoard: React.FC<Props> = ({
                               ✕
                             </button>
                           </div>
-<<<<<<< HEAD
-                          <span style={{ fontSize: 14, fontWeight: 500 }}>
-                            {memberInfo.name}
-                          </span>
-                        </div>
-                        <button
-                          className="edit-btn"
-                          style={{ color: "#ef4444", fontWeight: "bold" }}
-                          onClick={() => onDeleteMember(col.id, m.id)}
-                        >
-                          ✕
-                        </button>
-                        {/* 🔥 [추가] 진행률 게이지 바 */}
-                        <div
-                          style={{
-                            marginTop: 6,
-                            background: "#e5e7eb",
-                            height: 6,
-                            borderRadius: 3,
-                            overflow: "hidden",
-                            width: "100%",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: `${percent}%`,
-                              height: "100%",
-                              background:
-                                percent === 100 ? "#10b981" : "#4f46e5",
-                              transition: "width 0.3s ease",
-                            }}
-                          />
-                        </div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: "#888",
-                            textAlign: "right",
-                            marginTop: 2,
-                          }}
-                        >
-                          {completed}/{total} 완료 ({percent}%)
-                        </div>
-                      </li>
-=======
 
                           {/* 진행률 바 표시 */}
                           <div
@@ -305,7 +212,6 @@ const TaskBoard: React.FC<Props> = ({
                     const idStr = prompt(
                       "추가할 멤버 ID: " +
                         members.map((m) => `${m.id}-${m.name}`).join(", ")
->>>>>>> 908e4f68a413d81914a4a8cae795dca062e91544
                     );
                     if (!idStr) return;
                     onAddMemberToColumn(col.id, Number(idStr));
