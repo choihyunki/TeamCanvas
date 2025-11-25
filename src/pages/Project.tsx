@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import MemberList from "../components/MemberList";
@@ -9,6 +9,17 @@ import Schedule from "../components/Schedule";
 import SlideoutSidebar from "../components/SlideoutSidebar";
 import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
+
+// 인앱 툴 관련 import
+import {
+  Calculator,
+  MemoPad,
+  Timer,
+  YouTubePlayer,
+  CodeReviewer,
+} from "../components/InAppTools";
+import { AppWindow, ToolType } from "../types/InApp";
+import "../styles/InApp.css";
 
 import { Member } from "../types/Member";
 import { RoleColumn } from "../types/Project";
@@ -37,6 +48,154 @@ const Project: React.FC = () => {
   const { token } = useAuth();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [, setCurrentProject] = useState<ProjectRecord | null>(null);
+
+  // --- 인앱 툴(창) 상태 관리 ---
+  const [windows, setWindows] = useState<AppWindow[]>([]);
+  const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
+
+  // 🔥 드래그 상태 저장을 위한 Ref (창 이동용)
+  const dragItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialLeft: number;
+    initialTop: number;
+  } | null>(null);
+  // 🔥 리사이즈 상태 저장을 위한 Ref (창 크기 조절용)
+  const resizeItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialWidth: number;
+    initialHeight: number;
+  } | null>(null);
+
+  // 창 열기
+  const openWindow = (type: ToolType, title: string) => {
+    let defaultW = 300;
+    let defaultH = 400;
+    if (type === "calculator") {
+      defaultW = 220;
+      defaultH = 320;
+    }
+    if (type === "timer") {
+      defaultW = 200;
+      defaultH = 150;
+    }
+    if (type === "youtube") {
+      defaultW = 340;
+      defaultH = 240;
+    }
+    // 🔥 코드 리뷰 창 기본 크기 확대
+    if (type === "code-review") {
+      defaultW = 600;
+      defaultH = 500;
+    }
+
+    const newWindow: AppWindow = {
+      id: Date.now(),
+      type,
+      title,
+      x: 150 + windows.length * 30,
+      y: 100 + windows.length * 30,
+      zIndex: windows.length + 100,
+      minimized: false,
+      width: defaultW,
+      height: defaultH,
+    };
+    setWindows([...windows, newWindow]);
+    setActiveWindowId(newWindow.id);
+  };
+
+  const closeWindow = (id: number) => {
+    setWindows(windows.filter((w) => w.id !== id));
+  };
+
+  const bringToFront = (id: number) => {
+    setActiveWindowId(id);
+    setWindows((prev) => {
+      const maxZ = Math.max(...prev.map((w) => w.zIndex), 100);
+      return prev.map((w) => (w.id === id ? { ...w, zIndex: maxZ + 1 } : w));
+    });
+  };
+
+  // --- 🖱️ 마우스 이벤트 핸들러 (창 이동 & 리사이즈) ---
+  const handleMouseDownHeader = (
+    e: React.MouseEvent,
+    id: number,
+    x: number,
+    y: number
+  ) => {
+    e.stopPropagation();
+    bringToFront(id);
+    dragItem.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft: x,
+      initialTop: y,
+    };
+  };
+
+  const handleMouseDownResize = (
+    e: React.MouseEvent,
+    id: number,
+    w: number,
+    h: number
+  ) => {
+    e.stopPropagation();
+    e.preventDefault();
+    bringToFront(id);
+    resizeItem.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      initialWidth: w,
+      initialHeight: h,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    // 🔥 [1] 리사이즈 중일 때 (이게 빠져있었거나 동작 안 했을 것임)
+    if (resizeItem.current) {
+      const { id, startX, startY, initialWidth, initialHeight } =
+        resizeItem.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setWindows((prev) =>
+        prev.map((w) =>
+          w.id === id
+            ? {
+                ...w,
+                // 최소 크기 제한 (너비 300, 높이 200)
+                width: Math.max(300, initialWidth + dx),
+                height: Math.max(200, initialHeight + dy),
+              }
+            : w
+        )
+      );
+      return; // 리사이즈 중에는 이동 로직 실행 방지
+    }
+
+    // 🔥 [2] 이동(드래그) 중일 때
+    if (dragItem.current) {
+      const { id, startX, startY, initialLeft, initialTop } = dragItem.current;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      setWindows((prev) =>
+        prev.map((w) =>
+          w.id === id ? { ...w, x: initialLeft + dx, y: initialTop + dy } : w
+        )
+      );
+    }
+  };
+
+  const handleMouseUp = () => {
+    dragItem.current = null;
+    resizeItem.current = null;
+  };
 
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
@@ -289,7 +448,7 @@ const Project: React.FC = () => {
           flex: 1,
         }}
       >
-        <Header onMenuClick={toggleSlideout} />
+        <Header onMenuClick={toggleSlideout} onOpenWindow={openWindow} />
 
         <div className="workspace-container">
           <aside
@@ -305,7 +464,68 @@ const Project: React.FC = () => {
             />
           </aside>
 
-          <main className="project-main">
+          <main className="project-main" style={{ position: "relative" }}>
+            {/* 🔹 [인앱 툴 렌더링 영역] */}
+            {windows.map((win) => (
+              <div
+                key={win.id}
+                className="window-frame"
+                style={{
+                  left: win.x,
+                  top: win.y,
+                  width: win.width,
+                  height: win.height,
+                  zIndex: win.zIndex,
+                  border:
+                    activeWindowId === win.id
+                      ? "1px solid #4f46e5"
+                      : "1px solid #ccc",
+                  boxShadow:
+                    activeWindowId === win.id
+                      ? "0 10px 30px rgba(79, 70, 229, 0.2)"
+                      : "0 5px 15px rgba(0,0,0,0.1)",
+                }}
+                onMouseDown={() => bringToFront(win.id)}
+              >
+                <div
+                  className="window-header"
+                  onMouseDown={(e) =>
+                    handleMouseDownHeader(e, win.id, win.x, win.y)
+                  }
+                >
+                  <span className="window-title">{win.title}</span>
+                  <div className="window-controls">
+                    <button
+                      className="btn-close"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        closeWindow(win.id);
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                {/* 🔥 [수정] overflow: hidden 처리로 내용물이 꽉 차게 함 */}
+                <div
+                  className="window-body"
+                  style={{ width: "100%", height: "100%", overflow: "hidden" }}
+                >
+                  {win.type === "calculator" && <Calculator />}
+                  {win.type === "memo" && <MemoPad />}
+                  {win.type === "timer" && <Timer />}
+                  {win.type === "youtube" && <YouTubePlayer />}
+                  {/* 🔥 코드 리뷰어 추가 */}
+                  {win.type === "code-review" && <CodeReviewer />}
+                </div>
+                <div
+                  className="resize-handle"
+                  onMouseDown={(e) =>
+                    handleMouseDownResize(e, win.id, win.width, win.height)
+                  }
+                />
+              </div>
+            ))}
             <button className="toggle-btn left" onClick={toggleLeftSidebar}>
               {isLeftSidebarCollapsed ? "▶" : "◀"}
             </button>
