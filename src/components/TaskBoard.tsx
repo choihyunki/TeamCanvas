@@ -1,3 +1,5 @@
+// src/components/TaskBoard.tsx
+
 import React, { useState } from "react";
 import { Member } from "../types/Member";
 import { RoleColumn } from "../types/Project";
@@ -8,8 +10,11 @@ interface Props {
   columns: RoleColumn[];
   members: Member[];
   tasks: Task[]; // (에러 방지용 유지)
+
+  // 🔥 [수정] Project.tsx와 이름 통일
   onAddColumn: (name: string) => void;
   onDeleteColumn: (columnId: number) => void;
+
   onAddMemberToColumn: (columnId: number, memberId: number) => void;
   onMoveMember: (memberId: number, from: number, to: number) => void;
   onUpdateStatus: (columnId: number, memberId: number, status: string) => void;
@@ -24,21 +29,22 @@ interface Props {
     friendId: string,
     friendName: string
   ) => void;
+
   onAddTask: (columnId: number, title: string) => void;
   onSelectTask: (taskId: number) => void;
 
-  // 🔥 [핵심] 컬럼(보드)에 멤버를 드롭했을 때 실행되는 함수
+  // 드롭 핸들러
   onDropMemberOnColumn: (columnId: number, memberId: number) => void;
 }
 
 const TaskBoard: React.FC<Props> = ({
   columns,
   members,
-  onAddColumn,
+  onAddColumn, // 이름 일치 확인
   onDeleteColumn,
   onAddMemberToColumn,
   onDeleteMember,
-  onDropMemberOnColumn, // Project.tsx에서 내려받은 핸들러
+  onDropMemberOnColumn,
 }) => {
   const [newColumnName, setNewColumnName] = useState("");
 
@@ -48,18 +54,14 @@ const TaskBoard: React.FC<Props> = ({
     setNewColumnName("");
   };
 
-  // 1. 드래그 오버 허용
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  // 2. 드롭 이벤트 처리 (컬럼 ID와 멤버 ID를 매칭)
   const handleDropOnColumn = (e: React.DragEvent, columnId: number) => {
     e.preventDefault();
     const memberIdStr = e.dataTransfer.getData("memberId");
-
-    if (!memberIdStr) return; // 멤버 카드가 아니면 무시
-
+    if (!memberIdStr) return;
     const memberId = parseInt(memberIdStr, 10);
     onDropMemberOnColumn(columnId, memberId);
   };
@@ -67,30 +69,17 @@ const TaskBoard: React.FC<Props> = ({
   return (
     <div className="taskboard">
       <div className="columns-container">
-        {columns.map((col) => (
-          <div
-            key={col.id}
-            className="column"
-            // 🔥 [핵심] 컬럼 전체를 드롭 구역으로 설정
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDropOnColumn(e, col.id)}
-            style={{
-              minHeight: "300px",
-              display: "flex",
-              flexDirection: "column",
-            }}
-          >
-            {/* --- 헤더 영역 --- */}
-            <div className="column-header">
-              <h3 style={{ margin: 0, fontSize: 16 }}>{col.name}</h3>
-              <button
-                className="task-btn small red"
-                onClick={() => onDeleteColumn(col.id)}
-              >
-                삭제
-              </button>
-            </div>
+        {columns.map((col) => {
+          // 진행률 계산 로직 추가
+          const getProgress = (mId: number) => {
+            const memberInCol = col.members.find((m) => m.id === mId);
+            const subTasks = memberInCol?.subTasks || [];
+            const total = subTasks.length;
+            const done = subTasks.filter((t) => t.completed).length;
+            return total === 0 ? 0 : Math.round((done / total) * 100);
+          };
 
+<<<<<<< HEAD
             {/* --- 멤버 리스트 영역 (여기가 메인) --- */}
             <div className="taskboard-members" style={{ flex: 1 }}>
               <h4 style={{ marginTop: 15, marginBottom: 10, color: "#666" }}>
@@ -136,24 +125,108 @@ const TaskBoard: React.FC<Props> = ({
                             alignItems: "center",
                             gap: 8,
                           }}
+=======
+          return (
+            <div
+              key={col.id}
+              className="column"
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDropOnColumn(e, col.id)}
+              style={{
+                minHeight: "300px",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <div className="column-header">
+                <h3 style={{ margin: 0, fontSize: 16 }}>{col.name}</h3>
+                <button
+                  className="task-btn small red"
+                  onClick={() => onDeleteColumn(col.id)}
+                >
+                  삭제
+                </button>
+              </div>
+
+              <div className="taskboard-members" style={{ flex: 1 }}>
+                <h4 style={{ marginTop: 15, marginBottom: 10, color: "#666" }}>
+                  배정된 멤버
+                </h4>
+
+                {col.members.length === 0 ? (
+                  <div
+                    style={{
+                      padding: "30px 0",
+                      color: "#aaa",
+                      fontSize: "13px",
+                      textAlign: "center",
+                      border: "2px dashed #e5e7eb",
+                      borderRadius: "8px",
+                      backgroundColor: "#f9fafb",
+                    }}
+                  >
+                    멤버를 이곳으로
+                    <br />
+                    드래그하세요
+                  </div>
+                ) : (
+                  <ul style={{ padding: 0, listStyle: "none" }}>
+                    {col.members.map((m) => {
+                      const memberInfo = members.find((mm) => mm.id === m.id);
+                      if (!memberInfo) return null;
+
+                      const percent = getProgress(m.id); // 진행률 가져오기
+
+                      return (
+                        <li
+                          key={m.id}
+                          className="member-item-row"
+                          style={{ display: "block", marginBottom: 12 }}
+>>>>>>> 908e4f68a413d81914a4a8cae795dca062e91544
                         >
-                          {/* 아바타 */}
                           <div
                             style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              background: "#4f46e5",
-                              color: "white",
                               display: "flex",
-                              justifyContent: "center",
                               alignItems: "center",
-                              fontSize: 12,
-                              fontWeight: "bold",
+                              justifyContent: "space-between",
                             }}
                           >
-                            {memberInfo.name[0]}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 28,
+                                  height: 28,
+                                  borderRadius: "50%",
+                                  background: "#4f46e5",
+                                  color: "white",
+                                  display: "flex",
+                                  justifyContent: "center",
+                                  alignItems: "center",
+                                  fontSize: 12,
+                                  fontWeight: "bold",
+                                }}
+                              >
+                                {memberInfo.name[0]}
+                              </div>
+                              <span style={{ fontSize: 14, fontWeight: 500 }}>
+                                {memberInfo.name}
+                              </span>
+                            </div>
+                            <button
+                              className="edit-btn"
+                              style={{ color: "#ef4444", fontWeight: "bold" }}
+                              onClick={() => onDeleteMember(col.id, m.id)}
+                            >
+                              ✕
+                            </button>
                           </div>
+<<<<<<< HEAD
                           <span style={{ fontSize: 14, fontWeight: 500 }}>
                             {memberInfo.name}
                           </span>
@@ -197,32 +270,54 @@ const TaskBoard: React.FC<Props> = ({
                           {completed}/{total} 완료 ({percent}%)
                         </div>
                       </li>
+=======
+
+                          {/* 진행률 바 표시 */}
+                          <div
+                            style={{
+                              marginTop: 6,
+                              width: "100%",
+                              height: 4,
+                              background: "#eee",
+                              borderRadius: 2,
+                              overflow: "hidden",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: `${percent}%`,
+                                height: "100%",
+                                background:
+                                  percent === 100 ? "#10b981" : "#4f46e5",
+                                transition: "width 0.3s",
+                              }}
+                            />
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                <button
+                  className="task-btn"
+                  style={{ width: "100%", marginTop: "auto" }}
+                  onClick={() => {
+                    const idStr = prompt(
+                      "추가할 멤버 ID: " +
+                        members.map((m) => `${m.id}-${m.name}`).join(", ")
+>>>>>>> 908e4f68a413d81914a4a8cae795dca062e91544
                     );
-                  })}
-                </ul>
-              )}
-
-              {/* (선택사항) 버튼으로 멤버 추가하는 기능은 유지 */}
-              <button
-                className="task-btn"
-                style={{ width: "100%", marginTop: "auto" }}
-                onClick={() => {
-                  const idStr = prompt(
-                    "추가할 멤버 선택 (ID):\n" +
-                      members.map((m) => `${m.id} - ${m.name}`).join("\n")
-                  );
-                  if (!idStr) return;
-                  const id = Number(idStr);
-                  onAddMemberToColumn(col.id, id);
-                }}
-              >
-                + 멤버 직접 배정
-              </button>
+                    if (!idStr) return;
+                    onAddMemberToColumn(col.id, Number(idStr));
+                  }}
+                >
+                  + 멤버 직접 배정
+                </button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
-        {/* --- 새 역할(보드) 추가 영역 --- */}
         <div
           className="column empty-column"
           style={{ display: "block", minHeight: "fit-content" }}
@@ -233,7 +328,7 @@ const TaskBoard: React.FC<Props> = ({
           <input
             value={newColumnName}
             onChange={(e) => setNewColumnName(e.target.value)}
-            placeholder="보드 이름 (예: 디자인)"
+            placeholder="보드 이름"
             style={{
               width: "100%",
               padding: "10px",

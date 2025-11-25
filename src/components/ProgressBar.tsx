@@ -1,23 +1,19 @@
-// src/components/ProgressBar.tsx
-
 import React, { useMemo } from "react";
 import { Task } from "../types/Task";
-import "../styles/ProgressBar.css"; // CSS import
+import "../styles/ProgressBar.css";
 
 interface Props {
   tasks: Task[];
 }
 
 const ProgressBar: React.FC<Props> = ({ tasks }) => {
-  // 🔥 완료된 작업 개수 계산
   const { completed, total, percent } = useMemo(() => {
     const total = tasks.length;
     if (total === 0) {
       return { completed: 0, total: 0, percent: 0 };
     }
 
-    // Task.status === "완료" 로 간주 (원하면 바꿀 수 있음)
-    const completedTasks = tasks.filter((t) => t.status === "완료").length;
+    const completedTasks = tasks.filter((t) => t.status === "DONE").length;
     const percent = Math.round((completedTasks / total) * 100);
 
     return {
@@ -34,7 +30,7 @@ const ProgressBar: React.FC<Props> = ({ tasks }) => {
       <div className="progress-track">
         <div
           className="progress-fill"
-          style={{ width: `${percent}%` }} // 동적 값은 인라인 유지
+          style={{ width: `${percent}%` }}
         />
       </div>
 
