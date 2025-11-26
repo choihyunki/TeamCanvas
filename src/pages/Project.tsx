@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { io } from "socket.io-client"; // 소켓 사용
+import { toast } from "react-toastify";
 
 import Header from "../components/Header";
 import Footer from "../components/Footer";
@@ -293,7 +294,7 @@ const Project: React.FC = () => {
     // 친구 추가는 임시 ID 사용 허용
     if (members.some((m) => m.name === friendName)) {
       // 이름으로 중복 체크
-      alert("이미 존재");
+      toast.success("이미 존재");
       return;
     }
     const newMember: Member = {
@@ -310,7 +311,9 @@ const Project: React.FC = () => {
   const handleAddMember = () => {
     // 1. 친구 목록이 없으면 알림
     if (friends.length === 0) {
-      alert("등록된 친구가 없습니다. 사이드바에서 친구를 먼저 추가해주세요!");
+      toast.success(
+        "등록된 친구가 없습니다. 사이드바에서 친구를 먼저 추가해주세요!"
+      );
       return;
     }
 
@@ -326,7 +329,7 @@ const Project: React.FC = () => {
     // 3. [검증] 진짜 내 친구인지 확인
     const targetFriend = friends.find((f) => f.name === targetName);
     if (!targetFriend) {
-      alert(
+      toast.success(
         `'${targetName}'님은 친구 목록에 없습니다.\n정확한 이름을 입력하거나 친구를 먼저 추가해주세요.`
       );
       return;
@@ -334,7 +337,7 @@ const Project: React.FC = () => {
 
     // 4. [검증] 이미 프로젝트 멤버인지 확인
     if (members.some((m) => m.name === targetName)) {
-      alert("이미 이 프로젝트에 참여 중인 멤버입니다.");
+      toast.success("이미 이 프로젝트에 참여 중인 멤버입니다.");
       return;
     }
 
@@ -355,7 +358,7 @@ const Project: React.FC = () => {
     // 🔥 saveToServer를 호출하므로 MongoDB에 즉시 반영됩니다!
     saveToServer(columns, newMembers);
 
-    alert(`${targetName}님을 멤버로 추가했습니다!`);
+    toast.success(`${targetName}님을 멤버로 추가했습니다!`);
   };
 
   const handleDeleteMember = (memberId: number) => {
@@ -400,7 +403,7 @@ const Project: React.FC = () => {
     const destCol = columns.find((c) => c.id === columnId);
     if (!destCol) return;
     if (destCol.members.some((m) => m.id === memberId)) {
-      alert("이미 배정됨");
+      toast.success("이미 배정됨");
       return;
     }
     const memberInfo = members.find((m) => m.id === memberId);
@@ -492,34 +495,45 @@ const Project: React.FC = () => {
   // 친구 초대 (컬럼에 바로)
   const handleInviteFriendToColumn = (
     columnId: number,
-    friendId: string,
+    friendId: string, // 이게 친구의 실제 로그인 아이디(username)
     friendName: string
   ) => {
-    const fid = parseInt(friendId, 10) || Date.now(); // ID가 없으면 임시생성
-    if (window.confirm(`${friendName}님을 초대하시겠습니까?`)) {
+    // ...
+    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
       let newMembers = [...members];
-      if (!members.some((m) => m.name === friendName)) {
+      // 멤버 목록에 없으면 추가
+      // 🔥 [핵심] 여기서 name 필드에 friendId(로그인 아이디)를 넣어야 DB 검색이 됩니다!
+      // (화면에 보여줄 이름은 나중에 별도 필드로 분리하거나, 일단 아이디를 이름처럼 사용)
+      if (!members.some((m) => m.name === friendId)) {
         newMembers.push({
-          id: fid,
-          name: friendName,
+          id: Date.now(),
+          name: friendId, // 🔥 중요: DB 검색을 위해 유저네임을 저장
           isOnline: false,
           role: "팀원",
         });
         setMembers(newMembers);
       }
+
+      // 컬럼에도 추가...
       const newColumns = columns.map((col) =>
         col.id === columnId
           ? {
               ...col,
               members: [
                 ...col.members,
-                { id: fid, name: friendName, status: "작업전", subTasks: [] },
+                {
+                  id: Date.now(),
+                  name: friendId,
+                  status: "작업전",
+                  subTasks: [],
+                },
               ],
             }
           : col
       );
+
       setColumns(newColumns);
-      saveToServer(newColumns, newMembers);
+      saveToServer(newColumns, newMembers); // DB 저장 요청!
     }
   };
 
