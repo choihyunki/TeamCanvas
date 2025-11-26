@@ -9,6 +9,7 @@ import Schedule from "../components/Schedule";
 import SlideoutSidebar from "../components/SlideoutSidebar";
 import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
+import UserService from "../services/UserService";
 
 // 실시간 커서
 import LiveCursors from "../components/LiveCursors";
@@ -32,12 +33,11 @@ import { Task } from "../types/Task";
 import { useAuth } from "../context/AuthContext";
 
 import ProjectService from "../services/ProjectService";
-import { getFriends } from "../data/mockDb";
 
 import "../styles/Project.css";
 
 interface Friend {
-  id: number;
+  username: string;
   name: string;
   avatarInitial: string;
 }
@@ -200,7 +200,7 @@ const Project: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
+  const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
   );
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
@@ -520,52 +520,30 @@ const Project: React.FC = () => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
 
-  // 더미 핸들러 (TaskBoard1의 legacy props 충족용)
-  const handleMoveMemberBetweenColumns = () => {};
-  const handleUpdateMemberStatus = () => {};
-  const handleUpdateMemberMemo = () => {};
+  const loadData = async () => {
+    if (!token) return;
+    try {
+      const myList = await ProjectService.getMyProjects(token);
+      setMyProjects(myList.map((p: any) => ({ id: p._id, name: p.name }))); // _id -> id
 
+      const myFriends = await UserService.getFriends(token);
+      setFriends(myFriends);
 
-  // 🔥 데이터 로드
+      if (currentProjectId) {
+        const projectData = await ProjectService.getProject(currentProjectId);
+        if (projectData) {
+          setColumns(projectData.columns || []);
+          // 멤버 로직 등...
+        }
+      }
+    } catch (e) {
+      console.error("데이터 로드 실패", e);
+    }
+  };
+
+  // 🔥 [수정 3] 데이터 로드 (ProjectService 사용)
   useEffect(() => {
     if (!token) return;
-
-    const loadData = async () => {
-      try {
-        const myList = await ProjectService.getMyProjects(token);
-        setMyProjects(myList.map((p: any) => ({ id: p._id, name: p.name })));
-
-        setFriends(getFriends());
-
-        if (currentProjectId) {
-          const projectData = await ProjectService.getProject(currentProjectId);
-          if (projectData) {
-            setColumns(projectData.columns || []);
-
-            if (projectData.members && Array.isArray(projectData.members)) {
-              const memberObjs = projectData.members.map(
-                (m: any, idx: number) => {
-                  if (typeof m === "string")
-                    return { id: idx + 1000, name: m, isOnline: true };
-                  return m;
-                }
-              );
-              if (memberObjs.length > 0) {
-                setMembers(memberObjs);
-              }
-            }
-            
-            // Task 데이터 초기 로드 (DB에 tasks 필드가 있다고 가정)
-            if (projectData.tasks && Array.isArray(projectData.tasks)) {
-                setTasks(projectData.tasks);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("데이터 로드 실패", e);
-      }
-    };
-
     loadData();
   }, [token, currentProjectId]);
 
@@ -586,6 +564,7 @@ const Project: React.FC = () => {
         onClose={toggleSlideout}
         projects={myProjects}
         friends={friends}
+        onRefreshFriends={loadData} // 🔥 새로고침 연결
       />
 
       <div

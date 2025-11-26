@@ -5,18 +5,23 @@ import Footer from "../components/Footer";
 import SlideoutSidebar from "../components/SlideoutSidebar";
 import { useAuth } from "../context/AuthContext";
 import ProjectService from "../services/ProjectService"; // 서비스 사용
-import {
-  getProjectsForUser,
-  createProjectForUser,
-  deleteProject,
-  ProjectRecord,
-  getFriends,
-  Friend, // Friend 인터페이스 임포트
-} from "../data/mockDb";
+import UserService from "../services/UserService"; // 임포트 추가
 import "../styles/Main.css";
 
+interface Friend {
+  username: string;
+  name: string;
+  avatarInitial: string;
+}
+
 // 임시 타입: 프로젝트 데이터에 진행률을 추가합니다.
-type ProjectCardData = ProjectRecord & { progressPercent: number };
+interface ProjectCardData {
+  id: string; // MongoDB _id (문자열)
+  name: string;
+  description?: string;
+  members: string[]; // 멤버 이름 목록
+  progressPercent: number;
+}
 
 const Main: React.FC = () => {
   const { token, logout } = useAuth();
@@ -33,19 +38,26 @@ const Main: React.FC = () => {
   // [MODIFIED] 프로젝트 데이터를 Mock DB에서 불러와 상태를 업데이트하는 재사용 함수
   const fetchProjects = async () => {
     if (!token) return;
+
     try {
-      // 🔥 mock 함수 대신 Service 호출
+      // 1. 서비스에서 진짜 데이터 가져옴
       const list = await ProjectService.getMyProjects(token);
 
-      // 진행률 계산 로직 등은 필요하다면 여기서 가공하거나 서버에서 처리
-      // 일단 그대로 넣습니다.
-      const formattedList = list.map((p: any) => ({
-        ...p,
-        id: p._id, // MongoDB는 id가 _id로 옴
-        progressPercent: 0, // 임시 0% (나중에 로직 추가 가능)
+      // 2. MongoDB 데이터(_id)를 우리 앱 데이터(id)로 변환
+      // list 안의 각 항목(p)은 any 타입으로 취급해서 변환
+      const formattedList: ProjectCardData[] = list.map((p: any) => ({
+        id: p._id, // 🔥 _id를 id로 연결
+        name: p.name,
+        description: p.description,
+        members: p.members || [],
+        progressPercent: 0, // 진행률은 일단 0으로 고정 (나중에 로직 추가)
       }));
 
       setProjects(formattedList);
+
+      // 친구 목록 로드
+      const myFriends = await UserService.getFriends(token);
+      setFriends(myFriends);
     } catch (e) {
       console.error("프로젝트 로드 실패", e);
     }
@@ -83,14 +95,22 @@ const Main: React.FC = () => {
     navigate("/login");
   };
 
-  const handleEnterProject = (id: number) => {
+  const handleEnterProject = (id: string) => {
     navigate(`/project/${id}`);
   };
 
-  const handleDeleteProject = (id: number) => {
+  const handleDeleteProject = async (id: string) => {
+    // 🔥 id: string 확인
     if (window.confirm("정말 이 프로젝트를 삭제하시겠습니까?")) {
-      deleteProject(id);
-      fetchProjects();
+      try {
+        // 🔥 [수정] 옛날 mock 함수(deleteProject) 대신 서비스 사용
+        await ProjectService.deleteProject(id);
+
+        // 목록 새로고침
+        fetchProjects();
+      } catch (e) {
+        alert("삭제 실패");
+      }
     }
   };
 
@@ -103,6 +123,7 @@ const Main: React.FC = () => {
         onClose={() => setIsSidebarOpen(false)}
         projects={projects}
         friends={friends}
+        onRefreshFriends={fetchProjects}
       />
 
       <div

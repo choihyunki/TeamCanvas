@@ -25,6 +25,14 @@ const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   name: String,
+  // 🔥 [추가] 친구 목록 저장 (상대방 아이디와 이름)
+  friends: [
+    {
+      username: String,
+      name: String,
+      avatarInitial: String, // 프로필용 한 글자
+    },
+  ],
 });
 const User = mongoose.model("User", UserSchema);
 
@@ -172,4 +180,66 @@ io.on("connection", (socket) => {
 
 server.listen(4000, () => {
   console.log("🔥 Server & DB Ready on Port 4000");
+});
+
+// 🔥 6. 친구 추가 API
+app.post("/api/friends/add", async (req, res) => {
+  const { myUsername, targetUsername } = req.body;
+
+  try {
+    // 1. 나 찾기
+    const me = await User.findOne({ username: myUsername });
+    // 2. 상대방 찾기
+    const target = await User.findOne({ username: targetUsername });
+
+    if (!target)
+      return res.status(404).json({ message: "존재하지 않는 아이디입니다." });
+    if (myUsername === targetUsername)
+      return res.status(400).json({ message: "나 자신은 추가할 수 없습니다." });
+
+    // 3. 이미 친구인지 확인
+    const isAlreadyFriend = me.friends.some(
+      (f) => f.username === targetUsername
+    );
+    if (isAlreadyFriend)
+      return res.status(400).json({ message: "이미 등록된 친구입니다." });
+
+    // 4. 친구 추가 (이름과 아바타 정보 저장)
+    me.friends.push({
+      username: target.username,
+      name: target.name,
+      avatarInitial: target.name.charAt(0), // 이름 첫 글자
+    });
+
+    await me.save();
+    res.json(me.friends); // 업데이트된 친구 목록 반환
+  } catch (err) {
+    res.status(500).json({ message: "친구 추가 실패" });
+  }
+});
+
+// 🔥 7. 내 친구 목록 가져오기 API
+app.get("/api/friends/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username });
+    if (!user) return res.json([]);
+    res.json(user.friends);
+  } catch (err) {
+    res.status(500).json({ message: "로드 실패" });
+  }
+});
+
+// 🔥 [추가] 프로젝트 삭제 API
+app.delete("/api/projects/:id", async (req, res) => {
+  try {
+    // 1. 프로젝트 삭제
+    await Project.findByIdAndDelete(req.params.id);
+
+    // 2. (선택) 해당 프로젝트의 채팅 내역도 같이 지우고 싶다면:
+    // await ChatMessage.deleteMany({ projectId: req.params.id });
+
+    res.json({ message: "프로젝트 삭제 완료" });
+  } catch (err) {
+    res.status(500).json({ message: "삭제 실패" });
+  }
 });
