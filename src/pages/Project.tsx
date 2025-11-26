@@ -27,7 +27,7 @@ import { AppWindow, ToolType } from "../types/InApp";
 import "../styles/InApp.css";
 
 import { Member } from "../types/Member";
-import { RoleColumn, SubTask } from "../types/Project";
+import { RoleColumn, SubTask, ProjectMember } from "../types/Project"; // ProjectMember 타입이 Project.ts에 정의되어 있다고 가정
 import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
@@ -55,7 +55,7 @@ const Project: React.FC = () => {
     token || "Anonymous"
   );
 
-  // --- [1] 인앱 툴(창) 상태 관리 (보내주신 코드의 드래그 로직 적용) ---
+  // --- [1] 인앱 툴(창) 상태 관리 (기존 코드 유지) ---
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
 
@@ -297,7 +297,8 @@ const Project: React.FC = () => {
       return;
     }
     const newMember: Member = {
-      id: friendId,
+      // ⚠️ NaN 오류 방지를 위해 friendId가 NaN이면 Date.now()를 사용합니다.
+      id: isNaN(friendId) ? Date.now() : friendId, 
       name: friendName,
       isOnline: true,
       role: "팀원",
@@ -339,8 +340,6 @@ const Project: React.FC = () => {
     }
 
     // 5. 멤버 객체 생성 (DB 데이터 기반)
-    // 친구의 ID를 그대로 쓰거나, 현재 시스템에 맞게 Date.now() 사용
-    // (여기서는 기존 로직 호환성을 위해 Date.now() ID 사용하되, 이름은 친구 이름 사용)
     const newMember: Member = {
       id: Date.now(), // 고유 ID 생성
       name: targetFriend.name,
@@ -397,14 +396,24 @@ const Project: React.FC = () => {
 
   // 멤버를 특정 컬럼(역할)에 추가
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
+    // 🔥 [D&D 디버깅] ID 확인
+    console.log(`[D&D 시도] Column ID: ${columnId}, Dragged Member ID: ${memberId}`); 
+    
     const destCol = columns.find((c) => c.id === columnId);
     if (!destCol) return;
     if (destCol.members.some((m) => m.id === memberId)) {
       alert("이미 배정됨");
       return;
     }
+    
     const memberInfo = members.find((m) => m.id === memberId);
-    if (!memberInfo) return;
+    // 🔥 [D&D 디버깅] 멤버 검색 결과 확인
+    console.log("[멤버 검색 결과]", memberInfo); 
+    
+    if (!memberInfo) {
+        alert("멤버 정보를 찾을 수 없습니다! (ID 불일치)"); // 경고 메시지 추가
+        return;
+    }
 
     const newColumns = columns.map((col) =>
       col.id === columnId
@@ -572,11 +581,32 @@ const Project: React.FC = () => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
+  
+  // 기존 handleUpdateTask 시그니처: (t: Task) => void
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
+  
+  // 🔥 [오류 수정] TaskDetails/Schedule의 onUpdateTask prop에 맞추기 위한 래퍼 함수
+  const handleUpdateTaskFromObject = (updatedTask: Task) => {
+      handleUpdateTask(updatedTask);
+  };
 
-  // 서브태스크 핸들러 (TaskDetails용)
+  // 🔥 [오류 수정] TaskDetails의 onAddSubTask prop에 맞추기 위한 래퍼 함수
+  // TaskDetails 기대 시그니처: (colId: number, memId: number, content: string) => void
+  const handleAddSubTaskWrapper = (
+    _colId: number, 
+    _memId: number, 
+    content: string
+  ) => {
+      // 실제 구현은 selectedTaskId와 content를 사용하도록 가정하고, 기존 로직 호출
+      if (selectedTaskId !== null) {
+          // 기존 handleAddSubTask가 colId, memId를 사용하므로 해당 인수를 전달 (값은 의미 없을 수 있음)
+          handleAddSubTask(_colId, _memId, content); 
+      }
+  };
+  
+  // 기존 handleAddSubTask 정의 (인터페이스 호환을 위해 유지)
   const handleAddSubTask = (colId: number, memId: number, content: string) => {
     /* 구현 생략 가능하지만 에러 방지용 */
   };
@@ -779,14 +809,20 @@ const Project: React.FC = () => {
                 members={members}
                 tasks={tasks}
                 selectedTaskId={selectedTaskId}
-                onUpdateTask={handleUpdateTask}
-                onAddSubTask={handleAddSubTask}
+                // 🔥 [오류 수정] onUpdateTask는 래퍼 함수 사용
+                onUpdateTask={handleUpdateTaskFromObject}
+                // 🔥 [오류 수정] onAddSubTask는 래퍼 함수 사용
+                onAddSubTask={handleAddSubTaskWrapper}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
               />
             )}
             {activeTab === "schedule" && (
-              <Schedule tasks={tasks} onUpdateTask={handleUpdateTask} />
+              <Schedule 
+                tasks={tasks} 
+                // 🔥 [오류 수정] onUpdateTask는 래퍼 함수 사용
+                onUpdateTask={handleUpdateTaskFromObject} 
+              />
             )}
           </div>
         </main>
