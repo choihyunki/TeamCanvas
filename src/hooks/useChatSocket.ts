@@ -16,6 +16,7 @@ export const useChatSocket = (projectId: string | null, userName: string) => {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    // 프로젝트 ID가 없으면 연결하지 않음
     if (!projectId) return;
 
     // 1. 소켓 연결 (한 번만 연결되도록 설정)
