@@ -77,6 +77,7 @@ app.post("/api/auth/register", async (req, res) => {
     await newUser.save();
     res.json(newUser);
   } catch (err) {
+    console.error("회원가입 에러:", err);
     res.status(500).json({ message: "서버 오류" });
   }
 });
@@ -93,6 +94,7 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json(user);
   } catch (err) {
+    console.error("로그인 에러:", err);
     res.status(500).json({ message: "서버 오류" });
   }
 });
