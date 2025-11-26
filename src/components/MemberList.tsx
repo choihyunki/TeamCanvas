@@ -1,13 +1,12 @@
 import React from "react";
 import { Member } from "../types/Member";
 import styles from "../styles/MemberList.module.css";
-// import MemberCard from "./MemberCard"; // 🔥 직접 렌더링을 위해 제거 (MemberCard 수정 없이 바로 해결하기 위함)
 
 interface Props {
   members: Member[];
   onAddMemberClick: () => void;
   onDeleteMember: (memberId: number) => void;
-  // 🔥 [수정] ID가 문자열일 수도 있으므로 string | number 허용
+  // 🔥 [수정] ID가 문자열(username)일 수도 있으므로 string | number 허용
   onAddMemberFromFriend: (
     friendId: number | string,
     friendName: string
@@ -30,8 +29,7 @@ const MemberList: React.FC<Props> = ({
     const friendIdStr = e.dataTransfer.getData("friendId");
 
     if (friendName && friendIdStr) {
-      // 🔥 [수정] 무조건 Number로 바꾸지 않고, 값이 있으면 전달
-      // (username이 "admin" 같은 문자열일 경우 NaN이 되는 것 방지)
+      // 🔥 [수정] 무조건 Number로 바꾸지 않고, 그대로 전달 (문자열 ID 지원)
       if (
         window.confirm(`프로젝트 멤버에 ${friendName} 님을 추가하시겠습니까?`)
       ) {
@@ -98,10 +96,9 @@ const MemberList: React.FC<Props> = ({
         {members.map((m) => (
           <li
             key={m.id}
-            className={styles.cardWrapper} // 기존 스타일 유지
+            className={styles.cardWrapper}
             draggable
             onDragStart={(e) => handleDragStart(e, m.id)}
-            // 🔥 [추가] 인라인 스타일로 리스트 아이템 디자인 (MemberCard 대체)
             style={{
               listStyle: "none",
               display: "flex",
@@ -114,13 +111,12 @@ const MemberList: React.FC<Props> = ({
               cursor: "grab",
             }}
           >
-            {/* 🔥 [핵심] 아바타 표시 (저장된 avatarInitial 사용) */}
+            {/* 아바타 표시 */}
             <div
               style={{
                 width: "32px",
                 height: "32px",
                 borderRadius: "50%",
-                // 온라인 상태에 따라 테두리/배경색 변경
                 backgroundColor: m.isOnline ? "#d1fae5" : "#f3f4f6",
                 color: m.isOnline ? "#065f46" : "#6b7280",
                 display: "flex",
@@ -133,7 +129,6 @@ const MemberList: React.FC<Props> = ({
                 flexShrink: 0,
               }}
             >
-              {/* 저장된 이니셜이 있으면 쓰고, 없으면 이름 첫 글자 */}
               {m.avatarInitial || m.name.charAt(0)}
             </div>
 

@@ -28,14 +28,17 @@ const ProjectService = {
   },
 
   // 프로젝트 상태 저장 (칸반 보드 이동 등 저장)
+  // 🔥 [수정] tasks 인자 추가
   saveProjectState: async (
     projectId: string,
     columns: any[],
-    members: any[]
+    members: any[],
+    tasks: any[] // 🔥 추가됨
   ) => {
     const res = await AxiosInstance.put(`/api/projects/${projectId}`, {
       columns,
       members,
+      tasks, // 🔥 서버로 전송
     });
     return res.data;
   },
