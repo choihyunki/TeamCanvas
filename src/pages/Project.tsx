@@ -32,7 +32,6 @@ import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
 
-// 🔥 [수정 1] mockDb에서 데이터 가져오는 함수들 제거하고 ProjectService 임포트
 import ProjectService from "../services/ProjectService";
 
 import "../styles/Project.css";
@@ -45,12 +44,11 @@ interface Friend {
 
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  // 🔥 [수정 2] 숫자 변환 제거. 문자열 그대로 사용
   const currentProjectId = projectId || null;
+  const numericProjectId = projectId ? Number(projectId) : null;
 
   const { token } = useAuth();
 
-  // 🔥 실시간 커서 훅
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
     token || "Anonymous"
   );
@@ -123,7 +121,7 @@ const Project: React.FC = () => {
     });
   };
 
-  // --- 🖱️ 마우스 이벤트 핸들러 ---
+  // --- 🖱️ 마우스 이벤트 핸들러 (창 이동 & 리사이즈) ---
   const handleMouseDownHeader = (
     e: React.MouseEvent,
     id: number,
@@ -165,13 +163,14 @@ const Project: React.FC = () => {
         resizeItem.current;
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
+
       setWindows((prev) =>
         prev.map((w) =>
           w.id === id
             ? {
                 ...w,
-                width: Math.max(200, initialWidth + dx),
-                height: Math.max(150, initialHeight + dy),
+                width: Math.max(300, initialWidth + dx),
+                height: Math.max(200, initialHeight + dy),
               }
             : w
         )
@@ -199,7 +198,7 @@ const Project: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
@@ -230,7 +229,7 @@ const Project: React.FC = () => {
     }
   };
 
-  // --- Handlers ---
+  // --- Handlers (Member/Role/SubTask) ---
 
   const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
     if (members.some((m) => m.id === friendId)) {
@@ -246,7 +245,6 @@ const Project: React.FC = () => {
     const newMembers = [...members, newMember];
 
     setMembers(newMembers);
-    // 🔥 서버 저장 호출
     saveToServer(columns, newMembers);
   };
 
@@ -259,14 +257,11 @@ const Project: React.FC = () => {
     const newMembers = [...members, newMember];
 
     setMembers(newMembers);
-    // 🔥 서버 저장 호출 (addMemberToProject mock 함수 제거됨)
     saveToServer(columns, newMembers);
   };
 
   const handleDeleteMember = (memberId: number) => {
     if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
-
-    // mock 함수 호출 제거 (removeMemberFromProject 제거)
 
     const newMembers = members.filter((member) => member.id !== memberId);
     const newColumns = columns.map((col) => ({
@@ -274,15 +269,23 @@ const Project: React.FC = () => {
       members: col.members.filter((m) => m.id !== memberId),
     }));
 
+    // Task의 담당자에서도 제거
+    const memberName = members.find(m => m.id === memberId)?.name;
+    const newTasks = tasks.map(t => ({
+        ...t,
+        members: t.members.filter(name => name !== memberName)
+    }));
+
     setMembers(newMembers);
     setColumns(newColumns);
-    // 🔥 서버 저장
+    setTasks(newTasks);
     saveToServer(newColumns, newMembers);
   };
 
-  const handleAddColumn = (name: string) => {
+  // RoleColumn 관리 핸들러 (TaskBoard에서 onAddColumn, onDeleteColumn으로 사용됨)
+  const handleAddRoleColumn = (name: string) => {
     const newColumn: RoleColumn = {
-      id: Date.now(), // 고유 ID
+      id: Date.now(),
       name,
       members: [],
     };
@@ -291,35 +294,36 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  const handleDeleteColumn = (columnId: number) => {
+  const handleDeleteRoleColumn = (columnId: number) => {
     const newColumns = columns.filter((col) => col.id !== columnId);
+    // 해당 Column ID를 가진 Task도 모두 삭제
+    const newTasks = tasks.filter(t => t.columnId !== columnId);
+    
     setColumns(newColumns);
+    setTasks(newTasks);
     saveToServer(newColumns, members);
   };
 
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
-    // 1. 컬럼 찾기
+    // TaskBoard1에서 사용되던 Role에 멤버를 직접 추가하는 로직 (현재 TaskBoard2에서는 사용되지 않음)
     const destinationColumn = columns.find((col) => col.id === columnId);
     if (!destinationColumn) return;
 
-    // 2. 이미 있는지 확인
     if (destinationColumn.members.some((m) => m.id === memberId)) {
       alert("이 역할에는 이미 배정된 멤버입니다.");
       return;
     }
 
-    // 3. 멤버 정보 찾기 (전체 멤버 목록에서)
     const memberInfo = members.find((m) => m.id === memberId);
     if (!memberInfo) return;
 
-    // 4. 업데이트
     const newColumns = columns.map((col) =>
       col.id === columnId
         ? {
             ...col,
             members: [
               ...col.members,
-              { ...memberInfo, status: "작업전", subTasks: [] }, // 멤버 정보를 복사해서 넣음
+              { ...memberInfo, status: "작업전", subTasks: [] },
             ],
           }
         : col
@@ -329,12 +333,11 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  // 🔥 드래그 앤 드롭 핸들러
   const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
     handleAddMemberToColumn(columnId, memberId);
   };
 
-  // 🔥 SubTask 핸들러들
+  // SubTask 핸들러들 (TaskDetails용)
   const handleAddSubTask = (
     columnId: number,
     memberId: number,
@@ -453,16 +456,66 @@ const Project: React.FC = () => {
     }
   };
 
-  // 더미 핸들러 (에러 방지)
-  const handleMoveMemberBetweenColumns = () => {};
-  const handleUpdateMemberStatus = () => {};
-  const handleUpdateMemberMemo = () => {};
-  const handleAddTask = () => {};
+  // --- Handlers (TaskBoard용, Task 상태 및 할당 관리) ---
 
+  const handleAddTask = (roleId: number, status: string) => {
+    const inputTitle = prompt("할 일을 입력하세요");
+    if (!inputTitle) return;
+
+    const newTask: Task = {
+      id: Date.now(),
+      columnId: roleId,
+      status: status, // "TODO", "IN_PROGRESS", "DONE" 중 하나
+      title: inputTitle,
+      members: [], // 초기 담당자는 없음
+    };
+    setTasks((prev) => [...prev, newTask]);
+  };
+
+  const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
+    );
+  };
+
+  const handleDeleteTask = (taskId: number) => {
+    if (window.confirm("태스크를 삭제하시겠습니까?")) {
+      setTasks((prev) => prev.filter((t) => t.id !== taskId));
+    }
+  };
+  
+  const handleAssignMemberToTask = (taskId: number, memberId: number) => {
+    const memberData = members.find((m) => m.id === memberId);
+    if (!memberData) return;
+
+    const memberName = memberData.name;
+
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === taskId) {
+          // 이미 배정되어 있다면 제거, 아니면 추가 (토글)
+          if (t.members.includes(memberName)) {
+            return {
+              ...t,
+              members: t.members.filter((name) => name !== memberName),
+            };
+          } else {
+            return {
+              ...t,
+              members: [...t.members, memberName],
+            };
+          }
+        }
+        return t;
+      })
+    );
+  };
+  
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
+  
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
@@ -669,8 +722,12 @@ const Project: React.FC = () => {
                 columns={columns}
                 members={members}
                 tasks={tasks}
-                onAddColumn={handleAddColumn}
-                onDeleteColumn={handleDeleteColumn}
+
+                // --- Role/Column 관리 핸들러 ---
+                onAddColumn={handleAddRoleColumn}
+                onDeleteColumn={handleDeleteRoleColumn}
+                
+                // --- TaskBoard1의 Legacy props (더미 또는 기존 로직) ---
                 onAddMemberToColumn={handleAddMemberToColumn}
                 onMoveMember={handleMoveMemberBetweenColumns}
                 onUpdateStatus={handleUpdateMemberStatus}
@@ -679,15 +736,23 @@ const Project: React.FC = () => {
                 }
                 onUpdateMemberMemo={handleUpdateMemberMemo}
                 onInviteFriend={handleInviteFriendToColumn}
-                onAddTask={handleAddTask}
-                onSelectTask={handleSelectTask}
                 onDropMemberOnColumn={handleDropMemberOnColumn}
+
+                // --- TaskBoard2의 필수 Task 핸들러 (추가됨) ---
+                onAddTask={handleAddTask} 
+                onUpdateTaskStatus={handleUpdateTaskStatus} // ✨ 추가
+                onDeleteTask={handleDeleteTask} // ✨ 추가
+                onAssignMemberToTask={handleAssignMemberToTask} // ✨ 추가
+                onSelectTask={handleSelectTask}
               />
             )}
             {activeTab === "taskDetails" && (
               <TaskDetails
                 columns={columns}
                 members={members}
+                tasks={tasks}
+                selectedTaskId={selectedTaskId}
+                
                 onAddSubTask={handleAddSubTask}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
