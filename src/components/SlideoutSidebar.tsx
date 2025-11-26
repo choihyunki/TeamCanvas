@@ -33,6 +33,7 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
   const { token } = useAuth();
   const [friendIdInput, setFriendIdInput] = useState("");
 
+  // 친구 추가 (즉시 추가 방식 유지)
   const handleAddFriend = async () => {
     if (!friendIdInput.trim()) return;
     if (!token) return;
@@ -47,18 +48,17 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
     }
   };
 
-  // 🔥 [추가] 친구 드래그 시작 핸들러
+  // 🔥 친구 드래그 시작 핸들러 (이 기능은 살려둡니다!)
   const handleFriendDragStart = (e: React.DragEvent, friend: FriendItem) => {
-    // "FRIEND" 타입과 친구 정보를 담아서 보냄
     e.dataTransfer.setData("type", "FRIEND");
-    e.dataTransfer.setData("friendId", friend.username); // 혹은 id가 있다면 id
+    e.dataTransfer.setData("friendId", friend.username);
     e.dataTransfer.setData("friendName", friend.name);
-    e.dataTransfer.effectAllowed = "copy"; // 복사되는 느낌
+    e.dataTransfer.effectAllowed = "copy";
   };
 
   return (
     <>
-      {/* 오버레이는 CSS에서 display:none 처리함 */}
+      {/* 오버레이 (CSS에서 display:none 처리됨) */}
       <div
         className={`sidebar-overlay ${isOpen ? "open" : ""}`}
         onClick={onClose}
@@ -66,28 +66,33 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
 
       <div className={`slideout-sidebar ${isOpen ? "open" : ""}`}>
         <div className="sidebar-header">
-          <h2>내비게이션</h2>
+          <h2>Drop In</h2>
           <button className="close-btn" onClick={onClose}>
             ×
           </button>
         </div>
 
-        {/* ... (프로젝트 목록 부분 생략 - 기존과 동일) ... */}
+        {/* 1. 내 프로젝트 */}
         <div className="sidebar-section">
           <h3>📂 내 프로젝트</h3>
           <ul className="sidebar-list">
-            {projects.map((p) => (
-              <li key={p.id}>
-                <Link to={`/project/${p.id}`}>{p.name}</Link>
-              </li>
-            ))}
+            {projects.length === 0 ? (
+              <li className="empty-item">프로젝트가 없습니다.</li>
+            ) : (
+              projects.map((p) => (
+                <li key={p.id}>
+                  <Link to={`/project/${p.id}`}>{p.name}</Link>
+                </li>
+              ))
+            )}
           </ul>
         </div>
 
         <hr className="sidebar-divider" />
 
+        {/* 2. 친구 목록 & 추가 */}
         <div className="sidebar-section">
-          <h3>👥 친구 목록 (드래그하여 초대)</h3>
+          <h3>👥 친구 목록</h3>
 
           <div
             className="add-friend-box"
@@ -98,9 +103,24 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
               placeholder="친구 ID 검색"
               value={friendIdInput}
               onChange={(e) => setFriendIdInput(e.target.value)}
-              style={{ flex: 1, padding: "5px" }}
+              style={{
+                flex: 1,
+                padding: "5px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+              }}
             />
-            <button onClick={handleAddFriend} style={{ cursor: "pointer" }}>
+            <button
+              onClick={handleAddFriend}
+              style={{
+                background: "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                padding: "0 10px",
+              }}
+            >
               +
             </button>
           </div>
@@ -113,8 +133,7 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
                 <li
                   key={idx}
                   className="friend-item"
-                  // 🔥 드래그 가능 설정
-                  draggable
+                  draggable // 드래그 가능
                   onDragStart={(e) => handleFriendDragStart(e, f)}
                 >
                   <div className="friend-avatar">
@@ -130,7 +149,6 @@ const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
           </ul>
         </div>
 
-        {/* ... (푸터 생략) ... */}
         <div className="sidebar-footer">
           <Link to="/help">도움말</Link>
           <Link to="/contact">문의하기</Link>

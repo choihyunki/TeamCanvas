@@ -38,7 +38,9 @@
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "tailwind:init": "tailwindcss init -p"
+    "tailwind:init": "tailwindcss init -p",
+    "server": "node server.js",
+    "dev": "nodemon server.js"
   },
   "eslintConfig": {
     "extends": [
