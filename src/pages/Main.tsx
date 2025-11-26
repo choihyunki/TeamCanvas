@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import ProjectService from "../services/ProjectService"; // 서비스 사용
 import UserService from "../services/UserService"; // 임포트 추가
 import "../styles/Main.css";
+import { io } from "socket.io-client"; // socket.io-client import 확인!
 
 interface Friend {
   username: string;
@@ -34,6 +35,7 @@ const Main: React.FC = () => {
   const [newProjectDesc, setNewProjectDesc] = useState("");
 
   const [friends, setFriends] = useState<Friend[]>([]);
+  const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
   // [MODIFIED] 프로젝트 데이터를 Mock DB에서 불러와 상태를 업데이트하는 재사용 함수
   const fetchProjects = async () => {
@@ -87,7 +89,25 @@ const Main: React.FC = () => {
       navigate("/login");
       return;
     }
-    fetchProjects();
+
+    fetchProjects(); // 처음 접속 시 목록 로드
+
+    // 1. 소켓 연결
+    const socket = io(SERVER_URL);
+
+    // 2. "나 로그인했어!" 라고 서버에 신고 (username = token 이라고 가정)
+    socket.emit("register_user", token);
+
+    // 3. "너 초대됐어!" 신호 받으면 목록 새로고침
+    socket.on("project_invited", ({ projectName }) => {
+      // toast.info(`'${projectName}' 프로젝트에 초대되었습니다!`); // 알림 띄우기 (선택)
+      console.log(`🔔 초대됨: ${projectName}`);
+      fetchProjects(); // 🔥 핵심: 즉시 목록 다시 불러오기!
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [token, navigate]);
 
   const handleLogout = () => {
