@@ -218,35 +218,71 @@ app.delete("/api/projects/:id", async (req, res) => {
   }
 });
 
-// --- [Socket.io] ---
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: {
+    origin: "*", // 모든 주소 허용
+    methods: ["GET", "POST"],
+  },
 });
 
 io.on("connection", (socket) => {
+  console.log(`🔌 사용자 접속: ${socket.id}`);
+
+  // 1. 방 입장 (여기서 타입을 문자열로 강제 변환!)
   socket.on("join_room", async (projectId) => {
-    socket.join(projectId);
-    const history = await ChatMessage.find({ projectId }).sort({
-      createdAt: 1,
-    });
-    socket.emit("load_messages", history);
+    const roomName = String(projectId); // 🔥 [핵심] 무조건 문자열로 변환
+    socket.join(roomName);
+    console.log(`🚪 [방 입장] ${socket.id} -> ${roomName}`);
+
+    // 채팅 히스토리 불러오기
+    try {
+      const history = await ChatMessage.find({ projectId: roomName }).sort({
+        createdAt: 1,
+      });
+      socket.emit("load_messages", history);
+    } catch (e) {
+      console.error("히스토리 로드 실패", e);
+    }
   });
 
+  // 2. 메시지 전송
   socket.on("send_message", async (data) => {
-    const newMsg = new ChatMessage(data);
-    await newMsg.save();
-    io.to(data.projectId).emit("receive_message", data);
+    console.log("📨 [메시지 받음]", data);
+
+    // DB 저장 시에도 문자열로 확실하게 저장
+    const saveData = { ...data, projectId: String(data.projectId) };
+
+    try {
+      const newMsg = new ChatMessage(saveData);
+      await newMsg.save();
+      console.log("💾 [DB 저장 완료]");
+
+      // 🔥 [핵심] 같은 방 사람들에게 쏠 때도 문자열 방 번호로 쏨
+      const roomName = String(data.projectId);
+      io.to(roomName).emit("receive_message", saveData);
+      console.log(`📢 [방송 송출] 방: ${roomName}, 내용: ${data.message}`);
+    } catch (e) {
+      console.error("메시지 저장 실패", e);
+    }
   });
 
+  // 3. 마우스 커서 이동
   socket.on("cursor-move", (data) => {
+    // 커서는 DB 저장 안 하니까 바로 브로드캐스트
     socket.broadcast.emit("cursor-update", { ...data, userId: socket.id });
   });
 
+  // 4. 칸반 보드 실시간 동기화
   socket.on("update_board", (projectId) => {
-    socket.broadcast.to(projectId).emit("board_updated");
+    const roomName = String(projectId);
+    console.log(`🔄 [보드 업데이트] 방: ${roomName}`);
+    socket.broadcast.to(roomName).emit("board_updated");
   });
 
-  socket.on("disconnect", () => {});
+  socket.on("disconnect", () => {
+    console.log(`❌ 접속 종료: ${socket.id}`);
+    socket.broadcast.emit("user-disconnected", socket.id);
+  });
 });
 
 // --- [배포용] 정적 파일 제공 ---
