@@ -2,7 +2,6 @@
   "name": "my-app",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://choihyunki.github.io/TeamCanvas",
   "dependencies": {
     "@stomp/stompjs": "^7.2.0",
     "@testing-library/dom": "^10.4.1",
@@ -17,6 +16,7 @@
     "dotenv": "^17.2.3",
     "firebase": "^12.2.1",
     "lucide-react": "^0.544.0",
+    "mongodb": "^7.0.0",
     "mongoose": "^9.0.0",
     "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
@@ -24,6 +24,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^7.9.1",
     "react-scripts": "5.0.1",
+    "react-toastify": "^11.0.5",
     "recoil": "^0.7.7",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
@@ -38,7 +39,9 @@
     "eject": "react-scripts eject",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
-    "tailwind:init": "tailwindcss init -p"
+    "tailwind:init": "tailwindcss init -p",
+    "server": "node server.js",
+    "dev": "nodemon server.js"
   },
   "eslintConfig": {
     "extends": [

@@ -1,15 +1,31 @@
+/* src/styles/SlideoutSidebar.css */
+
+/* 오버레이: 배경색을 없애고, 클릭도 통과하게 만듭니다. */
+.sidebar-overlay {
+  display: none; /* 아예 없애버림 */
+}
+
+/* 슬라이드 사이드바 본체 */
 .slideout-sidebar {
   position: fixed;
   top: 0;
   left: 0;
   width: 280px;
-  height: 100%;
-  background: white;
-  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-  z-index: 2000;
+  height: 100vh;
+  background-color: #ffffff;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+
+  /* 닫혔을 때 숨김 */
+  transform: translateX(-100%);
   transition: transform 0.3s ease-in-out;
+
   display: flex;
   flex-direction: column;
+}
+
+.slideout-sidebar.open {
+  transform: translateX(0);
 }
 
 .sidebar-header {
@@ -17,113 +33,105 @@
   border-bottom: 1px solid #eee;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  background: #9747FF;
-  color: white;
+  background-color: #f8f9fa;
 }
-
-.sidebar-header h3 {
+.sidebar-header h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.2rem;
+  color: #333;
 }
-
 .close-btn {
-  background: transparent;
+  background: none;
   border: none;
-  color: white;
-  font-size: 20px;
+  font-size: 1.5rem;
   cursor: pointer;
+  color: #666;
 }
-
-.sidebar-content {
-  padding: 20px;
-  overflow-y: auto;
-  flex: 1;
-}
-
 .sidebar-section {
-  margin-bottom: 30px;
+  padding: 20px;
 }
-
-.sidebar-section h4 {
-  margin-top: 0;
-  margin-bottom: 15px;
-  font-size: 14px;
-  color: #888;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
 .sidebar-list {
   list-style: none;
   padding: 0;
   margin: 0;
 }
-
-.sidebar-item {
-  padding: 10px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 5px;
-  font-size: 15px;
+.sidebar-list li {
+  margin-bottom: 8px;
+}
+.sidebar-list li a {
+  text-decoration: none;
   color: #333;
+  display: block;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: background-color 0.2s;
 }
-
-.sidebar-item:hover {
-  background: #f3f4f6;
+.sidebar-list li a:hover {
+  background-color: #f1f3f5;
+  color: #4f46e5;
 }
-
-/* [NEW] 친구 목록 아이템 (드래그 소스) 커서 */
-.sidebar-item.friend-item {
-    /* 기존 스타일 유지 */
-    cursor: pointer; 
+.empty-item {
+  color: #aaa;
+  font-size: 0.9rem;
 }
-.sidebar-item.friend-item:hover {
-    background: #f3f4f6;
-    cursor: move; /* 마우스 오버 시 move 커서 */
+.sidebar-divider {
+  border: 0;
+  height: 1px;
+  background: #eee;
+  margin: 0;
 }
-
-
-.friend-item .friend-avatar {
-  width: 32px;
-  height: 32px;
-  background: #e0e7ff;
-  color: #9747FF;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.create-project-area {
-  margin-top: 15px;
+.sidebar-footer {
+  margin-top: auto;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-top: 1px solid #eee;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+.sidebar-footer a {
+  text-decoration: none;
+  color: #666;
+  font-size: 0.9rem;
 }
 
-.sidebar-input {
+/* 친구 목록 스타일 */
+.friend-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.friend-item {
+  display: flex;
+  align-items: center;
   padding: 8px;
-  border: 1px solid #ddd;
   border-radius: 6px;
+  cursor: grab; /* 드래그 가능 아이콘 표시 */
 }
-
-.sidebar-btn {
-  padding: 8px;
-  background: #9747FF;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
+.friend-item:hover {
+  background-color: #f8f9fa;
 }
-
-.sidebar-btn:hover {
-  background: #7c3ae3; /* hover 색상 보정 */
-} 
+.friend-avatar {
+  width: 32px;
+  height: 32px;
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 10px;
+  font-size: 0.8rem;
+}
+.friend-info {
+  display: flex;
+  flex-direction: column;
+}
+.friend-name {
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+.friend-id {
+  font-size: 0.75rem;
+  color: #888;
+}

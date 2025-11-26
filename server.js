@@ -1,45 +1,58 @@
-// server.js
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const path = require("path");
 
 const app = express();
-app.use(cors());
-app.use(express.json()); // JSON 데이터 해석 허용
+
+app.use(
+  cors({
+    origin: "*",
+    credentials: true,
+  })
+);
+app.use(express.json());
 
 const server = http.createServer(app);
 
-// 1. MongoDB 연결
+// MongoDB 연결
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("🔥 MongoDB Connected (Cloud)"))
   .catch((err) => console.log(err));
 
-// --- [Schemas & Models] 데이터 설계도 ---
+// --- [Schemas] ---
 
-// 1. 유저 스키마
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   name: String,
+  friends: [
+    {
+      username: String,
+      name: String,
+      avatarInitial: String,
+    },
+  ],
 });
 const User = mongoose.model("User", UserSchema);
 
-// 2. 프로젝트 스키마 (칸반 보드 구조 포함)
+// 🔥 [수정 1] 프로젝트 스키마 변경
+// members를 단순 String 배열이 아니라, '어떤 형태든 가능한 배열(Array)'로 변경
+// 그래야 { id, name, role... } 같은 객체 정보를 통째로 저장할 수 있습니다.
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
-  members: [String], // 멤버 이름들
-  columns: { type: Array, default: [] }, // 칸반 보드 컬럼 데이터 전체 저장
+  members: { type: Array, default: [] }, // [String] -> Array 로 변경
+  columns: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);
 
-// 3. 채팅 스키마
 const ChatSchema = new mongoose.Schema({
   projectId: String,
   author: String,
@@ -49,9 +62,27 @@ const ChatSchema = new mongoose.Schema({
 });
 const ChatMessage = mongoose.model("ChatMessage", ChatSchema);
 
-// --- [API Routes] 프론트엔드 요청 처리 ---
+// --- [API Routes] ---
 
-// 1. 회원가입
+// 1. 내 프로젝트 목록 가져오기
+app.get("/api/projects", async (req, res) => {
+  const { username } = req.query;
+  try {
+    // 🔥 [수정 2] 검색 쿼리 변경
+    // members 배열 안에 있는 "객체"들 중에서, name 필드가 username과 같은지 확인
+    const projects = await Project.find({
+      $or: [
+        { ownerUsername: username }, // 내가 만든 거거나
+        { "members.name": username }, // 🔥 멤버 목록(객체)의 name에 내가 있거나
+      ],
+    });
+    res.json(projects);
+  } catch (err) {
+    res.status(500).json({ message: "프로젝트 로드 실패" });
+  }
+});
+
+// 2. 회원가입
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, password, name } = req.body;
@@ -63,11 +94,12 @@ app.post("/api/auth/register", async (req, res) => {
     await newUser.save();
     res.json(newUser);
   } catch (err) {
+    console.error("회원가입 에러:", err);
     res.status(500).json({ message: "서버 오류" });
   }
 });
 
-// 2. 로그인
+// 3. 로그인
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -76,25 +108,10 @@ app.post("/api/auth/login", async (req, res) => {
       return res
         .status(401)
         .json({ message: "아이디 또는 비밀번호가 틀렸습니다." });
-
-    // 원래는 JWT 토큰을 써야 하지만, 지금은 간단히 유저 정보 반환
     res.json(user);
   } catch (err) {
+    console.error("로그인 에러:", err);
     res.status(500).json({ message: "서버 오류" });
-  }
-});
-
-// 3. 내 프로젝트 목록 가져오기
-app.get("/api/projects", async (req, res) => {
-  const { username } = req.query;
-  try {
-    // 내가 주인이거나, 멤버로 포함된 프로젝트 찾기
-    const projects = await Project.find({
-      $or: [{ ownerUsername: username }, { members: username }],
-    });
-    res.json(projects);
-  } catch (err) {
-    res.status(500).json({ message: "프로젝트 로드 실패" });
   }
 });
 
@@ -102,12 +119,21 @@ app.get("/api/projects", async (req, res) => {
 app.post("/api/projects", async (req, res) => {
   try {
     const { name, description, ownerUsername } = req.body;
+
+    // 생성자는 자동으로 멤버에 포함 (객체 형태로 저장)
+    const ownerMember = {
+      id: Date.now(),
+      name: ownerUsername, // 검색을 위해 username을 name 필드에 저장
+      isOnline: true,
+      role: "관리자",
+    };
+
     const newProject = new Project({
       name,
       description,
       ownerUsername,
-      members: [ownerUsername], // 생성자는 자동으로 멤버 포함
-      columns: [], // 빈 보드로 시작
+      members: [ownerMember], // 🔥 객체 배열로 초기화
+      columns: [],
     });
     await newProject.save();
     res.json(newProject);
@@ -116,7 +142,7 @@ app.post("/api/projects", async (req, res) => {
   }
 });
 
-// 5. 프로젝트 상세 정보 가져오기 & 저장하기 (칸반 보드용)
+// 5. 프로젝트 상세 & 저장
 app.get("/api/projects/:id", async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -128,7 +154,7 @@ app.get("/api/projects/:id", async (req, res) => {
 
 app.put("/api/projects/:id", async (req, res) => {
   try {
-    const { columns, members } = req.body; // 변경된 보드 상태와 멤버 목록
+    const { columns, members } = req.body;
     const updated = await Project.findByIdAndUpdate(
       req.params.id,
       { columns, members },
@@ -140,15 +166,64 @@ app.put("/api/projects/:id", async (req, res) => {
   }
 });
 
-// --- [Socket.io] 실시간 통신 ---
+// 6. 친구 추가
+app.post("/api/friends/add", async (req, res) => {
+  const { myUsername, targetUsername } = req.body;
+  try {
+    const me = await User.findOne({ username: myUsername });
+    const target = await User.findOne({ username: targetUsername });
 
+    if (!target)
+      return res.status(404).json({ message: "존재하지 않는 아이디입니다." });
+    if (myUsername === targetUsername)
+      return res.status(400).json({ message: "나 자신은 추가할 수 없습니다." });
+
+    const isAlreadyFriend = me.friends.some(
+      (f) => f.username === targetUsername
+    );
+    if (isAlreadyFriend)
+      return res.status(400).json({ message: "이미 등록된 친구입니다." });
+
+    me.friends.push({
+      username: target.username,
+      name: target.name,
+      avatarInitial: target.name.charAt(0),
+    });
+
+    await me.save();
+    res.json(me.friends);
+  } catch (err) {
+    res.status(500).json({ message: "친구 추가 실패" });
+  }
+});
+
+// 7. 친구 목록 가져오기
+app.get("/api/friends/:username", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.params.username });
+    if (!user) return res.json([]);
+    res.json(user.friends);
+  } catch (err) {
+    res.status(500).json({ message: "로드 실패" });
+  }
+});
+
+// 8. 프로젝트 삭제
+app.delete("/api/projects/:id", async (req, res) => {
+  try {
+    await Project.findByIdAndDelete(req.params.id);
+    res.json({ message: "프로젝트 삭제 완료" });
+  } catch (err) {
+    res.status(500).json({ message: "삭제 실패" });
+  }
+});
+
+// --- [Socket.io] ---
 const io = new Server(server, {
-  cors: { origin: "http://localhost:3000", methods: ["GET", "POST"] },
+  cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
 io.on("connection", (socket) => {
-  // ... (기존 실시간 커서 & 채팅 로직 유지) ...
-
   socket.on("join_room", async (projectId) => {
     socket.join(projectId);
     const history = await ChatMessage.find({ projectId }).sort({
@@ -167,9 +242,20 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("cursor-update", { ...data, userId: socket.id });
   });
 
+  socket.on("update_board", (projectId) => {
+    socket.broadcast.to(projectId).emit("board_updated");
+  });
+
   socket.on("disconnect", () => {});
 });
 
-server.listen(4000, () => {
-  console.log("🔥 Server & DB Ready on Port 4000");
+// --- [배포용] 정적 파일 제공 ---
+app.use(express.static(path.join(__dirname, "build")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
+});
+
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`🔥 Server running on port ${PORT}`);
 });

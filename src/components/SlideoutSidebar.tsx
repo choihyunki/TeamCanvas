@@ -1,154 +1,160 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createProjectForUser, addMemberToProject } from "../data/mockDb";
-import { useAuth } from "../context/AuthContext";
+import { Link } from "react-router-dom";
 import "../styles/SlideoutSidebar.css";
+import UserService from "../services/UserService";
+import { useAuth } from "../context/AuthContext";
 
-interface Friend {
-  id: number;
+interface ProjectItem {
+  id: string;
   name: string;
-  avatarInitial: string;
 }
 
-interface Props {
+interface FriendItem {
+  username: string;
+  name: string;
+  avatarInitial?: string;
+}
+
+interface SlideoutSidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  projects: { id: number; name: string }[];
-  friends: Friend[]; // 친구 데이터 받음
+  projects: ProjectItem[];
+  friends: FriendItem[];
+  onRefreshFriends?: () => void;
 }
 
-const SlideoutSidebar: React.FC<Props> = ({
+const SlideoutSidebar: React.FC<SlideoutSidebarProps> = ({
   isOpen,
   onClose,
   projects,
   friends,
+  onRefreshFriends,
 }) => {
-  const navigate = useNavigate();
   const { token } = useAuth();
-  const [newProjectName, setNewProjectName] = useState("");
-  
-  const [dragTargetId, setDragTargetId] = useState<number | null>(null);
+  const [friendIdInput, setFriendIdInput] = useState("");
 
-
-  const handleProjectClick = (id: number) => {
-    navigate(`/project/${id}`);
-    onClose();
-  };
-
-  const handleCreateProject = () => {
-    if (!newProjectName.trim()) return;
+  // 친구 추가 (즉시 추가 방식 유지)
+  const handleAddFriend = async () => {
+    if (!friendIdInput.trim()) return;
     if (!token) return;
-
-    const project = createProjectForUser(token, newProjectName.trim());
-    
-    alert("새 프로젝트가 생성되었습니다! 메인에서 목록을 확인하세요.");
-
-    setNewProjectName("");
-    navigate(`/project/${project.id}`);
-    onClose();
-  };
-
-  // 드롭 핸들러: 프로젝트에 친구를 멤버로 추가
-  const handleDropFriendOnProject = (e: React.DragEvent, projectId: number) => {
-    e.preventDefault();
-    setDragTargetId(null); 
-    
-    const friendName = e.dataTransfer.getData("friendName");
-    
-    if (friendName) {
-      addMemberToProject(projectId, friendName); 
-      alert(`${friendName} 님이 프로젝트 [${projectId}]에 추가되었습니다! (새로고침 필요)`);
+    try {
+      await UserService.addFriend(token, friendIdInput.trim());
+      alert(`${friendIdInput}님이 친구로 추가되었습니다!`);
+      setFriendIdInput("");
+      if (onRefreshFriends) onRefreshFriends();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "친구 추가 실패";
+      alert(msg);
     }
   };
 
+  // 🔥 친구 드래그 시작 핸들러 (이 기능은 살려둡니다!)
+  const handleFriendDragStart = (e: React.DragEvent, friend: FriendItem) => {
+    e.dataTransfer.setData("type", "FRIEND");
+    e.dataTransfer.setData("friendId", friend.username);
+    e.dataTransfer.setData("friendName", friend.name);
+    e.dataTransfer.effectAllowed = "copy";
+  };
 
   return (
-    <div
-      className="slideout-sidebar"
-      style={{
-        transform: isOpen ? "translateX(0)" : "translateX(-100%)", 
-      }}
-    >
-      <div className="sidebar-header">
-        <h3>프로젝트 & 친구</h3>
-        <button className="close-btn" onClick={onClose}>
-          ✕
-        </button>
-      </div>
+    <>
+      {/* 오버레이 (CSS에서 display:none 처리됨) */}
+      <div
+        className={`sidebar-overlay ${isOpen ? "open" : ""}`}
+        onClick={onClose}
+      />
 
-      <div className="sidebar-content">
-        {/* 내 프로젝트 목록 (드롭 대상) */}
-        <section className="sidebar-section">
-          <h4>내 프로젝트</h4>
-          {projects.length === 0 ? (
-            <p style={{ color: "#aaa", fontSize: "14px" }}>프로젝트 없음</p>
-          ) : (
-            <ul className="sidebar-list">
-              {projects.map((p) => (
-                <li
-                  key={p.id}
-                  className="sidebar-item project-droppable"
-                  onClick={() => handleProjectClick(p.id)}
-                  
-                  // [D&D TARGET LOGIC]
-                  style={{
-                      border: dragTargetId === p.id ? '1px solid #3B82F6' : '1px solid transparent',
-                      backgroundColor: dragTargetId === p.id ? '#F0F7FF' : 'transparent',
-                      transition: 'all 0.1s ease',
-                      cursor: 'pointer'
-                  }}
-                  onDragEnter={() => setDragTargetId(p.id)} 
-                  onDragLeave={() => setDragTargetId(null)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'copy'; 
-                  }} 
-                  onDrop={(e) => handleDropFriendOnProject(e, p.id)} 
-                >
-                  📁 {p.name}
+      <div className={`slideout-sidebar ${isOpen ? "open" : ""}`}>
+        <div className="sidebar-header">
+          <h2>Drop In</h2>
+          <button className="close-btn" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        {/* 1. 내 프로젝트 */}
+        <div className="sidebar-section">
+          <h3>📂 내 프로젝트</h3>
+          <ul className="sidebar-list">
+            {projects.length === 0 ? (
+              <li className="empty-item">프로젝트가 없습니다.</li>
+            ) : (
+              projects.map((p) => (
+                <li key={p.id}>
+                  <Link to={`/project/${p.id}`}>{p.name}</Link>
                 </li>
-              ))}
-            </ul>
-          )}
+              ))
+            )}
+          </ul>
+        </div>
 
-          {/* 프로젝트 생성 */}
-          <div className="create-project-area">
+        <hr className="sidebar-divider" />
+
+        {/* 2. 친구 목록 & 추가 */}
+        <div className="sidebar-section">
+          <h3>👥 친구 목록</h3>
+
+          <div
+            className="add-friend-box"
+            style={{ display: "flex", gap: "5px", marginBottom: "10px" }}
+          >
             <input
-              placeholder="새 프로젝트 이름"
-              value={newProjectName}
-              onChange={(e) => setNewProjectName(e.target.value)}
-              className="sidebar-input"
+              type="text"
+              placeholder="친구 ID 검색"
+              value={friendIdInput}
+              onChange={(e) => setFriendIdInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "5px",
+                borderRadius: "4px",
+                border: "1px solid #ccc",
+              }}
             />
-            <button className="sidebar-btn" onClick={handleCreateProject}>
-              + 프로젝트 생성
+            <button
+              onClick={handleAddFriend}
+              style={{
+                background: "#4f46e5",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                padding: "0 10px",
+              }}
+            >
+              +
             </button>
           </div>
-        </section>
 
-        {/* 친구 목록 (드래그 소스) */}
-        <section className="sidebar-section">
-          <h4>친구 목록</h4>
-          <ul className="sidebar-list">
-            {friends.map((f) => (
-              <li 
-                key={f.id} 
-                className="sidebar-item friend-item"
-                draggable="true" 
-                // [D&D SOURCE LOGIC]
-                onDragStart={(e) => { 
-                    e.dataTransfer.setData("friendId", f.id.toString());
-                    e.dataTransfer.setData("friendName", f.name); // 이름 문자열 전달
-                    e.dataTransfer.effectAllowed = "copy"; 
-                }}
-              >
-                <div className="friend-avatar">{f.avatarInitial}</div>
-                <span>{f.name}</span>
-              </li>
-            ))}
+          <ul className="sidebar-list friend-list">
+            {friends.length === 0 ? (
+              <li className="empty-item">등록된 친구가 없습니다.</li>
+            ) : (
+              friends.map((f, idx) => (
+                <li
+                  key={idx}
+                  className="friend-item"
+                  draggable // 드래그 가능
+                  onDragStart={(e) => handleFriendDragStart(e, f)}
+                >
+                  <div className="friend-avatar">
+                    {f.avatarInitial || f.name[0]}
+                  </div>
+                  <div className="friend-info">
+                    <span className="friend-name">{f.name}</span>
+                    <span className="friend-id">@{f.username}</span>
+                  </div>
+                </li>
+              ))
+            )}
           </ul>
-        </section>
+        </div>
+
+        <div className="sidebar-footer">
+          <Link to="/help">도움말</Link>
+          <Link to="/contact">문의하기</Link>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

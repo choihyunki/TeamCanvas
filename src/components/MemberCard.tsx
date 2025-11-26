@@ -28,7 +28,7 @@ const MemberCard: React.FC<Props> = ({
       // 🔥 [추가] 드래그 활성화
       draggable={true}
       onDragStart={handleDragStart}
-      style={{ cursor: "grab" }} // 마우스 커서를 손 모양으로
+      style={{ cursor: "move" }}
     >
       <div className="member-info-wrapper">
         <div className="profile-circle">{member.name.charAt(0)}</div>

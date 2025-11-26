@@ -8,7 +8,7 @@ export interface ChatMessage {
   projectId?: string;
 }
 
-// 환경 변수에서 주소 가져오기 (없으면 로컬)
+// .env에서 주소 가져오기 (없으면 로컬호스트)
 const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
 export const useChatSocket = (projectId: string | null, userName: string) => {
@@ -19,57 +19,39 @@ export const useChatSocket = (projectId: string | null, userName: string) => {
     // 프로젝트 ID가 없으면 연결하지 않음
     if (!projectId) return;
 
-    // 1. 소켓 연결 시도
-    // (이미 연결된 상태라면 재연결 방지)
+    // 1. 소켓 연결 (한 번만 연결되도록 설정)
     if (!socketRef.current) {
-      console.log(`🔌 소켓 연결 시도: ${SERVER_URL}`);
-
-      socketRef.current = io(SERVER_URL, {
-        transports: ["websocket"], // 폴링 방지하고 바로 웹소켓 사용
-        reconnectionAttempts: 5, // 재연결 시도 횟수
-      });
+      socketRef.current = io(SERVER_URL);
     }
-
     const socket = socketRef.current;
 
-    // 2. 연결 상태 확인용 로그
-    socket.on("connect", () => {
-      console.log("✅ 소켓 연결 성공! ID:", socket.id);
-      // 연결되자마자 방 입장
-      socket.emit("join_room", projectId);
-    });
-
-    socket.on("connect_error", (err) => {
-      console.error("❌ 소켓 연결 에러:", err.message);
-    });
-
-    // 3. 메시지 로드 & 수신 리스너
-    socket.on("load_messages", (history: ChatMessage[]) => {
-      console.log("📂 이전 대화 불러옴:", history.length + "개");
-      setMessages(history);
-    });
-
-    socket.on("receive_message", (data: ChatMessage) => {
-      console.log("📩 실시간 메시지 수신:", data);
-      setMessages((prev) => [...prev, data]);
-    });
-
-    // 방 입장 (재연결 시 대비하여 useEffect 실행 시마다 호출)
+    // 2. 방 입장 (중요: 이게 되어야 같은 방 사람끼리만 대화함)
     socket.emit("join_room", projectId);
 
+    // 3. 기존 메시지 로드 (서버에서 보내줌)
+    const handleLoadMessages = (history: ChatMessage[]) => {
+      setMessages(history);
+    };
+
+    // 4. 🔥 [핵심] 실시간 메시지 받기
+    const handleReceiveMessage = (data: ChatMessage) => {
+      console.log("새 메시지 도착!", data); // 확인용 로그
+      setMessages((prev) => [...prev, data]);
+    };
+
+    // 리스너 등록
+    socket.on("load_messages", handleLoadMessages);
+    socket.on("receive_message", handleReceiveMessage);
+
+    // 5. 정리 (Cleanup): 나갈 때 리스너만 끄기 (소켓 연결은 유지해도 됨)
     return () => {
-      // 컴포넌트 언마운트 시 리스너 해제
-      socket.off("connect");
-      socket.off("connect_error");
-      socket.off("load_messages");
-      socket.off("receive_message");
-      // 주의: 페이지 이동이 잦다면 disconnect를 하는 게 좋지만,
-      // SPA에서는 유지하는 경우도 있음. 여기선 끊어줌.
-      socket.disconnect();
-      socketRef.current = null;
+      socket.off("load_messages", handleLoadMessages);
+      socket.off("receive_message", handleReceiveMessage);
+      // socket.disconnect(); // 필요에 따라 주석 해제 (보통은 유지하는 게 끊김 방지에 좋음)
     };
   }, [projectId]);
 
+  // 메시지 보내기 함수
   const sendMessage = async (currentMessage: string) => {
     if (currentMessage.trim() !== "" && socketRef.current && projectId) {
       const messageData = {
@@ -84,6 +66,9 @@ export const useChatSocket = (projectId: string | null, userName: string) => {
 
       // 서버로 전송
       await socketRef.current.emit("send_message", messageData);
+
+      // 🔥 (옵션) 내 화면에는 서버 응답 기다리지 않고 즉시 추가 (반응속도 UP)
+      // setMessages((prev) => [...prev, messageData]);
     }
   };
 
