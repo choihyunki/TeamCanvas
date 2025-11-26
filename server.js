@@ -40,15 +40,14 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
-// 🔥 [수정 1] 프로젝트 스키마 변경 (가장 중요!)
-// members를 단순 [String]에서 Array로 바꿔야 객체({ username, avatar... })를 저장할 수 있습니다.
+// 🔥 프로젝트 스키마 (members: Array)
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
-  members: { type: Array, default: [] }, // 🔥 [String] -> Array 로 변경됨
+  members: { type: Array, default: [] },
   columns: { type: Array, default: [] },
-  tasks: { type: Array, default: [] },
+  tasks: { type: Array, default: [] }, // 태스크 저장용
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);
@@ -70,13 +69,12 @@ app.get("/api/projects", async (req, res) => {
   console.log(`🔎 검색 요청: ${username}`);
 
   try {
-    // 🔥 [수정 2] 검색 로직 변경
-    // members 배열 안에 있는 '객체'의 username이 일치하는지 확인해야 함
+    // members 배열 안의 '객체'의 username이 일치하는지 확인
     const projects = await Project.find({
       $or: [
         { ownerUsername: username },
-        { "members.username": username }, // 🔥 객체 내부 username 검색
-        { "members.name": username }, // (혹시 몰라 이름으로도 검색)
+        { "members.username": username },
+        { "members.name": username },
       ],
     });
     res.json(projects);
@@ -124,11 +122,10 @@ app.post("/api/projects", async (req, res) => {
   try {
     const { name, description, ownerUsername } = req.body;
 
-    // 생성자도 객체 형태로 저장
     const ownerMember = {
       id: Date.now(),
       name: ownerUsername,
-      username: ownerUsername, // 🔥 검색을 위해 username 필드 필수
+      username: ownerUsername,
       isOnline: true,
       role: "관리자",
     };
@@ -137,8 +134,9 @@ app.post("/api/projects", async (req, res) => {
       name,
       description,
       ownerUsername,
-      members: [ownerMember], // 🔥 객체 배열로 시작
+      members: [ownerMember],
       columns: [],
+      tasks: [],
     });
     await newProject.save();
     res.json(newProject);
@@ -159,12 +157,10 @@ app.get("/api/projects/:id", async (req, res) => {
 
 app.put("/api/projects/:id", async (req, res) => {
   try {
-    // 🔥 tasks 추가
-    const { columns, members, tasks } = req.body;
-
+    const { columns, members, tasks } = req.body; // tasks 추가됨
     const updated = await Project.findByIdAndUpdate(
       req.params.id,
-      { columns, members, tasks }, // 🔥 tasks도 DB에 저장!
+      { columns, members, tasks },
       { new: true }
     );
     res.json(updated);
@@ -225,7 +221,7 @@ app.delete("/api/projects/:id", async (req, res) => {
   }
 });
 
-// --- Socket.io ---
+// --- [Socket.io] ---
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -233,10 +229,13 @@ const io = new Server(server, {
   },
 });
 
+// 🔥 [핵심] 유저 소켓 저장소 (이게 빠져서 에러가 났었습니다!)
+const userSockets = new Map();
+
 io.on("connection", (socket) => {
   console.log(`🔌 사용자 접속: ${socket.id}`);
 
-  // 1. 로그인 시 내 아이디 등록 (누가 누구인지 서버가 알게 함)
+  // 1. 로그인 시 내 아이디 등록
   socket.on("register_user", (username) => {
     userSockets.set(username, socket.id);
     console.log(`✅ 유저 등록: ${username} -> ${socket.id}`);
@@ -246,9 +245,28 @@ io.on("connection", (socket) => {
   socket.on("join_room", async (projectId) => {
     const roomName = String(projectId);
     socket.join(roomName);
-    // ... (기존 히스토리 로드 코드 유지)
+    console.log(`🚪 [방 입장] ${socket.id} -> ${roomName}`);
+
+    try {
+      const history = await ChatMessage.find({ projectId: roomName }).sort({
+        createdAt: 1,
+      });
+      socket.emit("load_messages", history);
+    } catch (e) {
+      console.error("히스토리 로드 실패", e);
+    }
   });
 
+  // 3. 프로젝트 초대 알림
+  socket.on("invite_user", ({ targetUsername, projectName }) => {
+    const targetSocketId = userSockets.get(targetUsername);
+    if (targetSocketId) {
+      io.to(targetSocketId).emit("project_invited", { projectName });
+      console.log(`🔔 초대 알림 전송: ${targetUsername}에게`);
+    }
+  });
+
+  // 4. 메시지 전송
   socket.on("send_message", async (data) => {
     console.log("📨 [메시지 받음]", data);
     const saveData = { ...data, projectId: String(data.projectId) };
@@ -263,27 +281,20 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("invite_user", ({ targetUsername, projectName }) => {
-    const targetSocketId = userSockets.get(targetUsername);
-    if (targetSocketId) {
-      // 초대받은 사람에게만 "너 초대됐어!" 신호 전송
-      io.to(targetSocketId).emit("project_invited", { projectName });
-      console.log(`🔔 초대 알림 전송: ${targetUsername}에게`);
-    }
-  });
-
+  // 5. 마우스 커서
   socket.on("cursor-move", (data) => {
     socket.broadcast.emit("cursor-update", { ...data, userId: socket.id });
   });
 
+  // 6. 칸반 보드 동기화
   socket.on("update_board", (projectId) => {
     const roomName = String(projectId);
-    console.log(`🔄 [보드 업데이트] 방: ${roomName}`);
     socket.broadcast.to(roomName).emit("board_updated");
   });
 
+  // 7. 접속 종료
   socket.on("disconnect", () => {
-    // 나간 유저 제거 (Map에서 삭제)
+    // 나간 유저 제거
     for (const [username, sid] of userSockets.entries()) {
       if (sid === socket.id) {
         userSockets.delete(username);
@@ -291,6 +302,7 @@ io.on("connection", (socket) => {
       }
     }
     console.log(`❌ 접속 종료: ${socket.id}`);
+    socket.broadcast.emit("user-disconnected", socket.id);
   });
 });
 
