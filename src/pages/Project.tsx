@@ -496,6 +496,20 @@ const Project: React.FC = () => {
       setColumns(newColumns);
       saveToServer(newColumns, newMembers, tasks); // tasks 전달
       toast.success("초대되었습니다!");
+
+      const currentProjectInfo = myProjects.find(
+        (p) => p.id === currentProjectId
+      );
+      const realProjectName = currentProjectInfo
+        ? currentProjectInfo.name
+        : "프로젝트";
+
+      const socket = io(SERVER_URL);
+      // "이 친구(realUsername)한테 알림 보내줘!"
+      socket.emit("invite_user", {
+        targetUsername: realUsername,
+        projectName: realProjectName, // (프로젝트 이름을 가져올 수 있다면 넣으세요)
+      });
     }
   };
 
