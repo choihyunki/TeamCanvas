@@ -20,10 +20,10 @@ export const useLiveCursors = (myUserName: string) => {
   const [cursors, setCursors] = useState<CursorData[]>([]);
   const socketRef = useRef<Socket | null>(null);
   const myColor = useRef(getRandomColor());
-
+  const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
   useEffect(() => {
     // 🔥 [수정] 진짜 서버(4000번 포트)에 연결
-    socketRef.current = io("http://localhost:4000");
+    socketRef.current = io(SERVER_URL);
 
     const socket = socketRef.current;
 

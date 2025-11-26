@@ -12,12 +12,12 @@ export interface ChatMessage {
 export const useChatSocket = (projectId: string | null, userName: string) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const socketRef = useRef<Socket | null>(null);
-
+  const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
   useEffect(() => {
     if (!projectId) return;
 
     // 1. 서버 연결
-    socketRef.current = io("http://localhost:4000");
+    socketRef.current = io(SERVER_URL);
     const socket = socketRef.current;
 
     // 2. 방 입장

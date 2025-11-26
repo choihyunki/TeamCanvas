@@ -1,8 +1,10 @@
 // src/api/axiosInstance.ts
 import axios from "axios";
 
+const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
+
 const AxiosInstance = axios.create({
-  baseURL: "http://localhost:4000", // 🔥 백엔드 주소로 변경
+  baseURL: SERVER_URL,
   headers: {
     "Content-Type": "application/json",
   },
