@@ -48,6 +48,7 @@ const ProjectSchema = new mongoose.Schema({
   ownerUsername: String,
   members: { type: Array, default: [] }, // 🔥 [String] -> Array 로 변경됨
   columns: { type: Array, default: [] },
+  tasks: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);
@@ -158,10 +159,12 @@ app.get("/api/projects/:id", async (req, res) => {
 
 app.put("/api/projects/:id", async (req, res) => {
   try {
-    const { columns, members } = req.body;
+    // 🔥 tasks 추가
+    const { columns, members, tasks } = req.body;
+
     const updated = await Project.findByIdAndUpdate(
       req.params.id,
-      { columns, members },
+      { columns, members, tasks }, // 🔥 tasks도 DB에 저장!
       { new: true }
     );
     res.json(updated);
