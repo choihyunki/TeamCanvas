@@ -8,6 +8,11 @@ const path = require("path"); // 🔥 [추가] 배포 시 경로 설정을 위�
 
 const app = express();
 
+app.use((req, res, next) => {
+  console.log(`📡 [요청 감지] ${req.method} ${req.url}`);
+  next();
+});
+
 // CORS 설정 (로컬 개발 & 배포 환경 모두 허용)
 app.use(
   cors({
