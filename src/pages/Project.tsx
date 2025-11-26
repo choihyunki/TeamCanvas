@@ -307,17 +307,54 @@ const Project: React.FC = () => {
   };
 
   const handleAddMember = () => {
-    const newName = prompt("새 멤버의 이름을 입력하세요:");
-    if (!newName?.trim()) return;
+    // 1. 친구 목록이 없으면 알림
+    if (friends.length === 0) {
+      alert("등록된 친구가 없습니다. 사이드바에서 친구를 먼저 추가해주세요!");
+      return;
+    }
 
+    // 2. 친구 목록을 보여주며 입력 받기 (UX 개선)
+    const friendListStr = friends.map((f) => f.name).join(", ");
+    const inputName = prompt(
+      `초대할 친구의 이름을 입력하세요.\n(내 친구: ${friendListStr})`
+    );
+
+    if (!inputName || !inputName.trim()) return;
+    const targetName = inputName.trim();
+
+    // 3. [검증] 진짜 내 친구인지 확인
+    const targetFriend = friends.find((f) => f.name === targetName);
+    if (!targetFriend) {
+      alert(
+        `'${targetName}'님은 친구 목록에 없습니다.\n정확한 이름을 입력하거나 친구를 먼저 추가해주세요.`
+      );
+      return;
+    }
+
+    // 4. [검증] 이미 프로젝트 멤버인지 확인
+    if (members.some((m) => m.name === targetName)) {
+      alert("이미 이 프로젝트에 참여 중인 멤버입니다.");
+      return;
+    }
+
+    // 5. 멤버 객체 생성 (DB 데이터 기반)
+    // 친구의 ID를 그대로 쓰거나, 현재 시스템에 맞게 Date.now() 사용
+    // (여기서는 기존 로직 호환성을 위해 Date.now() ID 사용하되, 이름은 친구 이름 사용)
     const newMember: Member = {
-      id: Date.now(),
-      name: newName.trim(),
-      isOnline: true,
+      id: Date.now(), // 고유 ID 생성
+      name: targetFriend.name,
+      isOnline: false, // 초대 직후엔 오프라인 처리
+      role: "팀원",
     };
+
+    // 6. 상태 업데이트 및 DB 저장
     const newMembers = [...members, newMember];
     setMembers(newMembers);
+
+    // 🔥 saveToServer를 호출하므로 MongoDB에 즉시 반영됩니다!
     saveToServer(columns, newMembers);
+
+    alert(`${targetName}님을 멤버로 추가했습니다!`);
   };
 
   const handleDeleteMember = (memberId: number) => {
