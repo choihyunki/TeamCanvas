@@ -270,10 +270,10 @@ const Project: React.FC = () => {
     }));
 
     // Task의 담당자에서도 제거
-    const memberName = members.find(m => m.id === memberId)?.name;
-    const newTasks = tasks.map(t => ({
-        ...t,
-        members: t.members.filter(name => name !== memberName)
+    const memberName = members.find((m) => m.id === memberId)?.name;
+    const newTasks = tasks.map((t) => ({
+      ...t,
+      members: t.members.filter((name) => name !== memberName),
     }));
 
     setMembers(newMembers);
@@ -297,8 +297,8 @@ const Project: React.FC = () => {
   const handleDeleteRoleColumn = (columnId: number) => {
     const newColumns = columns.filter((col) => col.id !== columnId);
     // 해당 Column ID를 가진 Task도 모두 삭제
-    const newTasks = tasks.filter(t => t.columnId !== columnId);
-    
+    const newTasks = tasks.filter((t) => t.columnId !== columnId);
+
     setColumns(newColumns);
     setTasks(newTasks);
     saveToServer(newColumns, members);
@@ -458,20 +458,6 @@ const Project: React.FC = () => {
 
   // --- Handlers (TaskBoard용, Task 상태 및 할당 관리) ---
 
-  const handleAddTask = (roleId: number, status: string) => {
-    const inputTitle = prompt("할 일을 입력하세요");
-    if (!inputTitle) return;
-
-    const newTask: Task = {
-      id: Date.now(),
-      columnId: roleId,
-      status: status, // "TODO", "IN_PROGRESS", "DONE" 중 하나
-      title: inputTitle,
-      members: [], // 초기 담당자는 없음
-    };
-    setTasks((prev) => [...prev, newTask]);
-  };
-
   const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
@@ -483,7 +469,7 @@ const Project: React.FC = () => {
       setTasks((prev) => prev.filter((t) => t.id !== taskId));
     }
   };
-  
+
   const handleAssignMemberToTask = (taskId: number, memberId: number) => {
     const memberData = members.find((m) => m.id === memberId);
     if (!memberData) return;
@@ -510,14 +496,105 @@ const Project: React.FC = () => {
       })
     );
   };
-  
+
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
-  
+
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
+  };
+  // 1. [누락된 함수] 멤버 상태 변경 (작업전 -> 완료 등)
+  const handleUpdateMemberStatus = (
+    columnId: number,
+    memberId: number,
+    status: string
+  ) => {
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) =>
+          m.id === memberId ? { ...m, status } : m
+        ),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
+  };
+
+  // 2. [누락된 함수] 멤버 메모 수정
+  const handleUpdateMemberMemo = (
+    columnId: number,
+    memberId: number,
+    memo: string
+  ) => {
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) =>
+          m.id === memberId ? { ...m, memo } : m
+        ),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
+  };
+
+  // 3. [누락된 함수] 멤버 이동 (드래그 앤 드롭으로 컬럼 이동)
+  const handleMoveMemberBetweenColumns = (
+    memberId: number,
+    sourceColId: number,
+    destColId: number
+  ) => {
+    // 출발 컬럼 찾기
+    const sourceCol = columns.find((c) => c.id === sourceColId);
+    // 이동할 멤버 정보 찾기
+    const memberToMove = sourceCol?.members.find((m) => m.id === memberId);
+
+    if (!sourceCol || !memberToMove) return;
+
+    // 컬럼 업데이트
+    const newColumns = columns.map((col) => {
+      // 원래 있던 곳에서 삭제
+      if (col.id === sourceColId) {
+        return {
+          ...col,
+          members: col.members.filter((m) => m.id !== memberId),
+        };
+      }
+      // 새로운 곳에 추가
+      if (col.id === destColId) {
+        // 중복 방지
+        if (col.members.some((m) => m.id === memberId)) return col;
+        return { ...col, members: [...col.members, memberToMove] };
+      }
+      return col;
+    });
+
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
+  };
+
+  const handleAddTask = (columnId: number, status: string) => {
+    const title = prompt("새로운 할 일을 입력하세요:");
+    if (!title) return;
+
+    const newTask: Task = {
+      id: Date.now(),
+      columnId, // 어느 컬럼에 추가할지
+      title,
+      status, // "TODO", "IN_PROGRESS" 등
+      members: [],
+    };
+
+    // 화면에 즉시 반영
+    setTasks((prev) => [...prev, newTask]);
+
+    // (참고: 현재 saveToServer는 columns/members만 저장하므로,
+    // 나중에 tasks도 저장하도록 saveToServer 수정이 필요할 수 있습니다.)
   };
 
   const loadData = async () => {
@@ -722,11 +799,9 @@ const Project: React.FC = () => {
                 columns={columns}
                 members={members}
                 tasks={tasks}
-
                 // --- Role/Column 관리 핸들러 ---
                 onAddColumn={handleAddRoleColumn}
                 onDeleteColumn={handleDeleteRoleColumn}
-                
                 // --- TaskBoard1의 Legacy props (더미 또는 기존 로직) ---
                 onAddMemberToColumn={handleAddMemberToColumn}
                 onMoveMember={handleMoveMemberBetweenColumns}
@@ -737,9 +812,8 @@ const Project: React.FC = () => {
                 onUpdateMemberMemo={handleUpdateMemberMemo}
                 onInviteFriend={handleInviteFriendToColumn}
                 onDropMemberOnColumn={handleDropMemberOnColumn}
-
                 // --- TaskBoard2의 필수 Task 핸들러 (추가됨) ---
-                onAddTask={handleAddTask} 
+                onAddTask={handleAddTask}
                 onUpdateTaskStatus={handleUpdateTaskStatus} // ✨ 추가
                 onDeleteTask={handleDeleteTask} // ✨ 추가
                 onAssignMemberToTask={handleAssignMemberToTask} // ✨ 추가
@@ -752,7 +826,6 @@ const Project: React.FC = () => {
                 members={members}
                 tasks={tasks}
                 selectedTaskId={selectedTaskId}
-                
                 onAddSubTask={handleAddSubTask}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
