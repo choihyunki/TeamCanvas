@@ -47,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onOpenWindow }) => {
           alt="Drop In Logo"
           className="logo"
           onClick={handleLogoClick}
-          style={{ cursor: "pointer", height: "24px", objectFit: "contain" }}
+          style={{ cursor: "pointer", objectFit: "contain" }}
         />
       </div>
 
@@ -56,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onOpenWindow }) => {
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           <button
             className="icon-btn"
-            onClick={() => onOpenWindow("calculator", "계산기")}
+            onClick={() => onOpenWindow("calculator", "계산기")}  
             title="계산기"
             style={toolBtnStyle} // 스타일 적용
           >
