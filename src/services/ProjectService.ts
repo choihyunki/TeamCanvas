@@ -39,6 +39,11 @@ const ProjectService = {
     });
     return res.data;
   },
+  deleteProject: async (projectId: string) => {
+    // delete 요청 보냄
+    const res = await AxiosInstance.delete(`/api/projects/${projectId}`);
+    return res.data;
+  },
 };
 
 export default ProjectService;
