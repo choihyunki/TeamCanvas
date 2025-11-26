@@ -9,6 +9,7 @@ import Schedule from "../components/Schedule";
 import SlideoutSidebar from "../components/SlideoutSidebar";
 import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
+import UserService from "../services/UserService";
 
 // 실시간 커서
 import LiveCursors from "../components/LiveCursors";
@@ -33,12 +34,11 @@ import { useAuth } from "../context/AuthContext";
 
 // 🔥 [수정 1] mockDb에서 데이터 가져오는 함수들 제거하고 ProjectService 임포트
 import ProjectService from "../services/ProjectService";
-import { getFriends } from "../data/mockDb"; // 친구 목록은 일단 mock 유지 (나중에 DB화 가능)
 
 import "../styles/Project.css";
 
 interface Friend {
-  id: number;
+  username: string;
   name: string;
   avatarInitial: string;
 }
@@ -201,7 +201,7 @@ const Project: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [, setSelectedTaskId] = useState<number | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
+  const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
   );
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
@@ -467,50 +467,30 @@ const Project: React.FC = () => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
 
+  const loadData = async () => {
+    if (!token) return;
+    try {
+      const myList = await ProjectService.getMyProjects(token);
+      setMyProjects(myList.map((p: any) => ({ id: p._id, name: p.name }))); // _id -> id
+
+      const myFriends = await UserService.getFriends(token);
+      setFriends(myFriends);
+
+      if (currentProjectId) {
+        const projectData = await ProjectService.getProject(currentProjectId);
+        if (projectData) {
+          setColumns(projectData.columns || []);
+          // 멤버 로직 등...
+        }
+      }
+    } catch (e) {
+      console.error("데이터 로드 실패", e);
+    }
+  };
+
   // 🔥 [수정 3] 데이터 로드 (ProjectService 사용)
   useEffect(() => {
     if (!token) return;
-
-    const loadData = async () => {
-      try {
-        // 1. 내 프로젝트 목록 가져오기 (사이드바용)
-        const myList = await ProjectService.getMyProjects(token);
-        setMyProjects(myList.map((p: any) => ({ id: p._id, name: p.name }))); // MongoDB _id 사용
-
-        setFriends(getFriends()); // 친구는 mock 유지
-
-        // 2. 현재 프로젝트 상세 정보 가져오기
-        if (currentProjectId) {
-          const projectData = await ProjectService.getProject(currentProjectId);
-          if (projectData) {
-            // DB에서 불러온 columns와 members 설정
-            setColumns(projectData.columns || []);
-
-            // members는 문자열 배열(이름)로 올 수 있으므로 객체로 변환 필요할 수 있음
-            // 여기서는 단순화를 위해 DB에 저장된 구조를 그대로 쓴다고 가정하거나
-            // ProjectService가 처리해준다고 가정
-            if (projectData.members && Array.isArray(projectData.members)) {
-              // 만약 members가 ["이름1", "이름2"] 형태라면 변환
-              const memberObjs = projectData.members.map(
-                (m: any, idx: number) => {
-                  if (typeof m === "string")
-                    return { id: idx + 1000, name: m, isOnline: true };
-                  return m;
-                }
-              );
-              // 근데 우리는 saveProjectState에서 객체 통째로 저장할거임.
-              // 처음 로드할 때는 DB에 있는거 그대로 쓰자.
-              if (memberObjs.length > 0) {
-                setMembers(memberObjs);
-              }
-            }
-          }
-        }
-      } catch (e) {
-        console.error("데이터 로드 실패", e);
-      }
-    };
-
     loadData();
   }, [token, currentProjectId]);
 
@@ -531,6 +511,7 @@ const Project: React.FC = () => {
         onClose={toggleSlideout}
         projects={myProjects}
         friends={friends}
+        onRefreshFriends={loadData} // 🔥 새로고침 연결
       />
 
       <div

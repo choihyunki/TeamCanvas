@@ -17,6 +17,19 @@ const UserService = {
     });
     return res.data;
   },
+
+  // 🔥 [추가] 친구 추가
+  addFriend: async (myUsername: string, targetUsername: string) => {
+    const res = await AxiosInstance.post("/api/friends/add", { myUsername, targetUsername });
+    return res.data;
+  },
+
+  // 🔥 [추가] 친구 목록 가져오기
+  getFriends: async (username: string) => {
+    const res = await AxiosInstance.get(`/api/friends/${username}`);
+    return res.data;
+  }
+  
 };
 
 export default UserService;
