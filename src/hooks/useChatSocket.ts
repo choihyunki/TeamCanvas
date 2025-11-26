@@ -8,7 +8,7 @@ export interface ChatMessage {
   projectId?: string;
 }
 
-// .env에서 주소 가져오기 (없으면 로컬호스트)
+// .env에서 주소 가져오기
 const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
 export const useChatSocket = (projectId: string | null, userName: string) => {
@@ -16,46 +16,62 @@ export const useChatSocket = (projectId: string | null, userName: string) => {
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
-    // 프로젝트 ID가 없으면 연결하지 않음
+    // 1. 프로젝트 ID가 없으면 연결하지 않음
     if (!projectId) return;
 
-    // 1. 소켓 연결 (한 번만 연결되도록 설정)
+    // 2. 소켓 연결 (없을 때만 생성)
     if (!socketRef.current) {
-      socketRef.current = io(SERVER_URL);
+      console.log(`🔌 소켓 연결 시도: ${SERVER_URL}`);
+      socketRef.current = io(SERVER_URL, {
+        transports: ["websocket"], // 폴링 방지
+        reconnection: true, // 끊기면 자동 재연결
+      });
     }
+
     const socket = socketRef.current;
 
-    // 2. 방 입장 (중요: 이게 되어야 같은 방 사람끼리만 대화함)
-    socket.emit("join_room", projectId);
-
-    // 3. 기존 메시지 로드 (서버에서 보내줌)
-    const handleLoadMessages = (history: ChatMessage[]) => {
-      setMessages(history);
+    // 3. 서버 연결 성공 시 "방 입장" (가장 중요!)
+    const handleConnect = () => {
+      console.log("✅ 소켓 연결됨! ID:", socket.id);
+      // 🔥 [핵심] 무조건 문자열로 변환해서 방에 들어감
+      socket.emit("join_room", String(projectId));
     };
 
-    // 4. 🔥 [핵심] 실시간 메시지 받기
+    // 4. 메시지 받기 리스너
     const handleReceiveMessage = (data: ChatMessage) => {
-      console.log("새 메시지 도착!", data); // 확인용 로그
+      console.log("📩 [실시간 수신]", data);
       setMessages((prev) => [...prev, data]);
     };
 
-    // 리스너 등록
-    socket.on("load_messages", handleLoadMessages);
-    socket.on("receive_message", handleReceiveMessage);
-
-    // 5. 정리 (Cleanup): 나갈 때 리스너만 끄기 (소켓 연결은 유지해도 됨)
-    return () => {
-      socket.off("load_messages", handleLoadMessages);
-      socket.off("receive_message", handleReceiveMessage);
-      // socket.disconnect(); // 필요에 따라 주석 해제 (보통은 유지하는 게 끊김 방지에 좋음)
+    const handleLoadMessages = (history: ChatMessage[]) => {
+      console.log("📂 히스토리 로드:", history.length);
+      setMessages(history);
     };
-  }, [projectId]);
 
-  // 메시지 보내기 함수
+    // 리스너 등록
+    socket.on("connect", handleConnect);
+    socket.on("receive_message", handleReceiveMessage);
+    socket.on("load_messages", handleLoadMessages);
+
+    // 🔥 [중요] 이미 연결된 상태라면 즉시 방 입장 시도
+    // (페이지 이동 등으로 소켓이 이미 살아있을 때를 대비)
+    if (socket.connected) {
+      socket.emit("join_room", String(projectId));
+    }
+
+    // Cleanup (언마운트 시 리스너만 끄고 연결은 유지 - 끊김 방지)
+    return () => {
+      socket.off("connect", handleConnect);
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("load_messages", handleLoadMessages);
+    };
+  }, [projectId, SERVER_URL]); // projectId가 바뀌면 다시 실행됨
+
+  // 메시지 보내기
   const sendMessage = async (currentMessage: string) => {
     if (currentMessage.trim() !== "" && socketRef.current && projectId) {
       const messageData = {
-        projectId,
+        projectId: String(projectId), // 보낼 때도 문자열로
         author: userName,
         message: currentMessage,
         time: new Date().toLocaleTimeString([], {
@@ -64,11 +80,8 @@ export const useChatSocket = (projectId: string | null, userName: string) => {
         }),
       };
 
-      // 서버로 전송
+      // 서버 전송
       await socketRef.current.emit("send_message", messageData);
-
-      // 🔥 (옵션) 내 화면에는 서버 응답 기다리지 않고 즉시 추가 (반응속도 UP)
-      // setMessages((prev) => [...prev, messageData]);
     }
   };
 
