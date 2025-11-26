@@ -22,9 +22,8 @@ interface Props {
   onSelectTask: (taskId: number) => void;
   onAssignMemberToTask: (taskId: number, memberId: number) => void;
 
-  // ⚠️ [TaskBoard1의 멤버 중심 로직은 제거되거나 더미화]: TaskBoard2 구조에 불필요
-  // onAddMemberToColumn, onDeleteMember, onDropMemberOnColumn 등은 제거합니다.
-  onAddMemberToColumn: (columnId: number, memberId: number) => void;
+  // ⚠️ [TaskBoard1의 멤버 중심 로직]: 요청에 따라 onAddMemberToColumn을 사용합니다.
+  onAddMemberToColumn: (columnId: number, memberId: number) => void; 
   onDeleteMember: (columnId: number, memberId: number) => void;
   onDropMemberOnColumn: (columnId: number, memberId: number) => void;
   onMoveMember: (memberId: number, from: number, to: number) => void;
@@ -50,8 +49,8 @@ const TaskBoard: React.FC<Props> = ({
   onAssignMemberToTask,
   onAddColumn,
   onDeleteColumn,
-  // ⚠️ TaskBoard2 구조에 불필요하지만 Project.tsx에서 에러가 날 경우를 대비해 더미로 유지합니다.
-  onAddMemberToColumn: _onAddMemberToColumn, 
+  // ⚠️ TaskBoard1 로직은 더미로 유지 (요청에 따라 onAddMemberToColumn은 사용됨)
+  onAddMemberToColumn, 
   onDeleteMember: _onDeleteMember,
   onDropMemberOnColumn: _onDropMemberOnColumn,
   onMoveMember: _onMoveMember,
@@ -94,19 +93,59 @@ const TaskBoard: React.FC<Props> = ({
     const target = e.currentTarget as HTMLElement;
     target.style.visibility = "visible";
   };
+  
+  // 🔥 [요청 반영] DragOver 함수: 커서 문제 해결 및 드롭 허용
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    const dataType = e.dataTransfer.getData("type");
+    if (dataType === "MEMBER" || dataType === "TASK") {
+        e.dataTransfer.dropEffect = "move";
+    }
+    // 시각적 강조 로직 추가 (선택 사항)
+    if ((e.currentTarget as HTMLElement).classList.contains('role-delete-area')) {
+        if (dataType === "MEMBER") {
+            (e.currentTarget as HTMLElement).style.backgroundColor = "#e0f7ff";
+        }
+    }
+  };
 
-  // --- 드롭 핸들러 (Task Status 변경 / Task 담당자 할당) ---
+  // 🔥 [요청 반영] Task Status 셀 드롭 핸들러 (Task Status 변경)
   const handleDrop = (e: React.DragEvent, roleId: number, status: string) => {
     e.preventDefault();
     const dataType = e.dataTransfer.getData("type");
 
     if (dataType === "TASK") {
       const taskId = Number(e.dataTransfer.getData("taskId"));
-      if (taskId && !isNaN(taskId)) {
+      if (!isNaN(taskId)) {
         onUpdateTaskStatus(taskId, status); // Task 상태 변경
       }
     }
+    // NOTE: 멤버 드롭은 Task Status 셀이 아닌 Role Header에서 처리하도록 분리되어야 함.
+    // 기존 코드 구조를 유지하기 위해, Role Header 드롭 핸들러를 별도로 만듭니다.
   };
+
+  // 🔥 [추가] 역할(컬럼)에 멤버 드롭 시 처리 (Role Header에 연결)
+  const handleDropMemberOnRoleHeader = (e: React.DragEvent, roleId: number) => {
+    e.preventDefault();
+    (e.currentTarget as HTMLElement).style.backgroundColor = "transparent"; // 시각적 강조 제거
+
+    const dataType = e.dataTransfer.getData("type");
+    
+    if (dataType === "MEMBER") {
+      const memberId = Number(e.dataTransfer.getData("memberId"));
+      if (!isNaN(memberId)) {
+          onAddMemberToColumn(roleId, memberId); // 🔥 역할 배정 로직 호출
+      }
+    }
+  };
+  
+  // 드래그 이탈 시 시각적 강조 제거
+  const handleDragLeave = (e: React.DragEvent) => {
+    if ((e.currentTarget as HTMLElement).classList.contains('role-delete-area')) {
+        (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
+    }
+  };
+
 
   // Task Card에 멤버 드롭 시 담당자 할당
   const handleDropMemberOnTaskCard = (e: React.DragEvent, taskId: number) => {
@@ -117,10 +156,6 @@ const TaskBoard: React.FC<Props> = ({
     if (memberId && !isNaN(memberId)) {
       onAssignMemberToTask(taskId, memberId); // Task 할당 로직 호출
     }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
   };
   
   // 역할 추가 핸들러 (TaskBoard1의 로직을 이름만 통일하여 사용)
@@ -166,7 +201,9 @@ const TaskBoard: React.FC<Props> = ({
               {/* 2-1. 역할 이름 (왼쪽 헤더) - 멤버 목록 표시 */}
               <div
                 className="row-header role-delete-area"
-                onDragOver={handleDragOver}
+                onDragOver={handleDragOver} // 🔥 DragOver 허용
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDropMemberOnRoleHeader(e, role.id)} // 🔥 멤버 드롭 핸들러 연결
               >
                 <span className="role-name">{role.name}</span>
                 <span className="role-count">
@@ -185,6 +222,7 @@ const TaskBoard: React.FC<Props> = ({
                         className="member-avatar-mini"
                         title={name}
                         draggable="true"
+                        onDragOver={(e) => e.stopPropagation()} 
                         onDragStart={(e) => handleMemberDragStart(e, member.id)}
                         onDragEnd={handleMemberDragEnd}
                       >

@@ -156,6 +156,8 @@
   transition: background 0.2s;
   box-sizing: border-box;
   border-right: 1px solid #e5e7eb;
+  min-height: 160px;   
+  position: relative;
 }
 
 .swimlane-cell:last-child {

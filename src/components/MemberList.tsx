@@ -27,6 +27,8 @@ const MemberList: React.FC<Props> = ({
     const friendIdStr = e.dataTransfer.getData("friendId");
     
     if (friendName && friendIdStr) { 
+        // friendIdStr은 SlideoutSidebar에서 'friendId'로 넘어온 값이며, 
+        // 이는 DB의 username일 수도 있지만, 현재 로직에서는 number로 변환
         const friendId = Number(friendIdStr);
 
         // window.confirm 대신 alert 사용 (Canvas 환경 권장)
@@ -86,9 +88,15 @@ const MemberList: React.FC<Props> = ({
           </p>
         )}
 
+        {/* 🔥🔥🔥 요청하신 드래그 속성 적용 및 MemberCard 렌더링 🔥🔥🔥 */}
         {members.map((m) => (
-          <li key={m.id} className={styles.cardWrapper}>
-            {/* 🔥 중요: 직접 div를 그리지 않고, 드래그 기능이 있는 MemberCard 컴포넌트를 사용합니다 */}
+          <li 
+            key={m.id} 
+            className={styles.cardWrapper}
+            draggable // 드래그 가능
+            onDragStart={(e) => handleDragStart(e as React.DragEvent<HTMLLIElement>, m.id)} // 드래그 시작 시 데이터 설정
+          >
+            {/* MemberCard 컴포넌트를 사용합니다 */}
             <MemberCard
               member={m}
               onDelete={onDeleteMember}
