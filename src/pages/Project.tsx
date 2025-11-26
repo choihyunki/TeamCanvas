@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { io } from "socket.io-client"; // 소켓 사용
+import { io } from "socket.io-client";
 import { toast } from "react-toastify";
 
 import Header from "../components/Header";
@@ -16,7 +16,6 @@ import ChatBox from "../components/ChatBox";
 import LiveCursors from "../components/LiveCursors";
 import { useLiveCursors } from "../hooks/useLiveCursors";
 
-// 인앱 툴
 import {
   Calculator,
   MemoPad,
@@ -28,16 +27,15 @@ import { AppWindow, ToolType } from "../types/InApp";
 import "../styles/InApp.css";
 
 import { Member } from "../types/Member";
-import { RoleColumn, SubTask, ProjectMember } from "../types/Project"; // ProjectMember 타입이 Project.ts에 정의되어 있다고 가정
+import { RoleColumn, SubTask } from "../types/Project";
 import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
 import ProjectService from "../services/ProjectService";
-import UserService from "../services/UserService"; // 친구 목록 로드용
+import UserService from "../services/UserService";
 
 import "../styles/Project.css";
 
-// 친구 인터페이스 (DB와 맞춤)
 interface Friend {
   username: string;
   name: string;
@@ -46,17 +44,16 @@ interface Friend {
 
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const currentProjectId = projectId || null; // MongoDB ID는 문자열
+  const currentProjectId = projectId || null;
   const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
   const { token } = useAuth();
 
-  // 실시간 커서
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
     token || "Anonymous"
   );
 
-  // --- [1] 인앱 툴(창) 상태 관리 (기존 코드 유지) ---
+  // --- 인앱 툴(창) 상태 관리 ---
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
 
@@ -123,7 +120,6 @@ const Project: React.FC = () => {
     });
   };
 
-  // 마우스 이벤트 핸들러 (창 이동 & 리사이즈)
   const handleMouseDownHeader = (
     e: React.MouseEvent,
     id: number,
@@ -195,7 +191,7 @@ const Project: React.FC = () => {
     resizeItem.current = null;
   };
 
-  // --- [2] 프로젝트 데이터 상태 ---
+  // --- 프로젝트 데이터 상태 ---
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -206,7 +202,6 @@ const Project: React.FC = () => {
     []
   );
 
-  // 사이드바 UI 상태
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
   const isRightSidebarCollapsed = false;
@@ -216,25 +211,29 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // --- [3] 서버 저장 및 로드 로직 (ProjectService 사용) ---
-
+  // --- 서버 저장 및 로드 ---
   const saveToServer = async (
     newColumns: RoleColumn[],
     newMembers: Member[]
   ) => {
     if (!currentProjectId) return;
+    console.log("💾 저장 시도:", {
+      projectId: currentProjectId,
+      columns: newColumns,
+      members: newMembers,
+    });
     try {
       await ProjectService.saveProjectState(
         currentProjectId,
         newColumns,
         newMembers
       );
-
-      // 실시간 동기화 신호 전송
+      console.log("✅ 저장 성공!");
       const socket = io(SERVER_URL);
       socket.emit("update_board", currentProjectId);
     } catch (e) {
-      console.error("저장 실패", e);
+      console.error("❌ 저장 실패:", e);
+      toast.error("저장에 실패했습니다.");
     }
   };
 
@@ -272,8 +271,6 @@ const Project: React.FC = () => {
 
   useEffect(() => {
     loadData();
-
-    // 실시간 동기화 리스너
     if (currentProjectId) {
       const socket = io(SERVER_URL);
       socket.emit("join_room", currentProjectId);
@@ -288,87 +285,81 @@ const Project: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentProjectId]);
 
-  // --- [4] 핸들러 구현 (보내주신 로직 + 서버 저장 결합) ---
+  // --- 핸들러 ---
 
-  const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
-    // 친구 추가는 임시 ID 사용 허용
+  // [수정] 사이드바에서 친구 추가
+  const handleAddMemberFromFriend = (
+    friendId: number | string,
+    friendName: string
+  ) => {
     if (members.some((m) => m.name === friendName)) {
-      // 이름으로 중복 체크
-      toast.success("이미 존재");
+      toast.success("이미 존재하는 멤버입니다.");
       return;
     }
+
+    // 친구 정보 찾기
+    const friendInfo = friends.find((f) => f.name === friendName);
+    // ID가 문자열이면 그대로, 숫자면 그대로 사용 (Date.now() 대신 friendId 사용 권장)
+    const fid = typeof friendId === "string" ? Date.now() : friendId;
+
     const newMember: Member = {
-      // ⚠️ NaN 오류 방지를 위해 friendId가 NaN이면 Date.now()를 사용합니다.
-      id: isNaN(friendId) ? Date.now() : friendId, 
+      id: fid,
       name: friendName,
-      isOnline: true,
+      username: friendInfo?.username || friendName,
+      avatarInitial: friendInfo?.avatarInitial || friendName[0],
+      isOnline: false,
       role: "팀원",
     };
+
     const newMembers = [...members, newMember];
     setMembers(newMembers);
     saveToServer(columns, newMembers);
+    toast.success(`${friendName}님을 추가했습니다!`);
   };
 
+  // 멤버 직접 추가 (이름 입력)
   const handleAddMember = () => {
-    // 1. 친구 목록이 없으면 알림
     if (friends.length === 0) {
-      toast.success(
-        "등록된 친구가 없습니다. 사이드바에서 친구를 먼저 추가해주세요!"
-      );
+      toast.error("친구 목록이 비어있습니다.");
       return;
     }
-
-    // 2. 친구 목록을 보여주며 입력 받기 (UX 개선)
     const friendListStr = friends.map((f) => f.name).join(", ");
-    const inputName = prompt(
-      `초대할 친구의 이름을 입력하세요.\n(내 친구: ${friendListStr})`
-    );
-
-    if (!inputName || !inputName.trim()) return;
+    const inputName = prompt(`초대할 친구 이름 입력:\n(${friendListStr})`);
+    if (!inputName?.trim()) return;
     const targetName = inputName.trim();
 
-    // 3. [검증] 진짜 내 친구인지 확인
     const targetFriend = friends.find((f) => f.name === targetName);
     if (!targetFriend) {
-      toast.success(
-        `'${targetName}'님은 친구 목록에 없습니다.\n정확한 이름을 입력하거나 친구를 먼저 추가해주세요.`
-      );
+      toast.error("친구 목록에 없는 사용자입니다.");
       return;
     }
-
-    // 4. [검증] 이미 프로젝트 멤버인지 확인
     if (members.some((m) => m.name === targetName)) {
-      toast.success("이미 이 프로젝트에 참여 중인 멤버입니다.");
+      toast.success("이미 멤버입니다.");
       return;
     }
 
-    // 5. 멤버 객체 생성 (DB 데이터 기반)
     const newMember: Member = {
-      id: Date.now(), // 고유 ID 생성
+      id: Date.now(),
       name: targetFriend.name,
-      isOnline: false, // 초대 직후엔 오프라인 처리
+      username: targetFriend.username,
+      avatarInitial: targetFriend.avatarInitial,
+      isOnline: false,
       role: "팀원",
     };
 
-    // 6. 상태 업데이트 및 DB 저장
     const newMembers = [...members, newMember];
     setMembers(newMembers);
-
-    // 🔥 saveToServer를 호출하므로 MongoDB에 즉시 반영됩니다!
     saveToServer(columns, newMembers);
-
-    toast.success(`${targetName}님을 멤버로 추가했습니다!`);
+    toast.success(`${targetName}님을 추가했습니다!`);
   };
 
   const handleDeleteMember = (memberId: number) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     const newMembers = members.filter((m) => m.id !== memberId);
-    // 컬럼에서도 삭제
     const newColumns = columns.map((col) => ({
       ...col,
       members: col.members.filter((m) => m.id !== memberId),
     }));
-    // 태스크에서도 삭제
     const memberName = members.find((m) => m.id === memberId)?.name;
     const newTasks = tasks.map((t) => ({
       ...t,
@@ -397,25 +388,18 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  // 멤버를 특정 컬럼(역할)에 추가
+  // 멤버를 특정 컬럼에 추가
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
-    // 🔥 [D&D 디버깅] ID 확인
-    console.log(`[D&D 시도] Column ID: ${columnId}, Dragged Member ID: ${memberId}`); 
-    
     const destCol = columns.find((c) => c.id === columnId);
     if (!destCol) return;
     if (destCol.members.some((m) => m.id === memberId)) {
       toast.success("이미 배정됨");
       return;
     }
-    
     const memberInfo = members.find((m) => m.id === memberId);
-    // 🔥 [D&D 디버깅] 멤버 검색 결과 확인
-    console.log("[멤버 검색 결과]", memberInfo); 
-    
     if (!memberInfo) {
-        alert("멤버 정보를 찾을 수 없습니다! (ID 불일치)"); // 경고 메시지 추가
-        return;
+      toast.error("멤버 정보를 찾을 수 없습니다.");
+      return;
     }
 
     const newColumns = columns.map((col) =>
@@ -433,11 +417,75 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
+  // 🔥 [중요] 드래그 앤 드롭 핸들러 (친구 초대 + 멤버 이동 통합)
+  // TaskBoard.tsx에서 onDropMemberOnColumn으로 넘어오는 요청을 처리합니다.
+  // (TaskBoard가 이미 type을 확인해서 넘겨줄 수도 있고, 여기서 처리할 수도 있지만,
+  // 아까 TaskBoard.tsx를 수정해서 onInviteFriend를 따로 부르도록 했으므로 여기선 멤버 이동만 처리해도 됩니다.
+  // 하지만 만약 TaskBoard가 그냥 ID만 넘겨준다면 여기서 분기해야 합니다.)
+  // --> 우리는 TaskBoard.tsx를 수정해서 "친구면 onInviteFriend", "멤버면 onDropMemberOnColumn"을 부르도록 했으니,
+  // 여기서는 각각의 기능만 구현하면 됩니다.
+
   const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
     handleAddMemberToColumn(columnId, memberId);
   };
 
-  // 멤버 상태 변경
+  // 🔥 [중요] 친구 초대 (드래그용)
+  const handleInviteFriendToColumn = (
+    columnId: number,
+    friendId: string,
+    friendName: string
+  ) => {
+    // 친구 정보 찾기
+    const friendInfo = friends.find((f) => f.name === friendName);
+    const avatar = friendInfo?.avatarInitial || friendName[0];
+    const realUsername = friendInfo?.username || friendName;
+    const fid = Date.now(); // 새 ID 생성
+
+    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
+      let newMembers = [...members];
+
+      // 1. 전체 멤버 리스트에 없으면 추가
+      if (!members.some((m) => m.name === friendName)) {
+        newMembers.push({
+          id: fid,
+          name: friendName,
+          username: realUsername,
+          avatarInitial: avatar,
+          isOnline: false,
+          role: "팀원",
+        });
+        setMembers(newMembers);
+      } else {
+        // 이미 멤버라면 기존 ID 사용 (로직상 필요)
+      }
+
+      // 추가된(또는 기존) 멤버의 ID 찾기
+      const targetMember = newMembers.find((m) => m.name === friendName);
+      const targetId = targetMember ? targetMember.id : fid;
+
+      // 2. 컬럼에 추가
+      const newColumns = columns.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: [
+                ...col.members,
+                {
+                  id: targetId,
+                  name: friendName, // 🔥 [핵심 수정] name 속성 추가!
+                  status: "작업전",
+                  subTasks: [],
+                },
+              ],
+            }
+          : col
+      );
+      setColumns(newColumns);
+      saveToServer(newColumns, newMembers);
+      toast.success("초대되었습니다!");
+    }
+  };
+
   const handleUpdateMemberStatus = (
     columnId: number,
     memberId: number,
@@ -456,7 +504,6 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  // 멤버 메모 변경
   const handleUpdateMemberMemo = (
     columnId: number,
     memberId: number,
@@ -475,7 +522,6 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  // 멤버 이동 (드래그)
   const handleMoveMemberBetweenColumns = (
     memberId: number,
     sourceColId: number,
@@ -501,53 +547,7 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members);
   };
 
-  // 친구 초대 (컬럼에 바로)
-  const handleInviteFriendToColumn = (
-    columnId: number,
-    friendId: string, // 이게 친구의 실제 로그인 아이디(username)
-    friendName: string
-  ) => {
-    // ...
-    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
-      let newMembers = [...members];
-      // 멤버 목록에 없으면 추가
-      // 🔥 [핵심] 여기서 name 필드에 friendId(로그인 아이디)를 넣어야 DB 검색이 됩니다!
-      // (화면에 보여줄 이름은 나중에 별도 필드로 분리하거나, 일단 아이디를 이름처럼 사용)
-      if (!members.some((m) => m.name === friendId)) {
-        newMembers.push({
-          id: Date.now(),
-          name: friendId, // 🔥 중요: DB 검색을 위해 유저네임을 저장
-          isOnline: false,
-          role: "팀원",
-        });
-        setMembers(newMembers);
-      }
-
-      // 컬럼에도 추가...
-      const newColumns = columns.map((col) =>
-        col.id === columnId
-          ? {
-              ...col,
-              members: [
-                ...col.members,
-                {
-                  id: Date.now(),
-                  name: friendId,
-                  status: "작업전",
-                  subTasks: [],
-                },
-              ],
-            }
-          : col
-      );
-
-      setColumns(newColumns);
-      saveToServer(newColumns, newMembers); // DB 저장 요청!
-    }
-  };
-
-  // --- Task 관련 핸들러 ---
-
+  // --- Task 관련 ---
   const handleAddTask = (columnId: number, status: string) => {
     const title = prompt("할 일을 입력하세요:");
     if (!title) return;
@@ -559,7 +559,6 @@ const Project: React.FC = () => {
       members: [],
     };
     setTasks((prev) => [...prev, newTask]);
-    // (참고: 현재 saveToServer는 Task 저장을 지원하지 않는 구조라면, 나중에 백엔드 API 확장이 필요할 수 있음)
   };
 
   const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
@@ -595,35 +594,17 @@ const Project: React.FC = () => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
-  
-  // 기존 handleUpdateTask 시그니처: (t: Task) => void
   const handleUpdateTask = (t: Task) => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
-  
-  // 🔥 [오류 수정] TaskDetails/Schedule의 onUpdateTask prop에 맞추기 위한 래퍼 함수
   const handleUpdateTaskFromObject = (updatedTask: Task) => {
-      handleUpdateTask(updatedTask);
+    handleUpdateTask(updatedTask);
   };
-
-  // 🔥 [오류 수정] TaskDetails의 onAddSubTask prop에 맞추기 위한 래퍼 함수
-  // TaskDetails 기대 시그니처: (colId: number, memId: number, content: string) => void
   const handleAddSubTaskWrapper = (
-    _colId: number, 
-    _memId: number, 
+    _colId: number,
+    _memId: number,
     content: string
-  ) => {
-      // 실제 구현은 selectedTaskId와 content를 사용하도록 가정하고, 기존 로직 호출
-      if (selectedTaskId !== null) {
-          // 기존 handleAddSubTask가 colId, memId를 사용하므로 해당 인수를 전달 (값은 의미 없을 수 있음)
-          handleAddSubTask(_colId, _memId, content); 
-      }
-  };
-  
-  // 기존 handleAddSubTask 정의 (인터페이스 호환을 위해 유지)
-  const handleAddSubTask = (colId: number, memId: number, content: string) => {
-    /* 구현 생략 가능하지만 에러 방지용 */
-  };
+  ) => {};
   const handleToggleSubTask = (c: number, m: number, s: number) => {};
   const handleDeleteSubTask = (c: number, m: number, s: number) => {};
 
@@ -637,8 +618,6 @@ const Project: React.FC = () => {
       onMouseUp={handleMouseUp}
     >
       <LiveCursors cursors={cursors} />
-
-      {/* 윈도우 렌더링 */}
       {windows.map((win) => (
         <div
           key={win.id}
@@ -696,7 +675,6 @@ const Project: React.FC = () => {
         </div>
       ))}
 
-      {/* 헤더 & 사이드바 */}
       <Header onMenuClick={toggleSlideout} />
       <SlideoutSidebar
         isOpen={isSlideoutOpen}
@@ -724,7 +702,6 @@ const Project: React.FC = () => {
         </aside>
 
         <main className="project-main" style={{ position: "relative" }}>
-          {/* 독(Dock) 메뉴 */}
           <div className="in-app-dock">
             <div
               className="dock-icon"
@@ -806,8 +783,9 @@ const Project: React.FC = () => {
                 onAddMemberToColumn={handleAddMemberToColumn}
                 onMoveMember={handleMoveMemberBetweenColumns}
                 onUpdateStatus={handleUpdateMemberStatus}
-                onDeleteMember={(colId, memId) => handleDeleteMember(memId)} // [주의] 여기서는 전체 멤버삭제 로직 사용
+                onDeleteMember={(colId, memId) => handleDeleteMember(memId)}
                 onUpdateMemberMemo={handleUpdateMemberMemo}
+                // 🔥 [중요] 드래그 초대 함수 연결
                 onInviteFriend={handleInviteFriendToColumn}
                 onAddTask={handleAddTask}
                 onSelectTask={handleSelectTask}
@@ -823,19 +801,16 @@ const Project: React.FC = () => {
                 members={members}
                 tasks={tasks}
                 selectedTaskId={selectedTaskId}
-                // 🔥 [오류 수정] onUpdateTask는 래퍼 함수 사용
                 onUpdateTask={handleUpdateTaskFromObject}
-                // 🔥 [오류 수정] onAddSubTask는 래퍼 함수 사용
                 onAddSubTask={handleAddSubTaskWrapper}
                 onToggleSubTask={handleToggleSubTask}
                 onDeleteSubTask={handleDeleteSubTask}
               />
             )}
             {activeTab === "schedule" && (
-              <Schedule 
-                tasks={tasks} 
-                // 🔥 [오류 수정] onUpdateTask는 래퍼 함수 사용
-                onUpdateTask={handleUpdateTaskFromObject} 
+              <Schedule
+                tasks={tasks}
+                onUpdateTask={handleUpdateTaskFromObject}
               />
             )}
           </div>
