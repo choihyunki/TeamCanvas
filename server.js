@@ -66,14 +66,15 @@ const ChatMessage = mongoose.model("ChatMessage", ChatSchema);
 
 // 1. 내 프로젝트 목록 가져오기
 app.get("/api/projects", async (req, res) => {
-  const { username } = req.query;
+  const { username } = req.query; // 로그인한 사람의 ID
   try {
-    // 🔥 [수정 2] 검색 쿼리 변경
-    // members 배열 안에 있는 "객체"들 중에서, name 필드가 username과 같은지 확인
     const projects = await Project.find({
       $or: [
-        { ownerUsername: username }, // 내가 만든 거거나
-        { "members.name": username }, // 🔥 멤버 목록(객체)의 name에 내가 있거나
+        { ownerUsername: username }, // 내가 만든 프로젝트
+        // 🔥 [수정] members 배열 안의 객체들 중, username이 일치하는지 확인!
+        { "members.username": username },
+        // (혹시 몰라 예전 데이터 호환을 위해 name으로도 찾기)
+        { "members.name": username },
       ],
     });
     res.json(projects);
