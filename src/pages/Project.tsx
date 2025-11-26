@@ -33,6 +33,8 @@ import { Task } from "../types/Task";
 import { useAuth } from "../context/AuthContext";
 import ProjectService from "../services/ProjectService";
 import UserService from "../services/UserService";
+// 🔥 [추가] 분리한 TaskService 임포트
+import TaskService from "../services/TaskService";
 
 import "../styles/Project.css";
 
@@ -211,15 +213,13 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // --- 🔥 [핵심] 서버 저장 함수 (Tasks 포함) ---
+  // --- 서버 저장 및 로드 ---
   const saveToServer = async (
     newColumns: RoleColumn[],
     newMembers: Member[],
-    newTasks?: Task[] // tasks도 받도록 수정
+    newTasks?: Task[]
   ) => {
     if (!currentProjectId) return;
-
-    // 인자로 안 넘어왔으면 현재 state 사용
     const tasksToSave = newTasks || tasks;
 
     console.log("💾 저장 시도:", {
@@ -234,11 +234,9 @@ const Project: React.FC = () => {
         currentProjectId,
         newColumns,
         newMembers,
-        tasksToSave // 🔥 Service에 tasks 전달
+        tasksToSave
       );
       console.log("✅ 저장 성공!");
-
-      // 실시간 동기화 신호
       const socket = io(SERVER_URL);
       socket.emit("update_board", currentProjectId);
     } catch (e) {
@@ -262,8 +260,6 @@ const Project: React.FC = () => {
         const projectData = await ProjectService.getProject(currentProjectId);
         if (projectData) {
           setColumns(projectData.columns || []);
-
-          // 멤버 데이터 복원
           if (projectData.members && Array.isArray(projectData.members)) {
             const memberObjs = projectData.members.map(
               (m: any, idx: number) => {
@@ -274,8 +270,6 @@ const Project: React.FC = () => {
             );
             if (memberObjs.length > 0) setMembers(memberObjs);
           }
-
-          // 🔥 태스크 데이터 복원
           if (projectData.tasks && Array.isArray(projectData.tasks)) {
             setTasks(projectData.tasks);
           }
@@ -302,9 +296,8 @@ const Project: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, currentProjectId]);
 
-  // --- 🔥 [수정] 모든 핸들러에서 saveToServer 호출 시 tasks 포함 ---
+  // --- 핸들러 (TaskService 적용으로 깔끔해짐) ---
 
-  // 1. 사이드바 친구 추가
   const handleAddMemberFromFriend = (
     friendId: number | string,
     friendName: string
@@ -313,7 +306,6 @@ const Project: React.FC = () => {
       toast.success("이미 존재하는 멤버입니다.");
       return;
     }
-
     const friendInfo = friends.find((f) => f.name === friendName);
     const fid = typeof friendId === "string" ? Date.now() : friendId;
     const realUsername =
@@ -331,11 +323,10 @@ const Project: React.FC = () => {
 
     const newMembers = [...members, newMember];
     setMembers(newMembers);
-    saveToServer(columns, newMembers, tasks); // tasks 전달
+    saveToServer(columns, newMembers, tasks);
     toast.success(`${friendName}님을 추가했습니다!`);
   };
 
-  // 2. 멤버 직접 추가
   const handleAddMember = () => {
     if (friends.length === 0) {
       toast.error("친구 목록이 비어있습니다.");
@@ -367,30 +358,31 @@ const Project: React.FC = () => {
 
     const newMembers = [...members, newMember];
     setMembers(newMembers);
-    saveToServer(columns, newMembers, tasks); // tasks 전달
+    saveToServer(columns, newMembers, tasks);
     toast.success(`${targetName}님을 추가했습니다!`);
   };
 
-  // 3. 멤버 삭제
   const handleDeleteMember = (memberId: number) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
     const newMembers = members.filter((m) => m.id !== memberId);
 
+    // 컬럼에서도 제거
     const newColumns = columns.map((col) => ({
       ...col,
       members: col.members.filter((m) => m.id !== memberId),
     }));
 
+    // 🔥 [수정] TaskService를 사용해 태스크에서도 담당자 제거
     const memberName = members.find((m) => m.id === memberId)?.name;
-    const newTasks = tasks.map((t) => ({
-      ...t,
-      members: t.members.filter((name) => name !== memberName),
-    }));
+    let newTasks = tasks;
+    if (memberName) {
+      newTasks = TaskService.removeMemberFromTasks(tasks, memberName);
+    }
 
     setMembers(newMembers);
     setColumns(newColumns);
     setTasks(newTasks);
-    saveToServer(newColumns, newMembers, newTasks); // 변경된 tasks 전달
+    saveToServer(newColumns, newMembers, newTasks);
   };
 
   const handleAddColumn = (name: string) => {
@@ -403,11 +395,13 @@ const Project: React.FC = () => {
   const handleDeleteColumn = (columnId: number) => {
     if (!window.confirm("삭제하시겠습니까?")) return;
     const newColumns = columns.filter((col) => col.id !== columnId);
-    const newTasks = tasks.filter((t) => t.columnId !== columnId);
+
+    // 🔥 [수정] TaskService를 사용해 해당 컬럼의 태스크도 삭제
+    const newTasks = TaskService.removeTasksByColumn(tasks, columnId);
 
     setColumns(newColumns);
     setTasks(newTasks);
-    saveToServer(newColumns, members, newTasks); // 변경된 tasks 전달
+    saveToServer(newColumns, members, newTasks);
   };
 
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
@@ -429,11 +423,7 @@ const Project: React.FC = () => {
             ...col,
             members: [
               ...col.members,
-              {
-                ...memberInfo,
-                status: "작업전",
-                subTasks: [],
-              },
+              { ...memberInfo, status: "작업전", subTasks: [] },
             ],
           }
         : col
@@ -446,7 +436,6 @@ const Project: React.FC = () => {
     handleAddMemberToColumn(columnId, memberId);
   };
 
-  // 4. 친구 초대 (드래그)
   const handleInviteFriendToColumn = (
     columnId: number,
     friendId: string,
@@ -494,22 +483,22 @@ const Project: React.FC = () => {
           : col
       );
       setColumns(newColumns);
-      saveToServer(newColumns, newMembers, tasks); // tasks 전달
-      toast.success("초대되었습니다!");
+      saveToServer(newColumns, newMembers, tasks);
 
+      // 알림 전송
       const currentProjectInfo = myProjects.find(
         (p) => p.id === currentProjectId
       );
       const realProjectName = currentProjectInfo
         ? currentProjectInfo.name
         : "프로젝트";
-
       const socket = io(SERVER_URL);
-      // "이 친구(realUsername)한테 알림 보내줘!"
       socket.emit("invite_user", {
         targetUsername: realUsername,
-        projectName: realProjectName, // (프로젝트 이름을 가져올 수 있다면 넣으세요)
+        projectName: realProjectName,
       });
+
+      toast.success("초대되었습니다!");
     }
   };
 
@@ -574,38 +563,31 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, tasks);
   };
 
-  // --- 🔥 Task 관련 핸들러 (여기가 핵심!) ---
+  // --- 🔥 [수정] Task 관련 핸들러 (TaskService 사용으로 간소화됨) ---
 
   const handleAddTask = (columnId: number, status: string) => {
     const title = prompt("할 일을 입력하세요:");
     if (!title) return;
 
-    const newTask: Task = {
-      id: Date.now(),
-      columnId,
-      status,
-      title,
-      members: [],
-    };
-
-    const newTasks = [...tasks, newTask];
+    // TaskService로 로직 위임
+    const newTasks = TaskService.createTask(tasks, columnId, status, title);
     setTasks(newTasks);
-    saveToServer(columns, members, newTasks); // 🔥 새 태스크 리스트 저장
+    saveToServer(columns, members, newTasks);
   };
 
   const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
-    const newTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: newStatus } : t
-    );
+    // TaskService로 로직 위임
+    const newTasks = TaskService.updateStatus(tasks, taskId, newStatus);
     setTasks(newTasks);
-    saveToServer(columns, members, newTasks); // 🔥 상태 변경 저장
+    saveToServer(columns, members, newTasks);
   };
 
   const handleDeleteTask = (taskId: number) => {
     if (window.confirm("삭제하시겠습니까?")) {
-      const newTasks = tasks.filter((t) => t.id !== taskId);
+      // TaskService로 로직 위임
+      const newTasks = TaskService.deleteTask(tasks, taskId);
       setTasks(newTasks);
-      saveToServer(columns, members, newTasks); // 🔥 삭제 저장
+      saveToServer(columns, members, newTasks);
     }
   };
 
@@ -613,46 +595,97 @@ const Project: React.FC = () => {
     const member = members.find((m) => m.id === memberId);
     if (!member) return;
 
-    const newTasks = tasks.map((t) => {
-      if (t.id !== taskId) return t;
-      const hasMember = t.members.includes(member.name);
-      return {
-        ...t,
-        members: hasMember
-          ? t.members.filter((n) => n !== member.name)
-          : [...t.members, member.name],
-      };
-    });
-
+    // TaskService로 로직 위임
+    const newTasks = TaskService.toggleMemberAssignment(tasks, taskId, member);
     setTasks(newTasks);
-    saveToServer(columns, members, newTasks); // 🔥 할당 저장
+    saveToServer(columns, members, newTasks);
   };
 
-  // --- 상세 페이지 관련 ---
   const handleSelectTask = (tid: number) => {
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
-    const newTasks = tasks.map((tk) =>
-      tk.id === updatedTask.id ? updatedTask : tk
-    );
+    // TaskService로 로직 위임
+    const newTasks = TaskService.updateTaskDetail(tasks, updatedTask);
     setTasks(newTasks);
-    saveToServer(columns, members, newTasks); // 🔥 상세 수정 저장
+    saveToServer(columns, members, newTasks);
   };
 
   const handleUpdateTaskFromObject = (updatedTask: Task) => {
     handleUpdateTask(updatedTask);
   };
 
-  const handleAddSubTaskWrapper = (
-    _colId: number,
-    _memId: number,
+  // 1. 세부 작업 추가
+  const handleAddSubTask = (
+    columnId: number,
+    memberId: number,
     content: string
-  ) => {};
-  const handleToggleSubTask = (c: number, m: number, s: number) => {};
-  const handleDeleteSubTask = (c: number, m: number, s: number) => {};
+  ) => {
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          const newSub = { id: Date.now(), content, completed: false };
+          // subTasks가 없을 수도 있으니 안전하게 처리
+          return { ...m, subTasks: [...(m.subTasks || []), newSub] };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
+  };
+
+  // 2. 세부 작업 체크/해제 (토글)
+  const handleToggleSubTask = (
+    columnId: number,
+    memberId: number,
+    subTaskId: number
+  ) => {
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.map((sub) =>
+              sub.id === subTaskId ? { ...sub, completed: !sub.completed } : sub
+            ),
+          };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
+  };
+
+  // 3. 세부 작업 삭제
+  const handleDeleteSubTask = (
+    columnId: number,
+    memberId: number,
+    subTaskId: number
+  ) => {
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.filter((sub) => sub.id !== subTaskId),
+          };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
+  };
 
   return (
     <div
@@ -848,9 +881,9 @@ const Project: React.FC = () => {
                 tasks={tasks}
                 selectedTaskId={selectedTaskId}
                 onUpdateTask={handleUpdateTaskFromObject}
-                onAddSubTask={handleAddSubTaskWrapper}
-                onToggleSubTask={handleToggleSubTask}
-                onDeleteSubTask={handleDeleteSubTask}
+                onAddSubTask={handleAddSubTask}
+                onToggleSubTask={handleToggleSubTask} // 구현된 함수 연결
+                onDeleteSubTask={handleDeleteSubTask} // 구현된 함수 연결
               />
             )}
             {activeTab === "schedule" && (
