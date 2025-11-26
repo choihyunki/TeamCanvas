@@ -18,6 +18,9 @@ import PrivacyPage from "./pages/Privacy";
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; // CSS 필수!
+
 const ProtectedRoute: React.FC<{ element: React.ReactElement }> = ({
   element,
 }) => {
@@ -30,6 +33,18 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ToastContainer
+          position="top-right"
+          autoClose={3000}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+          theme="light"
+        />
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
