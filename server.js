@@ -243,3 +243,16 @@ app.delete("/api/projects/:id", async (req, res) => {
     res.status(500).json({ message: "삭제 실패" });
   }
 });
+
+// 🔥 [추가 1] 리액트 빌드 파일(정적 파일)들을 제공하기
+app.use(express.static(path.join(__dirname, "build")));
+
+// 🔥 [추가 2] 그 외의 모든 요청은 리액트의 index.html로 보냄 (SPA 라우팅 지원)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "build", "index.html"));
+});
+
+// server.listen(...) 은 맨 마지막에 유지
+server.listen(4000, () => {
+  console.log("🔥 Server running on port 4000");
+});

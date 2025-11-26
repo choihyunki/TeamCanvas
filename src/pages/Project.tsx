@@ -46,6 +46,7 @@ interface Friend {
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const currentProjectId = projectId || null; // MongoDB ID는 문자열
+  const SERVER_URL = process.env.REACT_APP_API_URL || "http://localhost:4000";
 
   const { token } = useAuth();
 
@@ -229,7 +230,7 @@ const Project: React.FC = () => {
       );
 
       // 실시간 동기화 신호 전송
-      const socket = io("http://localhost:4000");
+      const socket = io(SERVER_URL);
       socket.emit("update_board", currentProjectId);
     } catch (e) {
       console.error("저장 실패", e);
@@ -273,7 +274,7 @@ const Project: React.FC = () => {
 
     // 실시간 동기화 리스너
     if (currentProjectId) {
-      const socket = io("http://localhost:4000");
+      const socket = io(SERVER_URL);
       socket.emit("join_room", currentProjectId);
       socket.on("board_updated", () => {
         console.log("보드 업데이트 감지!");
