@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import MemberList from "../components/MemberList";
@@ -9,6 +9,7 @@ import Schedule from "../components/Schedule";
 import SlideoutSidebar from "../components/SlideoutSidebar";
 import ProgressBar from "../components/ProgressBar";
 import ChatBox from "../components/ChatBox";
+import UserService from "../services/UserService";
 
 // 실시간 커서
 import LiveCursors from "../components/LiveCursors";
@@ -30,30 +31,24 @@ import { RoleColumn, SubTask } from "../types/Project";
 import { Task } from "../types/Task";
 
 import { useAuth } from "../context/AuthContext";
-import {
-  getProjectsForUser,
-  getProjectById,
-  ProjectRecord,
-  addMemberToProject,
-  removeMemberFromProject,
-  getFriends,
-} from "../data/mockDb";
+
+// 🔥 [수정 1] mockDb에서 데이터 가져오는 함수들 제거하고 ProjectService 임포트
+import ProjectService from "../services/ProjectService";
 
 import "../styles/Project.css";
 
 interface Friend {
-  id: number;
+  username: string;
   name: string;
   avatarInitial: string;
 }
 
 const Project: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
-  const numericProjectId = projectId ? Number(projectId) : null;
-  const { token } = useAuth();
+  // 🔥 [수정 2] 숫자 변환 제거. 문자열 그대로 사용
+  const currentProjectId = projectId || null;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [, setCurrentProject] = useState<ProjectRecord | null>(null);
+  const { token } = useAuth();
 
   // 🔥 실시간 커서 훅
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
@@ -64,7 +59,6 @@ const Project: React.FC = () => {
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
 
-  // 창 이동용 Ref
   const dragItem = useRef<{
     id: number;
     startX: number;
@@ -73,7 +67,6 @@ const Project: React.FC = () => {
     initialTop: number;
   } | null>(null);
 
-  // 창 리사이즈용 Ref
   const resizeItem = useRef<{
     id: number;
     startX: number;
@@ -130,7 +123,7 @@ const Project: React.FC = () => {
     });
   };
 
-  // --- 🖱️ 마우스 이벤트 핸들러 (창 이동 & 리사이즈) ---
+  // --- 🖱️ 마우스 이벤트 핸들러 ---
   const handleMouseDownHeader = (
     e: React.MouseEvent,
     id: number,
@@ -206,10 +199,9 @@ const Project: React.FC = () => {
   const [members, setMembers] = useState<Member[]>([]);
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [, setSelectedTaskId] = useState<number | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [myProjects, setMyProjects] = useState<{ id: number; name: string }[]>(
+  const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
   );
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
@@ -221,6 +213,23 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
+  // 🔥 [핵심 함수] 변경사항 생길 때마다 서버에 저장하는 함수
+  const saveToServer = async (
+    newColumns: RoleColumn[],
+    newMembers: Member[]
+  ) => {
+    if (!currentProjectId) return;
+    try {
+      await ProjectService.saveProjectState(
+        currentProjectId,
+        newColumns,
+        newMembers
+      );
+    } catch (e) {
+      console.error("저장 실패", e);
+    }
+  };
+
   // --- Handlers ---
 
   const handleAddMemberFromFriend = (friendId: number, friendName: string) => {
@@ -228,92 +237,100 @@ const Project: React.FC = () => {
       alert("이미 존재");
       return;
     }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const newMember: Member = {
       id: friendId,
       name: friendName,
       isOnline: true,
       role: "팀원",
     };
-    setMembers((prev) => [...prev, newMember]);
-    if (numericProjectId !== null) {
-      addMemberToProject(numericProjectId, friendName);
-    }
+    const newMembers = [...members, newMember];
+
+    setMembers(newMembers);
+    // 🔥 서버 저장 호출
+    saveToServer(columns, newMembers);
   };
 
   const handleAddMember = () => {
     const newName = prompt("새 멤버의 이름을 입력하세요:");
-    if (!newName) return;
+    if (!newName?.trim()) return;
     const trimmed = newName.trim();
-    if (!trimmed) return;
-    const newMember: Member = {
-      id: new Date().getTime(),
-      name: trimmed,
-      isOnline: true,
-    };
-    setMembers((prevMembers) => [...prevMembers, newMember]);
-    if (numericProjectId !== null)
-      addMemberToProject(numericProjectId, trimmed);
+
+    const newMember: Member = { id: Date.now(), name: trimmed, isOnline: true };
+    const newMembers = [...members, newMember];
+
+    setMembers(newMembers);
+    // 🔥 서버 저장 호출 (addMemberToProject mock 함수 제거됨)
+    saveToServer(columns, newMembers);
   };
 
   const handleDeleteMember = (memberId: number) => {
     if (!window.confirm("정말로 이 멤버를 삭제하시겠습니까?")) return;
-    const target = members.find((m) => m.id === memberId);
-    if (target && numericProjectId !== null)
-      removeMemberFromProject(numericProjectId, target.name);
-    setMembers((prevMembers) =>
-      prevMembers.filter((member) => member.id !== memberId)
-    );
-    setColumns((prev) =>
-      prev.map((col) => ({
-        ...col,
-        members: col.members.filter((m) => m.id !== memberId),
-      }))
-    );
+
+    // mock 함수 호출 제거 (removeMemberFromProject 제거)
+
+    const newMembers = members.filter((member) => member.id !== memberId);
+    const newColumns = columns.map((col) => ({
+      ...col,
+      members: col.members.filter((m) => m.id !== memberId),
+    }));
+
+    setMembers(newMembers);
+    setColumns(newColumns);
+    // 🔥 서버 저장
+    saveToServer(newColumns, newMembers);
   };
 
   const handleAddColumn = (name: string) => {
     const newColumn: RoleColumn = {
-      id: columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 101,
+      id: Date.now(), // 고유 ID
       name,
       members: [],
     };
-    setColumns([...columns, newColumn]);
+    const newColumns = [...columns, newColumn];
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleDeleteColumn = (columnId: number) => {
-    setColumns((prev) => prev.filter((col) => col.id !== columnId));
+    const newColumns = columns.filter((col) => col.id !== columnId);
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleAddMemberToColumn = (columnId: number, memberId: number) => {
+    // 1. 컬럼 찾기
     const destinationColumn = columns.find((col) => col.id === columnId);
     if (!destinationColumn) return;
+
+    // 2. 이미 있는지 확인
     if (destinationColumn.members.some((m) => m.id === memberId)) {
       alert("이 역할에는 이미 배정된 멤버입니다.");
       return;
     }
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? {
-              ...col,
-              members: [
-                ...col.members,
-                { id: memberId, status: "작업전", subTasks: [] },
-              ],
-            }
-          : col
-      )
+
+    // 3. 멤버 정보 찾기 (전체 멤버 목록에서)
+    const memberInfo = members.find((m) => m.id === memberId);
+    if (!memberInfo) return;
+
+    // 4. 업데이트
+    const newColumns = columns.map((col) =>
+      col.id === columnId
+        ? {
+            ...col,
+            members: [
+              ...col.members,
+              { ...memberInfo, status: "작업전", subTasks: [] }, // 멤버 정보를 복사해서 넣음
+            ],
+          }
+        : col
     );
+
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   // 🔥 드래그 앤 드롭 핸들러
   const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
-    const targetColumn = columns.find((c) => c.id === columnId);
-    if (targetColumn?.members.some((m) => m.id === memberId)) {
-      alert("이미 배정된 멤버입니다.");
-      return;
-    }
     handleAddMemberToColumn(columnId, memberId);
   };
 
@@ -323,24 +340,24 @@ const Project: React.FC = () => {
     memberId: number,
     content: string
   ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            const newSubTask: SubTask = {
-              id: Date.now(),
-              content,
-              completed: false,
-            };
-            const currentSubTasks = m.subTasks || [];
-            return { ...m, subTasks: [...currentSubTasks, newSubTask] };
-          }),
-        };
-      })
-    );
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          const newSubTask: SubTask = {
+            id: Date.now(),
+            content,
+            completed: false,
+          };
+          const currentSubTasks = m.subTasks || [];
+          return { ...m, subTasks: [...currentSubTasks, newSubTask] };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleToggleSubTask = (
@@ -348,23 +365,23 @@ const Project: React.FC = () => {
     memberId: number,
     subTaskId: number
   ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            return {
-              ...m,
-              subTasks: m.subTasks?.map((t) =>
-                t.id === subTaskId ? { ...t, completed: !t.completed } : t
-              ),
-            };
-          }),
-        };
-      })
-    );
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.map((t) =>
+              t.id === subTaskId ? { ...t, completed: !t.completed } : t
+            ),
+          };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleDeleteSubTask = (
@@ -372,31 +389,31 @@ const Project: React.FC = () => {
     memberId: number,
     subTaskId: number
   ) => {
-    setColumns((prev) =>
-      prev.map((col) => {
-        if (col.id !== columnId) return col;
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-            return {
-              ...m,
-              subTasks: m.subTasks?.filter((t) => t.id !== subTaskId),
-            };
-          }),
-        };
-      })
-    );
+    const newColumns = columns.map((col) => {
+      if (col.id !== columnId) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (m.id !== memberId) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.filter((t) => t.id !== subTaskId),
+          };
+        }),
+      };
+    });
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleDeleteMemberFromColumn = (columnId: number, memberId: number) => {
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === columnId
-          ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
-          : col
-      )
+    const newColumns = columns.map((col) =>
+      col.id === columnId
+        ? { ...col, members: col.members.filter((m) => m.id !== memberId) }
+        : col
     );
+    setColumns(newColumns);
+    saveToServer(newColumns, members);
   };
 
   const handleInviteFriendToColumn = (
@@ -406,44 +423,33 @@ const Project: React.FC = () => {
   ) => {
     const id = parseInt(friendId, 10);
     const isAlreadyMember = members.some((member) => member.id === id);
-    const targetColumn = columns.find((col) => col.id === columnId);
-    const isAlreadyInThisColumn = targetColumn?.members.some(
-      (m) => m.id === id
-    );
-
-    if (isAlreadyInThisColumn) {
-      alert("이 역할에는 이미 배정된 멤버입니다.");
-      return;
-    }
 
     if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
+      let newMembers = [...members];
       if (!isAlreadyMember) {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const newMember: Member = {
+        newMembers.push({
           id,
           name: friendName,
           isOnline: false,
           role: "팀원",
-        };
-        setMembers((prev) => [...prev, newMember]);
-      }
-      if (numericProjectId !== null) {
-        addMemberToProject(numericProjectId, friendName);
+        });
+        setMembers(newMembers);
       }
 
-      setColumns((prev) =>
-        prev.map((col) =>
-          col.id === columnId
-            ? {
-                ...col,
-                members: [
-                  ...col.members,
-                  { id, status: "작업전", subTasks: [] },
-                ],
-              }
-            : col
-        )
+      const newColumns = columns.map((col) =>
+        col.id === columnId
+          ? {
+              ...col,
+              members: [
+                ...col.members,
+                { id, name: friendName, status: "작업전", subTasks: [] },
+              ],
+            }
+          : col
       );
+
+      setColumns(newColumns);
+      saveToServer(newColumns, newMembers);
     }
   };
 
@@ -461,26 +467,32 @@ const Project: React.FC = () => {
     setTasks((prev) => prev.map((tk) => (tk.id === t.id ? t : tk)));
   };
 
+  const loadData = async () => {
+    if (!token) return;
+    try {
+      const myList = await ProjectService.getMyProjects(token);
+      setMyProjects(myList.map((p: any) => ({ id: p._id, name: p.name }))); // _id -> id
+
+      const myFriends = await UserService.getFriends(token);
+      setFriends(myFriends);
+
+      if (currentProjectId) {
+        const projectData = await ProjectService.getProject(currentProjectId);
+        if (projectData) {
+          setColumns(projectData.columns || []);
+          // 멤버 로직 등...
+        }
+      }
+    } catch (e) {
+      console.error("데이터 로드 실패", e);
+    }
+  };
+
+  // 🔥 [수정 3] 데이터 로드 (ProjectService 사용)
   useEffect(() => {
     if (!token) return;
-    const myList = getProjectsForUser(token);
-    setMyProjects(myList.map((p) => ({ id: p.id, name: p.name })));
-    setFriends(getFriends());
-    if (numericProjectId !== null) {
-      const record = getProjectById(numericProjectId);
-      if (record) {
-        setCurrentProject(record);
-        setMembers(
-          record.members.map((name, idx) => ({
-            id: idx + 1000,
-            name,
-            isOnline: true,
-          }))
-        );
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, numericProjectId]);
+    loadData();
+  }, [token, currentProjectId]);
 
   return (
     <div
@@ -492,7 +504,6 @@ const Project: React.FC = () => {
       onMouseUp={handleMouseUp}
     >
       <LiveCursors cursors={cursors} />
-      {/* Header에 openWindow 전달이 필요하다면 props 추가 필요 */}
       <Header onMenuClick={toggleSlideout} />
 
       <SlideoutSidebar
@@ -500,6 +511,7 @@ const Project: React.FC = () => {
         onClose={toggleSlideout}
         projects={myProjects}
         friends={friends}
+        onRefreshFriends={loadData} // 🔥 새로고침 연결
       />
 
       <div
@@ -692,7 +704,7 @@ const Project: React.FC = () => {
             isRightSidebarCollapsed ? "collapsed" : ""
           }`}
         >
-          <ChatBox projectId={numericProjectId} />
+          <ChatBox projectId={currentProjectId} />
         </aside>
       </div>
       <Footer />

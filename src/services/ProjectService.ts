@@ -1,31 +1,48 @@
-// src/services/ProjectService.ts
-import {
-  getProjectsForUser,
-  getProjectById,
-  createProjectForUser,
-  addMemberToProject,
-  removeMemberFromProject,
-} from "../data/mockDb";
+import AxiosInstance from "../api/axiosInstance";
 
 const ProjectService = {
-  getMyProjects: (username: string) => {
-    return getProjectsForUser(username);
+  // 내 프로젝트 목록 가져오기
+  getMyProjects: async (username: string) => {
+    const res = await AxiosInstance.get(`/api/projects?username=${username}`);
+    return res.data;
   },
 
-  getProject: (projectId: number) => {
-    return getProjectById(projectId);
+  // 특정 프로젝트 상세 정보 (칸반 보드 포함)
+  getProject: async (projectId: string) => {
+    const res = await AxiosInstance.get(`/api/projects/${projectId}`);
+    return res.data;
   },
 
-  createProject: (username: string, name: string, description?: string) => {
-    return createProjectForUser(username, name, description);
+  // 프로젝트 생성
+  createProject: async (
+    username: string,
+    name: string,
+    description?: string
+  ) => {
+    const res = await AxiosInstance.post("/api/projects", {
+      name,
+      description,
+      ownerUsername: username,
+    });
+    return res.data;
   },
 
-  addMember: (projectId: number, memberName: string) => {
-    return addMemberToProject(projectId, memberName);
+  // 프로젝트 상태 저장 (칸반 보드 이동 등 저장)
+  saveProjectState: async (
+    projectId: string,
+    columns: any[],
+    members: any[]
+  ) => {
+    const res = await AxiosInstance.put(`/api/projects/${projectId}`, {
+      columns,
+      members,
+    });
+    return res.data;
   },
-
-  removeMember: (projectId: number, memberName: string) => {
-    return removeMemberFromProject(projectId, memberName);
+  deleteProject: async (projectId: string) => {
+    // delete 요청 보냄
+    const res = await AxiosInstance.delete(`/api/projects/${projectId}`);
+    return res.data;
   },
 };
 

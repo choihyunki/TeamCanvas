@@ -5,9 +5,11 @@ export interface ChatMessage {
   author: string;
   message: string;
   time: string;
+  projectId?: string; // 🔥 [수정] number -> string
 }
 
-export const useChatSocket = (projectId: number | null, userName: string) => {
+// 🔥 [수정] projectId 타입을 string | null 로 변경
+export const useChatSocket = (projectId: string | null, userName: string) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const socketRef = useRef<Socket | null>(null);
 
@@ -18,10 +20,13 @@ export const useChatSocket = (projectId: number | null, userName: string) => {
     socketRef.current = io("http://localhost:4000");
     const socket = socketRef.current;
 
-    // 2. 방 입장 (해당 프로젝트 방에 들어감)
+    // 2. 방 입장
     socket.emit("join_room", projectId);
 
-    // 3. 메시지 받기 리스너
+    socket.on("load_messages", (history: ChatMessage[]) => {
+      setMessages(history);
+    });
+
     socket.on("receive_message", (data: ChatMessage) => {
       setMessages((prev) => [...prev, data]);
     });
@@ -31,7 +36,6 @@ export const useChatSocket = (projectId: number | null, userName: string) => {
     };
   }, [projectId]);
 
-  // 4. 메시지 보내기 함수
   const sendMessage = async (currentMessage: string) => {
     if (currentMessage !== "" && socketRef.current && projectId) {
       const messageData = {
@@ -44,11 +48,7 @@ export const useChatSocket = (projectId: number | null, userName: string) => {
         }),
       };
 
-      // 서버로 전송
       await socketRef.current.emit("send_message", messageData);
-
-      // (선택) 내 화면에는 바로 띄우기 (서버가 보내주긴 하지만 반응 속도를 위해)
-      // setMessages((prev) => [...prev, messageData]);
     }
   };
 
