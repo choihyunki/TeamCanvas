@@ -105,3 +105,32 @@
   width: 0;
   border-left: none;
 }
+
+/* 상태 점 기본 스타일 */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid white; /* 흰색 테두리로 구분감 주기 */
+  position: absolute; /* 아바타 우측 하단 등에 배치 */
+  bottom: 0;
+  right: 0;
+  transition: background-color 0.3s ease;
+}
+
+/* 온라인 - 초록색 */
+.status-dot.online {
+  background-color: #10b981; 
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.6); /* 빛나는 효과 */
+}
+
+/* 오프라인 - 회색 */
+.status-dot.offline {
+  background-color: #9ca3af;
+}
+
+/* 아바타 감싸는 div는 relative여야 점 위치 잡기가 편함 */
+.avatar-wrapper {
+  position: relative;
+  display: inline-block;
+}

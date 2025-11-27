@@ -6,7 +6,6 @@ interface Props {
   members: Member[];
   onAddMemberClick: () => void;
   onDeleteMember: (memberId: number) => void;
-  // 🔥 [수정] ID가 문자열(username)일 수도 있으므로 string | number 허용
   onAddMemberFromFriend: (
     friendId: number | string,
     friendName: string
@@ -29,7 +28,6 @@ const MemberList: React.FC<Props> = ({
     const friendIdStr = e.dataTransfer.getData("friendId");
 
     if (friendName && friendIdStr) {
-      // 🔥 [수정] 무조건 Number로 바꾸지 않고, 그대로 전달 (문자열 ID 지원)
       if (
         window.confirm(`프로젝트 멤버에 ${friendName} 님을 추가하시겠습니까?`)
       ) {
@@ -76,10 +74,7 @@ const MemberList: React.FC<Props> = ({
         <h3 className={styles.title}>프로젝트 멤버 ({members.length})</h3>
       </div>
 
-      <div
-        className={styles.list}
-        style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-      >
+      <div className={styles.list}>
         {members.length === 0 && (
           <p
             style={{
@@ -99,73 +94,35 @@ const MemberList: React.FC<Props> = ({
             className={styles.cardWrapper}
             draggable
             onDragStart={(e) => handleDragStart(e, m.id)}
-            style={{
-              listStyle: "none",
-              display: "flex",
-              alignItems: "center",
-              padding: "10px",
-              backgroundColor: "#fff",
-              borderRadius: "8px",
-              border: "1px solid #eee",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-              cursor: "grab",
-            }}
           >
-            {/* 아바타 표시 */}
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                backgroundColor: m.isOnline ? "#d1fae5" : "#f3f4f6",
-                color: m.isOnline ? "#065f46" : "#6b7280",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "12px",
-                fontWeight: "bold",
-                marginRight: "10px",
-                border: m.isOnline ? "2px solid #10b981" : "1px solid #ddd",
-                flexShrink: 0,
-              }}
-            >
-              {m.avatarInitial || m.name.charAt(0)}
+            {/* 🔥 [수정] 아바타 및 상태 점 (CSS Module 적용) */}
+            <div className={styles.avatarWrapper}>
+              <div className={styles.avatar}>
+                {m.avatarInitial || m.name.charAt(0)}
+              </div>
+              {/* 상태 점: 온라인이면 green, 아니면 gray */}
+              <div
+                className={`${styles.statusDot} ${
+                  m.isOnline ? styles.online : styles.offline
+                }`}
+              />
             </div>
 
-            <div style={{ flex: 1, overflow: "hidden" }}>
+            {/* 🔥 [수정] 멤버 정보 및 텍스트 상태 */}
+            <div className={styles.memberInfo}>
+              <div className={styles.memberName}>{m.name}</div>
               <div
-                style={{
-                  fontSize: "14px",
-                  fontWeight: "600",
-                  color: "#333",
-                  whiteSpace: "nowrap",
-                  textOverflow: "ellipsis",
-                  overflow: "hidden",
-                }}
+                className={`${styles.statusText} ${
+                  m.isOnline ? styles.textOnline : styles.textOffline
+                }`}
               >
-                {m.name}
-              </div>
-              <div
-                style={{
-                  fontSize: "11px",
-                  color: m.isOnline ? "#10b981" : "#9ca3af",
-                }}
-              >
-                {m.isOnline ? "● 온라인" : "○ 오프라인"}
+                {m.isOnline ? "Active Now" : "Offline"}
               </div>
             </div>
 
             <button
+              className={styles.deleteButton}
               onClick={() => onDeleteMember(m.id)}
-              style={{
-                background: "none",
-                border: "none",
-                color: "#9ca3af",
-                cursor: "pointer",
-                fontSize: "18px",
-                padding: "0 5px",
-                marginLeft: "5px",
-              }}
               title="내보내기"
             >
               &times;
