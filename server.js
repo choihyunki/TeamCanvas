@@ -304,6 +304,30 @@ io.on("connection", (socket) => {
     console.log(`❌ 접속 종료: ${socket.id}`);
     socket.broadcast.emit("user-disconnected", socket.id);
   });
+
+  // 1. 유저가 접속하면 실행 (프론트에서 이 이벤트를 보내줘야 함)
+  socket.on("user_connected", (userId) => {
+    // 소켓ID와 유저ID 매핑
+    onlineUsers.set(socket.id, userId);
+    
+    // 모든 사람에게 "이 유저 온라인이야!" 알림
+    io.emit("user_status_change", { userId: userId, isOnline: true });
+    
+    // (선택사항) 현재 접속 중인 유저 목록을 본인에게 보내줌 (초기 로딩용)
+    const onlineUserIds = Array.from(onlineUsers.values());
+    socket.emit("current_online_users", onlineUserIds);
+  });
+
+  // 2. 연결이 끊기면 (창 닫기, 로그아웃 등)
+  socket.on("disconnect", () => {
+    const userId = onlineUsers.get(socket.id);
+    if (userId) {
+      // 모든 사람에게 "이 유저 오프라인이야!" 알림
+      io.emit("user_status_change", { userId: userId, isOnline: false });
+      onlineUsers.delete(socket.id);
+    }
+  });
+  
 });
 
 // --- 배포 설정 ---

@@ -168,12 +168,54 @@ const Project: React.FC = () => {
 
     socketRef.current = io(SERVER_URL, { transports: ["websocket"] });
 
+    // 1. 소켓 연결 후 "나 접속했어!" 알림 보내기
+    // (⚠️ 실제 구현시: userService.getMe() 등으로 얻은 진짜 내 ID를 보내야 함)
+    // 여기서는 예시로 로컬스토리지나 context에서 가져온 ID를 쓴다고 가정
+    const myUserId = localStorage.getItem("userId"); // 혹은 user.id
+    
+    socketRef.current.on("connect", () => {
+        if (myUserId) {
+            socketRef.current.emit("user_connected", Number(myUserId));
+        }
+    });
+
     const roomName = String(currentProjectId);
     socketRef.current.emit("join_room", roomName);
 
+    // 2. [기존 기능] 보드 업데이트
     socketRef.current.on("board_updated", () => {
-      console.log("🔄 [실시간] 데이터 갱신");
       fetchProjectData();
+    });
+
+    // 3. 🔥 [추가 기능] 실시간 상태 변경 알림 받기 (친구 & 멤버 동시 적용)
+    socketRef.current.on("user_status_change", ({ userId, isOnline }: { userId: number, isOnline: boolean }) => {
+      // (1) 프로젝트 멤버 리스트 업데이트
+      setMembers((prevMembers) => 
+        prevMembers.map((m) => 
+          m.id === userId ? { ...m, isOnline: isOnline } : m
+        )
+      );
+
+      // (2) 친구 리스트 업데이트 (사이드바용)
+      setFriends((prevFriends) => 
+        // Friend 타입에 id가 있다고 가정 (없다면 백엔드에서 id를 같이 보내주도록 수정 필요)
+        (prevFriends as any[]).map((f) => 
+           f.id === userId ? { ...f, isOnline: isOnline } : f
+        )
+      );
+    });
+    
+    // 4. 🔥 [추가 기능] 처음 들어왔을 때 현재 온라인인 사람들 싹 갱신
+    socketRef.current.on("current_online_users", (onlineIds: number[]) => {
+        setMembers((prev) => prev.map(m => ({
+            ...m,
+            isOnline: onlineIds.includes(m.id)
+        })));
+        
+        setFriends((prev) => (prev as any[]).map(f => ({
+            ...f,
+            isOnline: onlineIds.includes(f.id)
+        })));
     });
 
     return () => {
