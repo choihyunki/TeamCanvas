@@ -25,7 +25,6 @@ mongoose
   .catch((err) => console.log(err));
 
 // --- [Schemas] ---
-
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -40,14 +39,13 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
-// 🔥 프로젝트 스키마 (members: Array)
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
   members: { type: Array, default: [] },
   columns: { type: Array, default: [] },
-  tasks: { type: Array, default: [] }, // 태스크 저장용
+  tasks: { type: Array, default: [] },
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);
@@ -63,13 +61,10 @@ const ChatMessage = mongoose.model("ChatMessage", ChatSchema);
 
 // --- [API Routes] ---
 
-// 1. 내 프로젝트 목록 가져오기
+// 1. 내 프로젝트 목록
 app.get("/api/projects", async (req, res) => {
   const { username } = req.query;
-  console.log(`🔎 검색 요청: ${username}`);
-
   try {
-    // members 배열 안의 '객체'의 username이 일치하는지 확인
     const projects = await Project.find({
       $or: [
         { ownerUsername: username },
@@ -96,7 +91,6 @@ app.post("/api/auth/register", async (req, res) => {
     await newUser.save();
     res.json(newUser);
   } catch (err) {
-    console.error("회원가입 에러:", err);
     res.status(500).json({ message: "서버 오류" });
   }
 });
@@ -112,7 +106,6 @@ app.post("/api/auth/login", async (req, res) => {
         .json({ message: "아이디 또는 비밀번호가 틀렸습니다." });
     res.json(user);
   } catch (err) {
-    console.error("로그인 에러:", err);
     res.status(500).json({ message: "서버 오류" });
   }
 });
@@ -121,7 +114,6 @@ app.post("/api/auth/login", async (req, res) => {
 app.post("/api/projects", async (req, res) => {
   try {
     const { name, description, ownerUsername } = req.body;
-
     const ownerMember = {
       id: Date.now(),
       name: ownerUsername,
@@ -129,7 +121,6 @@ app.post("/api/projects", async (req, res) => {
       isOnline: true,
       role: "관리자",
     };
-
     const newProject = new Project({
       name,
       description,
@@ -157,7 +148,7 @@ app.get("/api/projects/:id", async (req, res) => {
 
 app.put("/api/projects/:id", async (req, res) => {
   try {
-    const { columns, members, tasks } = req.body; // tasks 추가됨
+    const { columns, members, tasks } = req.body;
     const updated = await Project.findByIdAndUpdate(
       req.params.id,
       { columns, members, tasks },
@@ -229,31 +220,43 @@ const io = new Server(server, {
   },
 });
 
-// 🔥 [핵심] 유저 소켓 저장소 (이게 빠져서 에러가 났었습니다!)
+// 🔥 [통합] 유저 소켓 관리 (Socket ID <-> Username)
+// userSockets: 초대 기능용 (Username -> Socket ID)
 const userSockets = new Map();
+// onlineUsers: 온라인 상태 확인용 (Socket ID -> Username)
+const onlineUsers = new Map();
 
 io.on("connection", (socket) => {
   console.log(`🔌 사용자 접속: ${socket.id}`);
 
-  // 1. 로그인 시 내 아이디 등록
+  // 1. 유저 로그인/접속 알림 (Project.tsx에서 보내줘야 함)
   socket.on("register_user", (username) => {
+    // 초대용 매핑
     userSockets.set(username, socket.id);
-    console.log(`✅ 유저 등록: ${username} -> ${socket.id}`);
+    // 온라인 상태용 매핑
+    onlineUsers.set(socket.id, username);
+
+    console.log(`✅ 유저 온라인: ${username}`);
+
+    // 나 접속했다고 모두에게 알림 (Username 기준)
+    io.emit("user_status_change", { username: username, isOnline: true });
+
+    // 현재 접속자 리스트를 본인에게 전송
+    const onlineList = Array.from(onlineUsers.values());
+    socket.emit("current_online_users", onlineList);
   });
 
   // 2. 방 입장
   socket.on("join_room", async (projectId) => {
     const roomName = String(projectId);
     socket.join(roomName);
-    console.log(`🚪 [방 입장] ${socket.id} -> ${roomName}`);
-
     try {
       const history = await ChatMessage.find({ projectId: roomName }).sort({
         createdAt: 1,
       });
       socket.emit("load_messages", history);
     } catch (e) {
-      console.error("히스토리 로드 실패", e);
+      console.error(e);
     }
   });
 
@@ -262,22 +265,19 @@ io.on("connection", (socket) => {
     const targetSocketId = userSockets.get(targetUsername);
     if (targetSocketId) {
       io.to(targetSocketId).emit("project_invited", { projectName });
-      console.log(`🔔 초대 알림 전송: ${targetUsername}에게`);
     }
   });
 
   // 4. 메시지 전송
   socket.on("send_message", async (data) => {
-    console.log("📨 [메시지 받음]", data);
     const saveData = { ...data, projectId: String(data.projectId) };
-
     try {
       const newMsg = new ChatMessage(saveData);
       await newMsg.save();
       const roomName = String(data.projectId);
       io.to(roomName).emit("receive_message", saveData);
     } catch (e) {
-      console.error("메시지 저장 실패", e);
+      console.error(e);
     }
   });
 
@@ -292,42 +292,29 @@ io.on("connection", (socket) => {
     socket.broadcast.to(roomName).emit("board_updated");
   });
 
-  // 7. 접속 종료
+  // 7. 🔥 [통합] 접속 종료 (하나의 핸들러에서 모두 처리)
   socket.on("disconnect", () => {
-    // 나간 유저 제거
-    for (const [username, sid] of userSockets.entries()) {
-      if (sid === socket.id) {
-        userSockets.delete(username);
-        break;
-      }
+    const disconnectedUser = onlineUsers.get(socket.id);
+
+    if (disconnectedUser) {
+      // 1. 온라인 맵에서 제거
+      onlineUsers.delete(socket.id);
+      // 2. 초대용 맵에서도 제거
+      userSockets.delete(disconnectedUser);
+
+      // 3. 모두에게 오프라인 알림 전송
+      io.emit("user_status_change", {
+        username: disconnectedUser,
+        isOnline: false,
+      });
+
+      console.log(`❌ 접속 종료: ${disconnectedUser}`);
+    } else {
+      console.log(`❌ 접속 종료 (비로그인): ${socket.id}`);
     }
-    console.log(`❌ 접속 종료: ${socket.id}`);
+
     socket.broadcast.emit("user-disconnected", socket.id);
   });
-
-  // 1. 유저가 접속하면 실행 (프론트에서 이 이벤트를 보내줘야 함)
-  socket.on("user_connected", (userId) => {
-    // 소켓ID와 유저ID 매핑
-    onlineUsers.set(socket.id, userId);
-    
-    // 모든 사람에게 "이 유저 온라인이야!" 알림
-    io.emit("user_status_change", { userId: userId, isOnline: true });
-    
-    // (선택사항) 현재 접속 중인 유저 목록을 본인에게 보내줌 (초기 로딩용)
-    const onlineUserIds = Array.from(onlineUsers.values());
-    socket.emit("current_online_users", onlineUserIds);
-  });
-
-  // 2. 연결이 끊기면 (창 닫기, 로그아웃 등)
-  socket.on("disconnect", () => {
-    const userId = onlineUsers.get(socket.id);
-    if (userId) {
-      // 모든 사람에게 "이 유저 오프라인이야!" 알림
-      io.emit("user_status_change", { userId: userId, isOnline: false });
-      onlineUsers.delete(socket.id);
-    }
-  });
-  
 });
 
 // --- 배포 설정 ---

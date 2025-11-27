@@ -164,64 +164,69 @@ const Project: React.FC = () => {
 
   // --- 소켓 연결 ---
   useEffect(() => {
-    if (!currentProjectId) return;
+  if (!currentProjectId || !token) return;
 
-    socketRef.current = io(SERVER_URL, { transports: ["websocket"] });
+  socketRef.current = io(SERVER_URL, { transports: ["websocket"] });
 
-    // 1. 소켓 연결 후 "나 접속했어!" 알림 보내기
-    // (⚠️ 실제 구현시: userService.getMe() 등으로 얻은 진짜 내 ID를 보내야 함)
-    // 여기서는 예시로 로컬스토리지나 context에서 가져온 ID를 쓴다고 가정
-    const myUserId = localStorage.getItem("userId"); // 혹은 user.id
+  // 🔥 [수정] 로그인한 유저의 "username" 가져오기 (토큰 디코딩 필요)
+  // useAuth()에서 user 객체를 제공한다면 user.username을 사용하세요.
+  // 여기서는 localStorage의 예시를 듭니다. (본인 로직에 맞게 수정 필요)
+  const myUsername = localStorage.getItem("username"); // 예: "kim1234"
+
+  socketRef.current.on("connect", () => {
+    if (myUsername) {
+      // 🔥 [중요] ID(숫자)가 아니라 username(문자)를 보냅니다.
+      socketRef.current.emit("register_user", myUsername);
+    }
+  });
+
+  const roomName = String(currentProjectId);
+  socketRef.current.emit("join_room", roomName);
+
+  socketRef.current.on("board_updated", () => {
+    fetchProjectData();
+  });
+
+  // 🔥 [수정] 실시간 상태 변경 알림 (username 기준 매칭)
+  socketRef.current.on("user_status_change", ({ username, isOnline }: { username: string, isOnline: boolean }) => {
     
-    socketRef.current.on("connect", () => {
-        if (myUserId) {
-            socketRef.current.emit("user_connected", Number(myUserId));
-        }
-    });
+    // 1. 프로젝트 멤버 업데이트
+    setMembers((prevMembers) =>
+      prevMembers.map((m) =>
+        // 멤버의 이름(name)이나 username이 소켓에서 온 username과 같으면 상태 변경
+        (m.name === username) ? { ...m, isOnline: isOnline } : m
+      )
+    );
 
-    const roomName = String(currentProjectId);
-    socketRef.current.emit("join_room", roomName);
+    // 2. 사이드바 친구 목록 업데이트
+    setFriends((prevFriends) =>
+      (prevFriends as any[]).map((f) =>
+        (f.username === username) ? { ...f, isOnline: isOnline } : f
+      )
+    );
+  });
 
-    // 2. [기존 기능] 보드 업데이트
-    socketRef.current.on("board_updated", () => {
-      fetchProjectData();
-    });
+  // 🔥 [수정] 초기 온라인 목록 로드
+  socketRef.current.on("current_online_users", (onlineUsernames: string[]) => {
+    setMembers((prev) =>
+      prev.map((m) => ({
+        ...m,
+        isOnline: onlineUsernames.includes(m.name), // 이름으로 매칭
+      }))
+    );
 
-    // 3. 🔥 [추가 기능] 실시간 상태 변경 알림 받기 (친구 & 멤버 동시 적용)
-    socketRef.current.on("user_status_change", ({ userId, isOnline }: { userId: number, isOnline: boolean }) => {
-      // (1) 프로젝트 멤버 리스트 업데이트
-      setMembers((prevMembers) => 
-        prevMembers.map((m) => 
-          m.id === userId ? { ...m, isOnline: isOnline } : m
-        )
-      );
+    setFriends((prev) =>
+      (prev as any[]).map((f) => ({
+        ...f,
+        isOnline: onlineUsernames.includes(f.username), // username으로 매칭
+      }))
+    );
+  });
 
-      // (2) 친구 리스트 업데이트 (사이드바용)
-      setFriends((prevFriends) => 
-        // Friend 타입에 id가 있다고 가정 (없다면 백엔드에서 id를 같이 보내주도록 수정 필요)
-        (prevFriends as any[]).map((f) => 
-           f.id === userId ? { ...f, isOnline: isOnline } : f
-        )
-      );
-    });
-    
-    // 4. 🔥 [추가 기능] 처음 들어왔을 때 현재 온라인인 사람들 싹 갱신
-    socketRef.current.on("current_online_users", (onlineIds: number[]) => {
-        setMembers((prev) => prev.map(m => ({
-            ...m,
-            isOnline: onlineIds.includes(m.id)
-        })));
-        
-        setFriends((prev) => (prev as any[]).map(f => ({
-            ...f,
-            isOnline: onlineIds.includes(f.id)
-        })));
-    });
-
-    return () => {
-      socketRef.current.disconnect();
-    };
-  }, [currentProjectId, fetchProjectData]);
+  return () => {
+    socketRef.current.disconnect();
+  };
+}, [currentProjectId, token]);
 
 
   // --- 인앱 툴 관리 핸들러 ---
