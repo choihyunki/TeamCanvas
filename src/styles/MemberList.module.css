@@ -1,5 +1,3 @@
-/* src/styles/MemberList.module.css */
-
 .container {
   display: flex;
   flex-direction: column;
@@ -37,6 +35,7 @@
   color: #4f46e5;
   font-weight: 600;
   transition: all 0.2s;
+  margin-top: auto; /* 버튼을 아래로 밀기 */
 }
 
 .addButton:hover {
@@ -56,70 +55,119 @@
 }
 
 .cardWrapper {
-  position: relative;
-  /* [NEW] 드래그 가능한 요소에 move 커서 적용 */
-  cursor: move; 
-}
-
-/* 🔥 새로 추가된 멤버 카드 스타일 */
-.memberCard {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
-  background: #fff;
-  border: 1px solid #eee;
+  padding: 10px;
+  background-color: #fff;
   border-radius: 8px;
-  transition: transform 0.1s, box-shadow 0.1s;
-  /* [NEW] 드래그 중인 상태를 명시 */
-  cursor: move; 
+  border: 1px solid #eee;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  cursor: grab;
+  position: relative;
+  transition: background-color 0.2s, transform 0.1s;
 }
 
-.memberCard:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  border-color: #d1d5db;
+.cardWrapper:hover {
+  background-color: #f9fafb;
 }
 
-.avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #4f46e5;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.cardWrapper:active {
+  cursor: grabbing;
+}
+
+/* --- 🔥 [추가] 아바타 및 상태 점 스타일 --- */
+
+.avatarWrapper {
+  position: relative;
+  width: 36px;
+  height: 36px;
   margin-right: 12px;
-  font-size: 14px;
-  font-weight: bold;
   flex-shrink: 0;
 }
 
-.memberName {
-  font-weight: 500;
-  font-size: 15px;
-  color: #374151;
+.avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+  font-weight: bold;
+  border: 1px solid #e5e7eb;
 }
 
-.deleteButton {
+/* 상태 점 (Dot) */
+.statusDot {
   position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
+  bottom: -2px;
+  right: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #ffffff; /* 흰색 테두리로 구분 */
+}
+
+.online {
+  background-color: #10b981; /* 초록색 */
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+.offline {
+  background-color: #9ca3af; /* 회색 */
+}
+
+/* --- 🔥 [추가] 텍스트 정보 스타일 --- */
+
+.memberInfo {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.memberName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  line-height: 1.2;
+}
+
+.statusText {
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.textOnline {
+  color: #10b981;
+}
+
+.textOffline {
+  color: #9ca3af;
+}
+
+/* 삭제 버튼 */
+.deleteButton {
   background: transparent;
   border: none;
-  font-size: 18px;
-  cursor: pointer;
   color: #9ca3af;
-  transition: color 0.2s;
+  cursor: pointer;
+  font-size: 18px;
   padding: 4px;
+  margin-left: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: color 0.2s;
 }
 
 .deleteButton:hover {
   color: #ef4444;
-  background: #fee2e2;
-  border-radius: 4px;
 }
