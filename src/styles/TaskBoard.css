@@ -1,27 +1,29 @@
+/* 전체 레이아웃 */
 .swimlane-wrapper {
   height: 100%;
+  overflow-x: auto; /* 가로 스크롤 허용 */
   overflow-y: auto;
-  padding: 0 10px 10px 0;
+  padding: 20px;
   box-sizing: border-box;
+  background-color: #fff;
 }
 
 .swimlane-container {
   display: flex;
   flex-direction: column;
-  min-width: 900px;
+  min-width: 900px; /* 너무 좁아지지 않도록 최소 너비 설정 */
   width: 100%;
-  background-color: #ffffff;
-  border-radius: 8px;
   border: 1px solid #e5e7eb;
-  box-sizing: border-box;
-  overflow: hidden;
+  border-radius: 8px;
+  overflow: hidden; /* 둥근 모서리 유지 */
 }
 
+/* --- 헤더 영역 (상태 컬럼) --- */
 .swimlane-header {
   display: grid;
-  grid-template-columns: 200px 1fr 1fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr; /* 역할영역 | 대기 | 진행 | 완료 */
   background-color: #f9fafb;
-  border-bottom: 2px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .header-cell {
@@ -33,226 +35,241 @@
   align-items: center;
   gap: 8px;
   border-right: 1px solid #e5e7eb;
-  box-sizing: border-box;
 }
 
-.swimlane-header .header-cell:last-child {
+.header-cell:last-child {
   border-right: none;
 }
 
-.role-header {
-  color: #9ca3af;
-}
-
+/* 상태 점 (Dot) */
 .status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
+/* --- 바디 영역 (행/열) --- */
 .swimlane-body {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .swimlane-row {
   display: grid;
-  grid-template-columns: 200px 1fr 1fr 1fr;
+  grid-template-columns: 200px 1fr 1fr 1fr; /* 헤더와 동일한 비율 */
   border-bottom: 1px solid #e5e7eb;
-  min-height: 120px;
-  box-sizing: border-box;
+  min-height: 150px; /* 행의 최소 높이 */
 }
 
+/* 1. 왼쪽 역할(Role) 헤더 */
 .row-header {
   background-color: #ffffff;
   padding: 16px;
   border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  transition: background-color 0.2s;
+  justify-content: flex-start; /* 위쪽 정렬 */
   position: relative;
-  box-sizing: border-box;
-  flex-shrink: 0;
+  transition: background-color 0.2s;
 }
 
-.role-member-avatars {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 8px;
-}
-
-.member-avatar-mini {
-    width: 24px;
-    height: 24px;
-    background-color: #e0e7ff;
-    color: #3B82F6;
-    border-radius: 50%;
-    font-size: 11px;
-    font-weight: 700;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: move; 
-    position: relative;
-}
-
-.member-status-dot {
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    border: 1.5px solid white;
-}
-
-.row-header:hover {
-    background-color: #f0f7ff;
-    border-color: #3B82F6;
+/* 드래그 오버 시 강조 효과 (Role Header) */
+.row-header.role-delete-area:hover {
+  background-color: #f3f4f6;
 }
 
 .role-name {
   font-size: 16px;
   font-weight: 700;
-  color: #1f2937;
+  color: #111827;
   margin-bottom: 4px;
 }
 
 .role-count {
   font-size: 12px;
   color: #9ca3af;
+  margin-bottom: 10px;
 }
 
+.role-member-avatars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* 역할 삭제 버튼 */
 .delete-role-btn {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 24px;
-    height: 24px;
-    background: transparent;
-    color: #9ca3af;
-    border: none;
-    cursor: pointer;
-    font-size: 16px;
-    opacity: 0;
-    transition: opacity 0.2s, color 0.2s;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, color 0.2s;
 }
 
 .row-header:hover .delete-role-btn {
-    opacity: 1;
+  opacity: 1;
 }
 
 .delete-role-btn:hover {
-    color: #B91C1C;
+  color: #ef4444; /* Red color */
 }
 
+/* 2. 작업 셀 (Swimlane Cell) */
 .swimlane-cell {
   background-color: #ffffff;
   padding: 12px;
+  border-right: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: background 0.2s;
-  box-sizing: border-box;
-  border-right: 1px solid #e5e7eb;
-  min-height: 160px;   
+  gap: 10px;
   position: relative;
+  transition: background-color 0.2s;
 }
 
 .swimlane-cell:last-child {
   border-right: none;
 }
 
+/* 드래그 오버 시 셀 강조 */
 .swimlane-cell:hover {
   background-color: #fafafa;
 }
 
+/* --- 할 일 카드 (Task Card) --- */
 .task-card-mini {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  padding: 10px;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  font-size: 14px;
-  color: #374151;
-  cursor: move; 
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  cursor: grab;
   position: relative;
-  transition: transform 0.1s, box-shadow 0.1s;
-}
-
-.task-card-mini:active {
-  cursor: move;
+  transition: all 0.2s;
 }
 
 .task-card-mini:hover {
-  border-color: #3B82F6;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-color: #4f46e5; /* 보라색 강조 */
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
+.task-title {
+  font-size: 14px;
+  color: #374151;
+  font-weight: 500;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+/* 🔥 [핵심] 카드 내 멤버 아이콘 컨테이너 */
+.task-assignee-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px; /* 아이콘 사이 간격 */
+  margin-top: 8px;
+}
+
+/* 🔥 [핵심] 멤버 아이콘 (동그라미) */
+.task-assignee-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #4f46e5; /* 기본 보라색 */
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ffffff; /* 아이콘 구분선 */
+}
+
+/* 왼쪽 역할 헤더에 있는 멤버 아이콘 (스타일 공유) */
+.member-avatar-mini {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #e0e7ff; /* 연한 보라색 배경 */
+  color: #4f46e5; /* 진한 보라색 글씨 */
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  border: 1px solid transparent;
+}
+
+/* 태스크 삭제 버튼 */
 .task-delete-btn {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  border: none;
+  top: 6px;
+  right: 6px;
   background: transparent;
+  border: none;
   color: #d1d5db;
+  font-size: 14px;
   cursor: pointer;
-  font-size: 16px;
-  display: none;
+  display: none; /* 평소엔 숨김 */
 }
 
 .task-card-mini:hover .task-delete-btn {
-  display: block;
+  display: block; /* 호버 시 표시 */
 }
 
 .task-delete-btn:hover {
-  color: #B91C1C;
+  color: #ef4444;
 }
 
+/* 할 일 추가 버튼 (+ 추가) */
 .add-task-btn-mini {
   margin-top: auto;
-  padding: 6px;
+  width: 100%;
+  padding: 8px;
   border: 1px dashed #d1d5db;
-  background: transparent;
+  background-color: transparent;
   color: #6b7280;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
-  width: 100%;
   transition: all 0.2s;
 }
 
 .add-task-btn-mini:hover {
-  border-color: #3B82F6;
-  color: #3B82F6;
-  background: #eff6ff;
+  border-color: #4f46e5;
+  color: #4f46e5;
+  background-color: #eef2ff;
 }
 
+/* --- 하단 역할 추가 영역 --- */
 .add-role-area {
-    padding: 12px 0;
-    border-top: 1px solid #e5e7eb;
-    background-color: #f9fafb;
-    display: flex;
-    justify-content: center;
+  padding: 16px;
+  background-color: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: center;
 }
 
 .add-role-btn-large {
-    padding: 10px 20px;
-    background-color: #ffffff;
-    color: #4f46e5;
-    border: 1px solid #4f46e5;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    width: 300px;
+  width: 100%;
+  max-width: 300px;
+  padding: 10px;
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  color: #374151;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .add-role-btn-large:hover {
-    background-color: #4f46e5;
-    color: #ffffff;
-    box-shadow: 0 4px 6px rgba(79, 70, 229, 0.2);
+  border-color: #4f46e5;
+  color: #4f46e5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }

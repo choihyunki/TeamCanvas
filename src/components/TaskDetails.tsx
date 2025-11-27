@@ -1,303 +1,183 @@
 import React, { useState, useEffect } from "react";
 import { Member } from "../types/Member";
-import { RoleColumn } from "../types/Project";
-import { Task } from "../types/Task"; // 🔥 [수정] Task 타입 임포트 추가!
+import { RoleColumn, SubTask } from "../types/Project";
+import { Task } from "../types/Task";
 import "../styles/TaskDetails.css";
 
 interface Props {
   columns: RoleColumn[];
   members: Member[];
-  // (구조 유지를 위해 남겨둠 - 실제로는 안 쓰더라도 에러 방지용)
-  tasks?: Task[];
-  selectedTaskId?: number | null;
-  onUpdateTask?: (updatedTask: Task) => void;
+  tasks: Task[];
+  selectedTaskId: number | null;
+  onUpdateTask?: (updatedTask: Task) => void; // (사용 안 함, 에러 방지용)
 
-  // 🔥 [필수 추가] Project.tsx에서 내려받은 세부 작업 핸들러
+  // 서브 태스크 핸들러
   onAddSubTask: (columnId: number, memberId: number, content: string) => void;
-  onToggleSubTask: (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => void;
-  onDeleteSubTask: (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => void;
+  onToggleSubTask: (columnId: number, memberId: number, subTaskId: number) => void;
+  onDeleteSubTask: (columnId: number, memberId: number, subTaskId: number) => void;
 }
+
+// 🔥 [디자인 반영] 진행 상태 옵션 (색상 포함)
+const STATUS_OPTIONS = [
+  { value: "TODO", label: "할 일", color: "#6b7280", bg: "#f3f4f6" }, // 회색
+  { value: "IN_PROGRESS", label: "진행중", color: "#ffffff", bg: "#3B82F6" }, // 파랑
+  { value: "DONE", label: "완료", color: "#ffffff", bg: "#10b981" }, // 초록
+  { value: "DROP", label: "Drop", color: "#ffffff", bg: "#374151" }, // 진한 회색
+  { value: "PASS", label: "Pass", color: "#ffffff", bg: "#8b5cf6" }, // 보라색
+];
 
 const TaskDetails: React.FC<Props> = ({
   columns,
   members,
+  tasks,
+  selectedTaskId,
   onAddSubTask,
-  onToggleSubTask,
+  onToggleSubTask, // 여기서는 상태 변경용으로 사용
   onDeleteSubTask,
 }) => {
-  // 1. 현재 선택된 보드(Column) 관리
-  const [selectedColumnId, setSelectedColumnId] = useState<number | null>(
-    columns.length > 0 ? columns[0].id : null
-  );
-
-  // 2. 입력창 상태 관리 (멤버 ID별로 입력값을 저장)
+  const selectedTask = tasks.find((t) => t.id === selectedTaskId);
+  
+  // 입력창 상태 (멤버 ID별)
   const [inputs, setInputs] = useState<{ [key: number]: string }>({});
 
-  // 보드가 변경되면 첫 번째 보드를 기본 선택
-  useEffect(() => {
-    if (!selectedColumnId && columns.length > 0) {
-      setSelectedColumnId(columns[0].id);
+  if (!selectedTask) {
+    return <div className="empty-msg">작업을 선택해주세요.</div>;
+  }
+
+  // 현재 Task가 속한 컬럼(Role) 찾기
+  const currentColumn = columns.find((c) => c.id === selectedTask.columnId);
+
+  // 🔥 [핵심 수정] 할당된 멤버 필터링 로직 강화
+  // 1. 현재 컬럼에 속한 멤버들 중에서
+  // 2. Task에 할당된 멤버 이름 리스트에 포함된 사람만 필터링
+  const assignedProjectMembers = currentColumn
+    ? currentColumn.members.filter((pm) => {
+        const globalMember = members.find((m) => m.id === pm.id);
+        return globalMember && selectedTask.members.includes(globalMember.name);
+      })
+    : [];
+
+  const handleInputChange = (id: number, val: string) => {
+    setInputs((prev) => ({ ...prev, [id]: val }));
+  };
+
+  const handleAdd = (memberId: number) => {
+    if (!inputs[memberId]?.trim()) return;
+    if (currentColumn) {
+      onAddSubTask(currentColumn.id, memberId, inputs[memberId]);
+      setInputs((prev) => ({ ...prev, [memberId]: "" }));
     }
-  }, [columns, selectedColumnId]);
-
-  const handleInputChange = (memberId: number, val: string) => {
-    setInputs((prev) => ({ ...prev, [memberId]: val }));
   };
-
-  const handleSubmit = (columnId: number, memberId: number) => {
-    const content = inputs[memberId];
-    if (!content || !content.trim()) return;
-
-    onAddSubTask(columnId, memberId, content.trim());
-    setInputs((prev) => ({ ...prev, [memberId]: "" })); // 입력창 초기화
-  };
-
-  const selectedColumn = columns.find((c) => c.id === selectedColumnId);
 
   return (
-    <div className="task-details-container">
-      <h2 className="task-details-title">세부 작업 내용</h2>
+    <div className="task-details-wrapper">
+      <h2 className="details-title">
+        📄 {selectedTask.title} <span className="sub-title">(세부 작업 관리)</span>
+      </h2>
 
-      {/* 1. 상단 탭: 어떤 보드(역할)를 볼 것인가? */}
-      <div
-        style={{
-          display: "flex",
-          gap: 8,
-          overflowX: "auto",
-          paddingBottom: 10,
-          borderBottom: "1px solid #eee",
-          marginBottom: 20,
-        }}
-      >
-        {columns.length === 0 && (
-          <p style={{ color: "#999", fontSize: 14 }}>
-            생성된 작업 보드가 없습니다.
-          </p>
-        )}
-
-        {columns.map((col) => (
-          <button
-            key={col.id}
-            onClick={() => setSelectedColumnId(col.id)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "20px",
-              border: "none",
-              background: selectedColumnId === col.id ? "#4f46e5" : "#e0e7ff",
-              color: selectedColumnId === col.id ? "white" : "#4f46e5",
-              fontWeight: "bold",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              fontSize: "14px",
-            }}
-          >
-            {col.name}
-          </button>
-        ))}
-      </div>
-
-      {/* 2. 선택된 보드의 멤버별 작업 리스트 */}
-      {selectedColumn ? (
-        <div className="details-content">
-          {selectedColumn.members.length === 0 ? (
-            <div
-              className="empty-message"
-              style={{
-                textAlign: "center",
-                padding: "40px 0",
-                color: "#999",
-                border: "2px dashed #eee",
-                borderRadius: 8,
-              }}
-            >
-              이 보드에 배정된 멤버가 없습니다.
-              <br />
-              <span style={{ fontSize: 12 }}>
-                ('작업 보드' 탭에서 멤버를 드래그하여 추가하세요)
-              </span>
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 20 }}>
-              {selectedColumn.members.map((m) => {
-                const memberInfo = members.find((mm) => mm.id === m.id);
-                const subTasks = m.subTasks || []; // 없으면 빈 배열
-
-                if (!memberInfo) return null;
+      {/* 테이블 영역 */}
+      <div className="table-container">
+        <table className="custom-table">
+          <thead>
+            <tr>
+              <th style={{ width: "15%" }}>작업자</th>
+              <th style={{ width: "50%" }}>작업내용</th>
+              <th style={{ width: "20%" }}>진행상태</th>
+              <th style={{ width: "15%" }}>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {assignedProjectMembers.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="no-members">
+                  이 작업에 할당된 멤버가 없습니다. <br />
+                  (TaskBoard에서 멤버를 드래그하여 추가하세요)
+                </td>
+              </tr>
+            ) : (
+              assignedProjectMembers.map((pm) => {
+                const globalMember = members.find((m) => m.id === pm.id);
+                const subTasks = pm.subTasks || [];
 
                 return (
-                  <div
-                    key={m.id}
-                    style={{
-                      background: "white",
-                      padding: 15,
-                      borderRadius: 8,
-                      border: "1px solid #e5e7eb",
-                      boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-                    }}
-                  >
-                    {/* 멤버 헤더 */}
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        marginBottom: 12,
-                        borderBottom: "1px solid #f3f4f6",
-                        paddingBottom: 8,
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: "50%",
-                          background: "#4f46e5",
-                          color: "white",
-                          display: "flex",
-                          justifyContent: "center",
-                          alignItems: "center",
-                          marginRight: 10,
-                          fontSize: 14,
-                          fontWeight: "bold",
-                        }}
-                      >
-                        {memberInfo.name[0]}
-                      </div>
-                      <h3 style={{ margin: 0, fontSize: 16 }}>
-                        {memberInfo.name}
-                      </h3>
-                      <span
-                        style={{
-                          marginLeft: "auto",
-                          fontSize: 12,
-                          color: "#888",
-                        }}
-                      >
-                        {subTasks.filter((t) => t.completed).length} /{" "}
-                        {subTasks.length} 완료
-                      </span>
-                    </div>
+                  <React.Fragment key={pm.id}>
+                    {/* 1. 멤버 이름 행 (작업자가 누군지 표시) */}
+                    <tr className="member-header-row">
+                      <td rowSpan={subTasks.length + 2} className="member-cell">
+                        <div className="member-badge">
+                          {globalMember?.name}
+                        </div>
+                      </td>
+                    </tr>
 
-                    {/* 작업 리스트 (체크박스) */}
-                    <ul
-                      style={{
-                        listStyle: "none",
-                        padding: 0,
-                        margin: "0 0 15px 0",
-                      }}
-                    >
-                      {subTasks.map((task) => (
-                        <li
-                          key={task.id}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            padding: "8px 0",
-                            borderBottom: "1px solid #f9fafb",
-                          }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={task.completed}
-                            onChange={() =>
-                              onToggleSubTask(selectedColumn.id, m.id, task.id)
-                            }
-                            style={{
-                              width: 16,
-                              height: 16,
-                              marginRight: 10,
-                              cursor: "pointer",
-                              accentColor: "#4f46e5",
-                            }}
-                          />
-                          <span
-                            style={{
-                              flex: 1,
-                              fontSize: 14,
-                              textDecoration: task.completed
-                                ? "line-through"
-                                : "none",
-                              color: task.completed ? "#aaa" : "#333",
-                              transition: "color 0.2s",
-                            }}
-                          >
-                            {task.content}
-                          </span>
-                          <button
-                            onClick={() =>
-                              onDeleteSubTask(selectedColumn.id, m.id, task.id)
-                            }
-                            style={{
-                              background: "none",
-                              border: "none",
-                              color: "#ef4444",
-                              cursor: "pointer",
-                              fontSize: 14,
-                              padding: "0 5px",
-                            }}
-                            title="삭제"
-                          >
-                            ✕
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    {/* 2. 기존 서브 태스크 리스트 */}
+                    {subTasks.map((st) => {
+                      // completed 상태에 따라 스타일 결정
+                      const currentStatus = st.completed ? "DONE" : "TODO"; // 임시 로직 (DB에 status 필드 추가 권장)
+                      const statusStyle = STATUS_OPTIONS.find(o => o.value === currentStatus) || STATUS_OPTIONS[0];
 
-                    {/* 작업 추가 입력창 (Cell Add Style) */}
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <input
-                        type="text"
-                        placeholder="+ 할 일 입력 (Enter)"
-                        value={inputs[m.id] || ""}
-                        onChange={(e) =>
-                          handleInputChange(m.id, e.target.value)
-                        }
-                        onKeyDown={(e) =>
-                          e.key === "Enter" &&
-                          handleSubmit(selectedColumn.id, m.id)
-                        }
-                        style={{
-                          flex: 1,
-                          padding: "8px 10px",
-                          borderRadius: 6,
-                          border: "1px solid #ddd",
-                          fontSize: 13,
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSubmit(selectedColumn.id, m.id)}
-                        style={{
-                          padding: "8px 14px",
-                          background: "#4f46e5",
-                          color: "white",
-                          border: "none",
-                          borderRadius: 6,
-                          cursor: "pointer",
-                          fontSize: 13,
-                          fontWeight: 600,
-                        }}
-                      >
-                        추가
-                      </button>
-                    </div>
-                  </div>
+                      return (
+                        <tr key={st.id} className="task-row">
+                          <td className="content-cell">{st.content}</td>
+                          <td className="status-cell">
+                            {/* 🔥 상태 변경 드롭다운 (뱃지 스타일) */}
+                            <select
+                              className="status-select"
+                              value={st.completed ? "DONE" : "TODO"}
+                              onChange={() => {
+                                // 현재 API 한계로 토글만 호출 (실제로는 status update 호출 필요)
+                                if (currentColumn) {
+                                    onToggleSubTask(currentColumn.id, pm.id, st.id);
+                                }
+                              }}
+                              style={{
+                                backgroundColor: st.completed ? "#10b981" : "#6b7280",
+                                color: "white",
+                              }}
+                            >
+                              {STATUS_OPTIONS.map((opt) => (
+                                <option key={opt.value} value={opt.value} style={{ color: 'black', background: 'white' }}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="action-cell">
+                            <button
+                              className="delete-btn"
+                              onClick={() =>
+                                currentColumn && onDeleteSubTask(currentColumn.id, pm.id, st.id)
+                              }
+                            >
+                              삭제
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+
+                    {/* 3. 작업 추가 입력 행 */}
+                    <tr className="input-row">
+                        <td colSpan={3}>
+                            <div className="input-group">
+                                <input 
+                                    type="text" 
+                                    placeholder={`${globalMember?.name}의 작업 추가...`}
+                                    value={inputs[pm.id] || ""}
+                                    onChange={(e) => handleInputChange(pm.id, e.target.value)}
+                                    onKeyDown={(e) => e.key === "Enter" && handleAdd(pm.id)}
+                                />
+                                <button onClick={() => handleAdd(pm.id)}>추가</button>
+                            </div>
+                        </td>
+                    </tr>
+                  </React.Fragment>
                 );
-              })}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="empty-message" style={{ marginTop: 50 }}>
-          선택된 보드가 없습니다.
-        </div>
-      )}
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
