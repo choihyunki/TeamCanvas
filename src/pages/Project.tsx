@@ -763,8 +763,7 @@ const Project: React.FC = () => {
     memberId: number | string,
     content: string
   ) => {
-    const cIdStr = String(columnId);
-    const mIdStr = String(memberId);
+    console.log("➕ 세부 작업 추가 시도:", { columnId, memberId, content }); // 로그 확인
 
     const newSubTask: SubTask = {
       id: Date.now().toString(),
@@ -774,19 +773,22 @@ const Project: React.FC = () => {
 
     setColumns((prevColumns) => {
       const newColumns = prevColumns.map((col) => {
-        if (String(col.id) !== cIdStr) return col;
+        // 컬럼 ID 비교 (문자열로 변환)
+        if (String(col.id) !== String(columnId)) return col;
 
         return {
           ...col,
           members: col.members.map((m) => {
-            if (String(m.id) !== mIdStr) return m;
+            // 🔥 [핵심] 멤버 ID 비교 (문자열로 변환)
+            if (String(m.id) !== String(memberId)) return m;
 
+            console.log("✅ 타겟 멤버 찾음:", m.name); // 찾았는지 로그
             const existingSubTasks = m.subTasks || [];
             return {
               ...m,
               subTasks: [...existingSubTasks, newSubTask],
             };
-          }) as ExtendedProjectMember[],
+          }) as ExtendedProjectMember[], // 타입 단언 유지
         } as RoleColumn;
       });
 
