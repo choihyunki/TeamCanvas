@@ -6,12 +6,12 @@ const TaskService = {
   // 1. 새 태스크 생성
   createTask: (
     currentTasks: Task[],
-    columnId: number,
+    columnId: string,
     status: string,
     title: string
   ): Task[] => {
     const newTask: Task = {
-      id: Date.now(),
+      id: Date.now().toString(),
       columnId,
       status,
       title,
@@ -23,7 +23,7 @@ const TaskService = {
   // 2. 상태 변경 (Drag & Drop 등)
   updateStatus: (
     currentTasks: Task[],
-    taskId: number,
+    taskId: string,
     newStatus: string
   ): Task[] => {
     return currentTasks.map((t) =>
@@ -32,14 +32,14 @@ const TaskService = {
   },
 
   // 3. 삭제
-  deleteTask: (currentTasks: Task[], taskId: number): Task[] => {
+  deleteTask: (currentTasks: Task[], taskId: string): Task[] => {
     return currentTasks.filter((t) => t.id !== taskId);
   },
 
   // 4. 담당자 배정/해제 토글
   toggleMemberAssignment: (
     currentTasks: Task[],
-    taskId: number,
+    taskId: string,
     member: Member
   ): Task[] => {
     return currentTasks.map((t) => {
@@ -69,7 +69,7 @@ const TaskService = {
   },
 
   // 7. 컬럼이 삭제되었을 때 해당 태스크 제거
-  removeTasksByColumn: (currentTasks: Task[], columnId: number): Task[] => {
+  removeTasksByColumn: (currentTasks: Task[], columnId: string): Task[] => {
     return currentTasks.filter((t) => t.columnId !== columnId);
   },
 };
