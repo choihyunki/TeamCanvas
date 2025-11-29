@@ -758,113 +758,71 @@ const Project: React.FC = () => {
 
   // --- 🔥 SubTask 핸들러 (ID: String 적용) ---
 
-  const handleAddSubTask = (
-    columnId: number | string,
-    memberId: number | string,
-    content: string
-  ) => {
-    console.log("➕ 세부 작업 추가 시도:", { columnId, memberId, content }); // 로그 확인
+  const handleAddSubTask = (columnId: number | string, memberId: number | string, content: string) => {
+    console.log(`➕ 세부 작업 추가 시도: Column(${columnId}), Member(${memberId}), Content(${content})`);
 
-    const newSubTask: SubTask = {
-      id: Date.now().toString(),
-      content: content,
-      completed: false,
-    };
+    // 1. 새 컬럼 상태 만들기
+    const newColumns = columns.map((col) => {
+      // 컬럼 ID 비교 (문자열로 변환)
+      if (String(col.id) !== String(columnId)) return col;
 
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        // 컬럼 ID 비교 (문자열로 변환)
-        if (String(col.id) !== String(columnId)) return col;
+      // 멤버 찾기
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          // 멤버 ID 비교 (문자열로 변환)
+          if (String(m.id) !== String(memberId)) return m;
+          
+          console.log("✅ 타겟 멤버 찾음:", m.name); 
 
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            // 🔥 [핵심] 멤버 ID 비교 (문자열로 변환)
-            if (String(m.id) !== String(memberId)) return m;
-
-            console.log("✅ 타겟 멤버 찾음:", m.name); // 찾았는지 로그
-            const existingSubTasks = m.subTasks || [];
-            return {
-              ...m,
-              subTasks: [...existingSubTasks, newSubTask],
-            };
-          }) as ExtendedProjectMember[], // 타입 단언 유지
-        } as RoleColumn;
-      });
-
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+          const newSub = { id: Date.now().toString(), content, completed: false };
+          // 기존 subTasks가 없으면 빈 배열로 처리
+          return { ...m, subTasks: [...(m.subTasks || []), newSub] };
+        }),
+      } as any; // 타입 호환성을 위해 as any 사용 (RoleColumn 구조 맞춤)
     });
+
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
 
-  const handleToggleSubTask = (
-    columnId: number | string,
-    memberId: number | string,
-    subTaskId: number | string
-  ) => {
-    const cIdStr = String(columnId);
-    const mIdStr = String(memberId);
-    const sIdStr = String(subTaskId);
-
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        if (String(col.id) !== cIdStr) return col;
-
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (String(m.id) !== mIdStr) return m;
-
-            return {
-              ...m,
-              subTasks: (m.subTasks || []).map((st) =>
-                String(st.id) === sIdStr
-                  ? { ...st, completed: !st.completed }
-                  : st
-              ),
-            };
-          }) as ExtendedProjectMember[],
-        } as RoleColumn;
-      });
-
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+  const handleToggleSubTask = (columnId: number | string, memberId: number | string, subTaskId: number | string) => {
+    const newColumns = columns.map((col) => {
+      if (String(col.id) !== String(columnId)) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (String(m.id) !== String(memberId)) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.map((sub) =>
+              String(sub.id) === String(subTaskId) ? { ...sub, completed: !sub.completed } : sub
+            ),
+          };
+        }),
+      } as any;
     });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
 
-  const handleDeleteSubTask = (
-    columnId: number | string,
-    memberId: number | string,
-    subTaskId: number | string
-  ) => {
-    const cIdStr = String(columnId);
-    const mIdStr = String(memberId);
-    const sIdStr = String(subTaskId);
-
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        if (String(col.id) !== cIdStr) return col;
-
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (String(m.id) !== mIdStr) return m;
-
-            return {
-              ...m,
-              subTasks: (m.subTasks || []).filter(
-                (st) => String(st.id) !== sIdStr
-              ),
-            };
-          }) as ExtendedProjectMember[],
-        } as RoleColumn;
-      });
-
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+  const handleDeleteSubTask = (columnId: number | string, memberId: number | string, subTaskId: number | string) => {
+    const newColumns = columns.map((col) => {
+      if (String(col.id) !== String(columnId)) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (String(m.id) !== String(memberId)) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.filter((sub) => String(sub.id) !== String(subTaskId)),
+          };
+        }),
+      } as any;
     });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
-
   return (
     <div
       className="project-layout"
