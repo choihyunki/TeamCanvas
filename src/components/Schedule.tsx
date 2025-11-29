@@ -8,7 +8,7 @@ interface Props {
 }
 
 const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newDueDate, setNewDueDate] = useState("");
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) || null;
