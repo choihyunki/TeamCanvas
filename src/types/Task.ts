@@ -2,10 +2,10 @@
 
 // 🔥 [수정] export 키워드 확인
 export interface Task {
-  id: number;
+  id: string;
   title: string;
   description?: string;
-  columnId: number;
+  columnId: string;
   members: string[];
   status?: string;
   memo?: string;

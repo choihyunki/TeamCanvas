@@ -1,22 +1,22 @@
 // src/types/Project.ts (수정 제안)
 
 export interface SubTask {
-  id: number;
+  id: string;
   content: string;
   completed: boolean;
 }
 
 export interface ProjectMember {
-  id: number;
-  name: string;      
-  role?: string;   
+  id: string;
+  name: string;
+  role?: string;
   status: string;
   memo?: string;
   subTasks?: SubTask[];
 }
 
 export interface RoleColumn {
-  id: number;
+  id: string;
   name: string;
   members: ProjectMember[];
 }
