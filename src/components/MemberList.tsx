@@ -5,7 +5,7 @@ import styles from "../styles/MemberList.module.css";
 interface Props {
   members: Member[];
   onAddMemberClick: () => void;
-  onDeleteMember: (memberId: number) => void;
+  onDeleteMember: (memberId: string) => void;
   onAddMemberFromFriend: (
     friendId: number | string,
     friendName: string
@@ -39,7 +39,7 @@ const MemberList: React.FC<Props> = ({
   // 드래그 시작 (TaskBoard로 이동용)
   const handleDragStart = (
     e: React.DragEvent<HTMLLIElement>,
-    memberId: number
+    memberId: string
   ) => {
     e.dataTransfer.setData("memberId", memberId.toString());
     e.dataTransfer.setData("type", "MEMBER");
