@@ -1,143 +1,162 @@
+/* Project.css */
+
 .project-layout {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
 }
 
 .workspace-container {
-  display: flex;
-  flex: 1;
-  transition: margin-left 0.3s ease-in-out;
-  overflow: hidden;
+    display: flex;
+    flex: 1;
+    transition: margin-left 0.3s ease-in-out;
+    /* 레이아웃 안정화를 위해 hidden 유지 */
+    overflow: hidden; 
+    position: relative; 
 }
 
 .left-sidebar {
-  width: 220px;
-  border-right: 1px solid #e5e7eb;
-  transition: width 0.3s ease-in-out, padding 0.3s;
-  overflow: hidden;
-  background: #ffffff;
-  position: relative;
+    width: 220px;
+    border-right: 1px solid #e5e7eb;
+    transition: width 0.3s ease-in-out, padding 0.3s;
+    overflow: hidden;
+    background: #ffffff;
+    position: relative;
 }
 
 .left-sidebar.collapsed {
-  width: 0;
-  padding: 0;
-  border-right: none;
+    width: 0;
+    padding: 0;
+    border-right: none;
 }
 
 .project-main {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  background: #f9fafb;
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: #f9fafb;
 }
 
 .tabs-container {
-  padding: 0 10px;
-  border-bottom: 1px solid #e5e7eb;
-  background: #fff;
-  display: flex;
-  gap: 10px;
+    padding: 0 10px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    gap: 10px;
 }
 
 .tab-btn {
-  padding: 12px 16px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  font-size: 14px;
-  color: #6b7280;
-  transition: color 0.2s;
+    padding: 12px 16px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    font-size: 14px;
+    color: #6b7280;
+    transition: color 0.2s;
 }
 
 .tab-btn:hover {
-  color: #9747FF;
+    color: #9747FF;
 }
 
 .tab-btn.active {
-  border-bottom-color: #9747FF;
-  font-weight: bold;
-  color: #9747FF;
+    border-bottom-color: #9747FF;
+    font-weight: bold;
+    color: #9747FF;
 }
 
 .tab-content-area {
-  flex: 1;
-  overflow: auto;
-  position: relative;
+    flex: 1;
+    overflow: auto;
+    position: relative;
 }
 
 .toggle-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 50;
-  width: 24px;
-  height: 40px;
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 0 4px 4px 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6b7280;
-  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 50;
+    width: 24px;
+    height: 40px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6b7280;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease-in-out;
 }
 
 .toggle-btn.left {
-  left: 0;
+    left: 0;
 }
 
 .right-sidebar {
-  width: 300px;
-  border-left: 1px solid #e5e7eb;
-  transition: width 0.3s ease-in-out;
-  background: #fff;
-  overflow: hidden;
+    width: 300px;
+    border-left: 1px solid #e5e7eb;
+    transition: width 0.3s ease-in-out;
+    background: #fff;
+    
+    overflow: hidden; 
 
-  display: flex;
-  flex-direction: column;
-  height: 100%;
+    position: relative; 
+    display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .right-sidebar.collapsed {
-  width: 0;
-  border-left: none;
+    width: 0;
+    border-left: none;
 }
 
-/* 상태 점 기본 스타일 */
+/* 🔥 [추가] 오른쪽 토글 버튼 스타일 */
+.toggle-btn.right {
+    /* 기본 .toggle-btn 스타일에서 left를 auto로 변경하고 right를 사용 */
+    left: auto;
+    /* 오른쪽 버튼은 왼쪽 모서리만 둥글게 */
+    border-radius: 4px 0 0 4px;
+    /* 그림자 방향 반전 */
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.05);
+    /* 열려 있을 때: 사이드바 너비(300px)만큼 왼쪽으로 이동 */
+    right: 300px;
+}
+
+/* 🔥 [추가] 오른쪽 버튼: 사이드바가 닫혔을 때 (collapsed) */
+/* aside.right-sidebar.collapsed + button.toggle-btn.right */
+.right-sidebar.collapsed + .toggle-btn.right {
+    /* 닫혔을 때: 화면 오른쪽 끝(0px)에 위치하여 열림(▶) 버튼을 표시 */
+    right: 0px; 
+}
+
 .status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid white;
-  /* 흰색 테두리로 구분감 주기 */
-  position: absolute;
-  /* 아바타 우측 하단 등에 배치 */
-  bottom: 0;
-  right: 0;
-  transition: background-color 0.3s ease;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid white;
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    transition: background-color 0.3s ease;
 }
 
-/* 온라인 - 초록색 */
 .status-dot.online {
-  background-color: #10b981;
-  box-shadow: 0 0 5px rgba(16, 185, 129, 0.6);
-  /* 빛나는 효과 */
+    background-color: #10b981;
+    box-shadow: 0 0 5px rgba(16, 185, 129, 0.6);
 }
 
-/* 오프라인 - 회색 */
 .status-dot.offline {
-  background-color: #9ca3af;
+    background-color: #9ca3af;
 }
 
-/* 아바타 감싸는 div는 relative여야 점 위치 잡기가 편함 */
 .avatar-wrapper {
-  position: relative;
-  display: inline-block;
+    position: relative;
+    display: inline-block;
 }

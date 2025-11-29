@@ -39,13 +39,28 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
+// 🔥 [추가] Task 내부 스키마 정의 (startDate 포함)
+const TaskSubSchema = new mongoose.Schema({
+  id: Number,
+  columnId: Number,
+  status: String,
+  title: String,
+  members: { type: [String], default: [] },
+  dueDate: String,
+  startDate: String, // 🔥 시작일 필드 추가
+  description: String,
+  // 필요하다면 SubTask와 memo 필드도 여기에 추가해야 합니다.
+});
+
+
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
   members: { type: Array, default: [] },
   columns: { type: Array, default: [] },
-  tasks: { type: Array, default: [] },
+  // 🔥 [수정] tasks를 TaskSubSchema 배열로 변경
+  tasks: [TaskSubSchema],
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);
