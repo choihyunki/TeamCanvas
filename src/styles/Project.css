@@ -99,6 +99,10 @@
   transition: width 0.3s ease-in-out;
   background: #fff;
   overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .right-sidebar.collapsed {
@@ -111,8 +115,10 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid white; /* 흰색 테두리로 구분감 주기 */
-  position: absolute; /* 아바타 우측 하단 등에 배치 */
+  border: 2px solid white;
+  /* 흰색 테두리로 구분감 주기 */
+  position: absolute;
+  /* 아바타 우측 하단 등에 배치 */
   bottom: 0;
   right: 0;
   transition: background-color 0.3s ease;
@@ -120,8 +126,9 @@
 
 /* 온라인 - 초록색 */
 .status-dot.online {
-  background-color: #10b981; 
-  box-shadow: 0 0 5px rgba(16, 185, 129, 0.6); /* 빛나는 효과 */
+  background-color: #10b981;
+  box-shadow: 0 0 5px rgba(16, 185, 129, 0.6);
+  /* 빛나는 효과 */
 }
 
 /* 오프라인 - 회색 */

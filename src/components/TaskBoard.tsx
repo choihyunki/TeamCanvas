@@ -134,7 +134,8 @@ const TaskBoard: React.FC<Props> = ({
 
   return (
     <div className="swimlane-wrapper">
-      <div className="swimlane-container">
+      {/* 🔥 [구조 변경] swimlane-header 와 swimlane-body를 단일 컨테이너로 묶음 */}
+      <div className="swimlane-container"> 
         <div className="swimlane-header">
           <div className="header-cell role-header">역할 / 상태</div>
           {STATUSES.map((status) => (
@@ -147,126 +148,127 @@ const TaskBoard: React.FC<Props> = ({
             </div>
           ))}
         </div>
-      </div>
-      <div className="swimlane-body">
-        {columns.map((role) => {
-          const assignedMembersInRole = tasks
-            .filter((t) => t.columnId === role.id)
-            .flatMap((t) => t.members)
-            .filter((v, i, a) => a.indexOf(v) === i);
 
-          return (
-            <div key={role.id} className="swimlane-row">
-              {/* 역할 헤더 (드롭 존) */}
-              <div
-                className="row-header role-delete-area"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDropMemberOnRoleHeader(e, role.id)}
-              >
-                <span className="role-name">{role.name}</span>
-                <span className="role-count">
-                  배정: {assignedMembersInRole.length}명
-                </span>
+        <div className="swimlane-body">
+          {columns.map((role) => {
+            const assignedMembersInRole = tasks
+              .filter((t) => t.columnId === role.id)
+              .flatMap((t) => t.members)
+              .filter((v, i, a) => a.indexOf(v) === i);
 
-                {/* 역할별 멤버 아바타 표시 (이미지처럼 동그라미 아이콘) */}
-                <div className="role-member-avatars">
-                  {assignedMembersInRole.map((name) => {
-                    const member = getMemberByName(name);
-                    if (!member) return null;
-                    return (
-                      <div
-                        key={name}
-                        className="member-avatar-mini"
-                        title={name}
-                        draggable="true"
-                        onDragStart={(e) => handleMemberDragStart(e, member.id)}
-                      >
-                        {member.name.charAt(0)}
-                        {/* 멤버 상태 표시 (온라인/오프라인 등) - CSS로 위치 조정됨 */}
-                        {/* <div className="member-status-dot" style={{ backgroundColor: member.isOnline ? '#10B981' : '#9CA3AF' }} /> */}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                <button
-                  className="delete-role-btn"
-                  onClick={() => onDeleteColumn(role.id)}
+            return (
+              <div key={role.id} className="swimlane-row">
+                {/* 역할 헤더 (드롭 존) */}
+                <div
+                  className="row-header role-delete-area"
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDropMemberOnRoleHeader(e, role.id)}
                 >
-                  ✕
-                </button>
-              </div>
+                  <span className="role-name">{role.name}</span>
+                  <span className="role-count">
+                    배정: {assignedMembersInRole.length}명
+                  </span>
 
-              {/* 상태별 셀 */}
-              {STATUSES.map((status) => {
-                const cellTasks = tasks.filter(
-                  (t) => t.columnId === role.id && t.status === status.key
-                );
-                return (
-                  <div
-                    key={`${role.id}-${status.key}`}
-                    className="swimlane-cell"
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, role.id, status.key)}
-                  >
-                    {cellTasks.map((task) => {
-                      const assigneeNames = task.members;
+                  {/* 역할별 멤버 아바타 표시 (이미지처럼 동그라미 아이콘) */}
+                  <div className="role-member-avatars">
+                    {assignedMembersInRole.map((name) => {
+                      const member = getMemberByName(name);
+                      if (!member) return null;
                       return (
                         <div
-                          key={task.id}
-                          className="task-card-mini"
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id)}
-                          onClick={() => onSelectTask(task.id)}
-                          onDragOver={handleDragOver}
-                          onDrop={(e) => handleDropMemberOnTaskCard(e, task.id)}
+                          key={name}
+                          className="member-avatar-mini"
+                          title={name}
+                          draggable="true"
+                          onDragStart={(e) => handleMemberDragStart(e, member.id)}
                         >
-                          <div className="task-title">{task.title}</div>
-                          
-                          {/* 🔥 [수정] 할 일 카드 내 멤버 아이콘 표시 */}
-                          {assigneeNames.length > 0 && (
-                            <div className="role-member-avatars" style={{ marginTop: '8px' }}> 
-                              {/* role-member-avatars 클래스 재사용 (CSS에 정의됨) */}
-                              {assigneeNames.map((name) => (
-                                <div
-                                  key={name}
-                                  className="member-avatar-mini" // member-avatar-mini 클래스 재사용
-                                  title={name}
-                                  style={{ backgroundColor: "#4f46e5", color: "white" }} // 카드 내에서는 보라색 배경
-                                >
-                                  {name.charAt(0)}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          
-                          <button
-                            className="task-delete-btn"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteTask(task.id);
-                            }}
-                          >
-                            ✕
-                          </button>
+                          {member.name.charAt(0)}
+                          {/* 멤버 상태 표시 (온라인/오프라인 등) - CSS로 위치 조정됨 */}
+                          {/* <div className="member-status-dot" style={{ backgroundColor: member.isOnline ? '#10B981' : '#9CA3AF' }} /> */}
                         </div>
                       );
                     })}
-                    
-                    {status.key === "TODO" && (
-                      <button
-                        className="add-task-btn-mini"
-                        onClick={() => onAddTask(role.id, status.key)}
-                      >
-                        + 추가
-                      </button>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          );
-        })}
+
+                  <button
+                    className="delete-role-btn"
+                    onClick={() => onDeleteColumn(role.id)}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* 상태별 셀 */}
+                {STATUSES.map((status) => {
+                  const cellTasks = tasks.filter(
+                    (t) => t.columnId === role.id && t.status === status.key
+                  );
+                  return (
+                    <div
+                      key={`${role.id}-${status.key}`}
+                      className="swimlane-cell"
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleDrop(e, role.id, status.key)}
+                    >
+                      {cellTasks.map((task) => {
+                        const assigneeNames = task.members;
+                        return (
+                          <div
+                            key={task.id}
+                            className="task-card-mini"
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id)}
+                            onClick={() => onSelectTask(task.id)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDropMemberOnTaskCard(e, task.id)}
+                          >
+                            <div className="task-title">{task.title}</div>
+                            
+                            {/* 🔥 [수정] 할 일 카드 내 멤버 아이콘 표시 */}
+                            {assigneeNames.length > 0 && (
+                              <div className="role-member-avatars" style={{ marginTop: '8px' }}> 
+                                {/* role-member-avatars 클래스 재사용 (CSS에 정의됨) */}
+                                {assigneeNames.map((name) => (
+                                  <div
+                                    key={name}
+                                    className="member-avatar-mini" // member-avatar-mini 클래스 재사용
+                                    title={name}
+                                    style={{ backgroundColor: "#4f46e5", color: "white" }} // 카드 내에서는 보라색 배경
+                                  >
+                                    {name.charAt(0)}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            
+                            <button
+                              className="task-delete-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteTask(task.id);
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                      
+                      {status.key === "TODO" && (
+                        <button
+                          className="add-task-btn-mini"
+                          onClick={() => onAddTask(role.id, status.key)}
+                        >
+                          + 추가
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
       <div className="add-role-area">
         <button className="add-role-btn-large" onClick={handleAddRoleClick}>

@@ -10,6 +10,7 @@ interface ChatBoxProps {
 const ChatBox: React.FC<ChatBoxProps> = ({ projectId }) => {
   const { token } = useAuth();
   const [currentMessage, setCurrentMessage] = useState("");
+  // useChatSocket 훅을 통해 메시지 목록과 전송 함수를 가져옵니다.
   const { messages, sendMessage } = useChatSocket(projectId, token || "익명");
 
   // 🔥 스크롤 자동 이동을 위한 Ref
@@ -85,7 +86,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({ projectId }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. 입력창 영역 (input -> textarea로 변경) */}
+      {/* 3. 입력창 영역 (textarea) */}
       <div className="chat-input-area">
         <textarea
           value={currentMessage}
