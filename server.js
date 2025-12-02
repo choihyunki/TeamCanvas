@@ -48,6 +48,21 @@ const TaskSubSchema = new mongoose.Schema({
   dueDate: String,
   startDate: String,
   description: String,
+
+  // 🔥 [NEW] 멤버별 세부 작업 저장소
+  // 구조: [ { memberId: "user1", items: [ {id, content, completed}, ... ] }, ... ]
+  subTaskInfos: [
+    {
+      memberId: String,
+      items: [
+        {
+          id: String,
+          content: String,
+          completed: Boolean,
+        },
+      ],
+    },
+  ],
 });
 
 const ProjectSchema = new mongoose.Schema({
@@ -302,7 +317,9 @@ io.on("connection", (socket) => {
   socket.on("cursor-move", (data) => {
     const { projectId } = data;
     if (projectId) {
-      socket.to(String(projectId)).emit("cursor-update", { ...data, userId: socket.id });
+      socket
+        .to(String(projectId))
+        .emit("cursor-update", { ...data, userId: socket.id });
     }
   });
 
@@ -325,9 +342,15 @@ io.on("connection", (socket) => {
         if (userSocketSet.size === 0) {
           // 2초 딜레이 후 오프라인 처리
           const timeoutId = setTimeout(() => {
-            if (!userSockets.has(username) || userSockets.get(username).size === 0) {
+            if (
+              !userSockets.has(username) ||
+              userSockets.get(username).size === 0
+            ) {
               userSockets.delete(username);
-              io.emit("user_status_change", { username: username, isOnline: false });
+              io.emit("user_status_change", {
+                username: username,
+                isOnline: false,
+              });
               console.log(`❌ 완전 종료 (오프라인 확정): ${username}`);
             }
             disconnectTimeouts.delete(username);
