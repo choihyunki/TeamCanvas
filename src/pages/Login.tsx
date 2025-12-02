@@ -95,7 +95,7 @@ const Login: React.FC = () => {
     <div className="login-container">
       <div className="login-card">
         <img
-          src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+          src={process.env.PUBLIC_URL + "/DropIn Logo.png"}
           alt="Drop In Logo"
           className="login-logo"
         />

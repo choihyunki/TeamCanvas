@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         </button>
 
         <img
-          src={getPublicPath("DropInLogo", "png")}
+          src={getPublicPath("DropIn Logo", "png")}
           alt="Drop In Logo"
           className="logo"
           onClick={handleLogoClick}
