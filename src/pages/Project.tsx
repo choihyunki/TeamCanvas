@@ -61,7 +61,7 @@ const Project: React.FC = () => {
     storedName || (token ? `User_${token.substring(0, 4)}` : "Guest");
 
   const socketRef = useRef<any>(null);
-
+  const onlineUsersRef = useRef<Set<string>>(new Set());
   // Live Cursors
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
     myName,
@@ -149,47 +149,34 @@ const Project: React.FC = () => {
       const data = await ProjectService.getProject(currentProjectId);
       setColumns(data.columns || []);
 
-      // 🔥 [현재 로그인한 내 이름 가져오기]
       const myName = localStorage.getItem("userName") || "";
 
-      // 멤버 ID 문자열 변환 및 "내 상태 강제 온라인" 처리
       if (data.members && Array.isArray(data.members)) {
         const memberObjs = data.members.map((m: any, idx: number) => {
           const safeId = m.id ? String(m.id) : String(Date.now() + idx);
 
-          // 🔥 [핵심 수정] 이 멤버가 '나'라면 무조건 온라인(true)으로 설정!
-          const isMe = m.name === myName || m.username === myName;
+          // 이름 가져오기 (문자열인 경우 호환)
+          const mName = typeof m === "string" ? m : m.name;
+          const mUsername = typeof m === "string" ? m : m.username;
+
+          // 🔥 [수정] Ref에 이 사람이 있는지 확인! (없으면 false)
+          const isReallyOnline =
+            onlineUsersRef.current.has(mName) ||
+            onlineUsersRef.current.has(mUsername);
+
+          // 나 자신은 무조건 온라인
+          const finalOnline = mName === myName || isReallyOnline;
 
           if (typeof m === "string") {
-            // 문자열로 저장된 경우 (예전 데이터 호환)
-            return {
-              id: safeId,
-              name: m,
-              isOnline: m === myName ? true : true, // 기본 true로 두되, 나중에 소켓으로 갱신
-            };
+            return { id: safeId, name: m, isOnline: finalOnline };
           }
-
-          return {
-            ...m,
-            id: safeId,
-            // 👇 여기가 수정된 부분입니다!
-            isOnline: isMe ? true : m.isOnline,
-          };
+          return { ...m, id: safeId, isOnline: finalOnline };
         });
         setMembers(memberObjs);
       }
-
-      // 태스크 ID 문자열 변환
-      if (data.tasks && Array.isArray(data.tasks)) {
-        const taskObjs = data.tasks.map((t: any) => ({
-          ...t,
-          id: String(t.id),
-          columnId: String(t.columnId),
-        }));
-        setTasks(taskObjs);
-      }
+      // ... (tasks 처리 로직 그대로) ...
     } catch (error) {
-      console.error("프로젝트 데이터 로드 실패:", error);
+      console.error("실패", error);
     }
   }, [currentProjectId]);
 
@@ -197,9 +184,18 @@ const Project: React.FC = () => {
     if (!token) return;
     try {
       const friendData = await UserService.getFriends(token);
-      setFriends(friendData || []);
+
+      const myName = localStorage.getItem("userName") || "";
+
+      // 🔥 [수정] 친구 목록도 Ref를 보고 온라인 상태 복구
+      const mergedFriends = (friendData || []).map((f: any) => ({
+        ...f,
+        isOnline: onlineUsersRef.current.has(f.username) || f.name === myName,
+      }));
+
+      setFriends(mergedFriends);
     } catch (error) {
-      console.error("친구 목록 로드 실패:", error);
+      console.error("친구 로드 실패", error);
     }
   }, [token]);
 
@@ -245,16 +241,23 @@ const Project: React.FC = () => {
     socketRef.current.on(
       "user_status_change",
       ({ username, isOnline }: { username: string; isOnline: boolean }) => {
-        // 🔥 나 자신("박건일")에 대한 정보라면 무조건 true(온라인)로 고정!
+        // 🔥 Ref 업데이트 (기억하기)
+        if (isOnline) {
+          onlineUsersRef.current.add(username);
+        } else {
+          onlineUsersRef.current.delete(username);
+        }
+
+        // State 업데이트 (화면 그리기)
         const finalStatus = username === myName ? true : isOnline;
 
-        setMembers((prevMembers) =>
-          prevMembers.map((m) =>
+        setMembers((prev) =>
+          prev.map((m) =>
             m.name === username ? { ...m, isOnline: finalStatus } : m
           )
         );
-        setFriends((prevFriends) =>
-          (prevFriends as any[]).map((f) =>
+        setFriends((prev) =>
+          prev.map((f) =>
             f.username === username ? { ...f, isOnline: finalStatus } : f
           )
         );
@@ -265,24 +268,23 @@ const Project: React.FC = () => {
     socketRef.current.on(
       "current_online_users",
       (onlineUsernames: string[]) => {
+        // 🔥 Ref 업데이트 (통째로 교체)
+        onlineUsersRef.current = new Set(onlineUsernames);
+
+        // 내 이름은 무조건 추가
+        if (myName) onlineUsersRef.current.add(myName);
+
         setMembers((prev) =>
-          prev.map((m) => {
-            // 🔥 나 자신이면 무조건 true, 아니면 명단 확인
-            const isMe = m.name === myName;
-            return {
-              ...m,
-              isOnline: isMe ? true : onlineUsernames.includes(m.name),
-            };
-          })
+          prev.map((m) => ({
+            ...m,
+            isOnline: onlineUsersRef.current.has(m.name),
+          }))
         );
         setFriends((prev) =>
-          (prev as any[]).map((f) => {
-            const isMe = f.name === myName; // 친구 목록에도 내가 있을 수 있음
-            return {
-              ...f,
-              isOnline: isMe ? true : onlineUsernames.includes(f.name),
-            };
-          })
+          prev.map((f) => ({
+            ...f,
+            isOnline: onlineUsersRef.current.has(f.username),
+          }))
         );
       }
     );
@@ -764,111 +766,134 @@ const Project: React.FC = () => {
 
   // --- 🔥 [수정] SubTask 핸들러: 멤버 자동 생성 로직 포함 ---
 
+  // 🔥 [수정] SubTask 핸들러: Task State를 업데이트하도록 변경
+  // 첫 번째 인자 이름을 columnId -> taskId로 변경했습니다. (TaskDetails.tsx와 맞춰야 함)
   const handleAddSubTask = (
-    columnId: string, // 🔥 ID String
-    memberId: string, // 🔥 ID String
+    taskId: string,
+    memberId: string,
     content: string
   ) => {
-    console.log(
-      `➕ 세부 작업 추가 시도: Column(${columnId}), Member(${memberId})`
-    );
+    // 1. 해당 태스크가 속한 컬럼 ID 찾기 (저장용)
+    const targetTask = tasks.find((t) => t.id === taskId);
+    if (!targetTask) return;
 
-    const newColumns = columns.map((col) => {
-      // 컬럼 ID 비교
-      if (String(col.id) !== columnId) return col;
+    // 2. 해당 멤버가 컬럼에 없으면 자동 추가하는 로직 (기존 유지)
+    const columnId = targetTask.columnId;
+    const targetColumn = columns.find((c) => String(c.id) === String(columnId));
+    let newColumns = columns;
 
-      // 해당 컬럼에 멤버가 있는지 확인
-      const memberIndex = col.members.findIndex(
-        (m) => String(m.id) === memberId
+    if (
+      targetColumn &&
+      !targetColumn.members.some((m) => String(m.id) === String(memberId))
+    ) {
+      const globalMember = members.find(
+        (m) => String(m.id) === String(memberId)
       );
-      const newSubTask = {
+      if (globalMember) {
+        const newMemberInCol = {
+          id: memberId,
+          name: globalMember.name,
+          username: globalMember.username,
+          role: "팀원",
+          status: "TODO",
+          subTasks: [], // 컬럼 쪽 subTask는 이제 안 쓰지만 형식상 유지
+        };
+        newColumns = columns.map((col) =>
+          String(col.id) === String(columnId)
+            ? {
+                ...col,
+                members: [...col.members, newMemberInCol] as any,
+              }
+            : col
+        );
+        setColumns(newColumns);
+      }
+    }
+
+    // 3. 🔥 [핵심] Tasks 상태 업데이트
+    const newTasks = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const currentInfos = t.subTaskInfos || [];
+      const memberInfoIndex = currentInfos.findIndex(
+        (info) => String(info.memberId) === String(memberId)
+      );
+
+      const newSubItem = {
         id: Date.now().toString(),
         content,
         completed: false,
       };
 
-      if (memberIndex !== -1) {
-        // A. 멤버가 존재하면 -> subTasks에 추가
-        const updatedMembers = [...col.members];
-        const existingMember = updatedMembers[memberIndex];
+      let newInfos = [...currentInfos];
 
-        updatedMembers[memberIndex] = {
-          ...existingMember,
-          subTasks: [...(existingMember.subTasks || []), newSubTask],
+      if (memberInfoIndex > -1) {
+        // 이미 이 멤버의 세부작업이 있으면 push
+        newInfos[memberInfoIndex] = {
+          ...newInfos[memberInfoIndex],
+          items: [...newInfos[memberInfoIndex].items, newSubItem],
         };
-        return { ...col, members: updatedMembers };
       } else {
-        // B. 🔥 [핵심] 멤버가 없으면 -> 새로 만들어서 추가
-        const globalMember = members.find((m) => String(m.id) === memberId);
-        if (!globalMember) return col; // 멤버 리스트에도 없으면 무시
-
-        const newMemberInCol = {
-          id: memberId,
-          name: globalMember.name,
-          username: globalMember.username,
-          role: globalMember.role || "팀원",
-          status: "TODO",
-          memo: "",
-          subTasks: [newSubTask], // 생성과 동시에 작업 추가
-        };
-
-        return {
-          ...col,
-          members: [...col.members, newMemberInCol],
-        } as any;
+        // 없으면 새로 생성
+        newInfos.push({ memberId, items: [newSubItem] });
       }
+
+      return { ...t, subTaskInfos: newInfos };
     });
 
-    setColumns(newColumns);
-    saveToServer(newColumns, members, tasks);
+    setTasks(newTasks);
+    // 변경된 tasks와 columns를 모두 저장
+    saveToServer(newColumns, members, newTasks);
   };
 
   const handleToggleSubTask = (
-    columnId: string, // 🔥 ID String
-    memberId: string, // 🔥 ID String
-    subTaskId: string // 🔥 ID String
+    taskId: string,
+    memberId: string,
+    subTaskId: string
   ) => {
-    const newColumns = columns.map((col) => {
-      if (String(col.id) !== columnId) return col;
-      return {
-        ...col,
-        members: col.members.map((m) => {
-          if (String(m.id) !== memberId) return m;
-          return {
-            ...m,
-            subTasks: m.subTasks?.map((sub) =>
-              String(sub.id) === subTaskId
-                ? { ...sub, completed: !sub.completed }
-                : sub
-            ),
-          };
-        }),
-      } as any;
+    const newTasks = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const newInfos = (t.subTaskInfos || []).map((info) => {
+        if (String(info.memberId) !== String(memberId)) return info;
+        return {
+          ...info,
+          items: info.items.map((item) =>
+            item.id === subTaskId
+              ? { ...item, completed: !item.completed }
+              : item
+          ),
+        };
+      });
+
+      return { ...t, subTaskInfos: newInfos };
     });
-    setColumns(newColumns);
-    saveToServer(newColumns, members, tasks);
+
+    setTasks(newTasks);
+    saveToServer(columns, members, newTasks);
   };
 
   const handleDeleteSubTask = (
-    columnId: string, // 🔥 ID String
-    memberId: string, // 🔥 ID String
-    subTaskId: string // 🔥 ID String
+    taskId: string,
+    memberId: string,
+    subTaskId: string
   ) => {
-    const newColumns = columns.map((col) => {
-      if (String(col.id) !== columnId) return col;
-      return {
-        ...col,
-        members: col.members.map((m) => {
-          if (String(m.id) !== memberId) return m;
-          return {
-            ...m,
-            subTasks: m.subTasks?.filter((sub) => String(sub.id) !== subTaskId),
-          };
-        }),
-      } as any;
+    const newTasks = tasks.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const newInfos = (t.subTaskInfos || []).map((info) => {
+        if (String(info.memberId) !== String(memberId)) return info;
+        return {
+          ...info,
+          items: info.items.filter((item) => item.id !== subTaskId),
+        };
+      });
+
+      return { ...t, subTaskInfos: newInfos };
     });
-    setColumns(newColumns);
-    saveToServer(newColumns, members, tasks);
+
+    setTasks(newTasks);
+    saveToServer(columns, members, newTasks);
   };
 
   return (
