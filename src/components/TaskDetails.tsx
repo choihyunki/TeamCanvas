@@ -60,8 +60,6 @@ const TaskDetails: React.FC<Props> = ({
   const handleAdd = (columnId: string, taskId: string, memberId: string) => {
     const key = `${taskId}-${memberId}`;
     if (!inputs[key]?.trim()) return;
-
-    // 🔥 [수정] ID 불일치 문제 해결: 인자로 받은 memberId를 그대로 사용
     onAddSubTask(columnId, memberId, inputs[key]);
     setInputs((prev) => ({ ...prev, [key]: "" }));
   };
@@ -125,7 +123,7 @@ const TaskDetails: React.FC<Props> = ({
                       id: String(globalMember.id),
                       name: globalMember.name,
                       subTasks: subTasksToDisplay,
-                      isNotInColumn: true, // 이 상태면 수정 불가
+                      isNotInColumn: false,
                     };
                   }
                 })
@@ -255,11 +253,7 @@ const TaskDetails: React.FC<Props> = ({
                                     <div className="input-group">
                                       <input
                                         type="text"
-                                        placeholder={
-                                          canManageSubTasks
-                                            ? `${pm.name}의 작업 추가...`
-                                            : "역할에 소속되지 않음"
-                                        }
+                                        placeholder={`${pm.name}의 작업 추가`}
                                         value={
                                           inputs[`${task.id}-${memberId}`] || ""
                                         }
@@ -275,7 +269,6 @@ const TaskDetails: React.FC<Props> = ({
                                           canManageSubTasks &&
                                           handleAdd(col.id, task.id, memberId)
                                         }
-                                        disabled={!canManageSubTasks}
                                       />
                                       <button
                                         onClick={() =>
