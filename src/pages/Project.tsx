@@ -90,6 +90,12 @@ const Project: React.FC = () => {
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
   const [highestZIndex, setHighestZIndex] = useState(100);
 
+  // 🔥 [추가] 독(Dock) 위치 상태 (null이면 CSS 기본값 사용)
+  const [dockPosition, setDockPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+
   const dragItem = useRef<{
     id: number;
     startX: number;
@@ -103,6 +109,14 @@ const Project: React.FC = () => {
     startY: number;
     initialWidth: number;
     initialHeight: number;
+  } | null>(null);
+
+  // 🔥 [추가] 독 드래그 Ref
+  const dockDragRef = useRef<{
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
   } | null>(null);
 
   const toggleLeftSidebar = () =>
@@ -383,6 +397,19 @@ const Project: React.FC = () => {
       initialHeight: h,
     };
   };
+
+  // 🔥 [추가] 독(Dock) 드래그 시작
+  const handleMouseDownDock = (e: React.MouseEvent) => {
+    e.stopPropagation(); // 윈도우 드래그와 겹치지 않게
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dockDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialX: rect.left,
+      initialY: rect.top,
+    };
+  };
+
   const handleWindowMouseMove = (e: React.MouseEvent) => {
     if (resizeItem.current) {
       const { id, startX, startY, initialWidth, initialHeight } =
@@ -975,7 +1002,20 @@ const Project: React.FC = () => {
         </aside>
 
         <main className="project-main" style={{ position: "relative" }}>
-          <div className="in-app-dock">
+          <div
+            className="in-app-dock"
+            onMouseDown={handleMouseDownDock}
+            style={
+              dockPosition
+                ? {
+                    left: dockPosition.x,
+                    top: dockPosition.y,
+                    transform: "none",
+                    bottom: "auto",
+                  }
+                : {}
+            }
+          >
             <div
               className="dock-icon"
               onClick={() => handleOpenApp("calculator", "계산기")}

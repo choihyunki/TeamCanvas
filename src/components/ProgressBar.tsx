@@ -8,42 +8,16 @@ interface Props {
 
 const ProgressBar: React.FC<Props> = ({ tasks }) => {
   const { completed, total, percent } = useMemo(() => {
-    let totalCount = 0;
-    let doneCount = 0;
-
-    tasks.forEach((task) => {
-      // 1. 해당 태스크 안에 세부 작업(SubTask)이 있는지 확인
-      const subInfos = task.subTaskInfos || [];
-      let hasSubTasks = false;
-      let taskSubTotal = 0;
-      let taskSubDone = 0;
-
-      subInfos.forEach((info) => {
-        if (info.items && info.items.length > 0) {
-          hasSubTasks = true;
-          info.items.forEach((item) => {
-            taskSubTotal++;
-            if (item.completed) taskSubDone++;
-          });
-        }
-      });
-
-      if (hasSubTasks) {
-        // A. 세부 작업이 있으면 -> 세부 작업의 개수를 반영
-        totalCount += taskSubTotal;
-        doneCount += taskSubDone;
-      } else {
-        // B. 세부 작업이 없으면 -> 메인 태스크 카드 자체의 상태(DONE)만 반영
-        totalCount++;
-        if (task.status === "DONE") {
-          doneCount++;
-        }
-      }
-    });
+    // 1. 전체 목표: 오직 '메인 태스크'의 개수만 기준 (세부 작업 추가해도 안 늘어남)
+    const totalCount = tasks.length;
 
     if (totalCount === 0) {
       return { completed: 0, total: 0, percent: 0 };
     }
+
+    // 2. 완료 성과: 오직 'DONE(완료)' 상태인 태스크만 인정
+    // (대기 상태에서 세부 작업을 아무리 체크해도 메인 카드를 안 옮기면 인정 X)
+    const doneCount = tasks.filter((t) => t.status === "DONE").length;
 
     const percent = Math.round((doneCount / totalCount) * 100);
 
