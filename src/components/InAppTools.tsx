@@ -367,3 +367,195 @@ console.log('Code Block Test');
     </div>
   );
 };
+
+export const GitHubExplorer = () => {
+  const [repoInput, setRepoInput] = useState("facebook/react"); // 기본값
+  const [repoData, setRepoData] = useState<any>(null);
+  const [readme, setReadme] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // 마크다운 파서 (CodeReviewer에 있는 것과 동일하거나 간소화)
+  const parseMarkdown = (text: string) => {
+    // 간단한 변환 (제목, 리스트, 코드블럭 등)
+    let html = text
+      .replace(/^# (.*$)/gim, "<h1>$1</h1>")
+      .replace(/^## (.*$)/gim, "<h2>$1</h2>")
+      .replace(/\*\*(.*)\*\*/gim, "<b>$1</b>")
+      .replace(/```([\s\S]*?)```/gim, "<pre><code>$1</code></pre>") // 멀티라인 코드
+      .replace(/\n/gim, "<br />");
+
+    return `
+      <style>
+        body { font-family: system-ui; padding: 15px; line-height: 1.6; color: #333; }
+        h1 { border-bottom: 1px solid #ddd; padding-bottom: 10px; }
+        pre { background: #f6f8fa; padding: 10px; border-radius: 6px; overflow-x: auto; }
+        code { font-family: monospace; color: #0550ae; }
+        img { max-width: 100%; }
+      </style>
+      ${html}
+    `;
+  };
+
+  const fetchRepo = async () => {
+    if (!repoInput) return;
+    setLoading(true);
+    try {
+      // 1. 리포지토리 정보 가져오기
+      const resInfo = await fetch(`https://api.github.com/repos/${repoInput}`);
+      if (!resInfo.ok) throw new Error("Repo not found");
+      const info = await resInfo.json();
+      setRepoData(info);
+
+      // 2. README 가져오기
+      const resReadme = await fetch(
+        `https://api.github.com/repos/${repoInput}/readme`
+      );
+      if (resReadme.ok) {
+        const readmeData = await resReadme.json();
+        // Base64 디코딩 (한글 깨짐 방지 처리)
+        const content = decodeURIComponent(escape(atob(readmeData.content)));
+        setReadme(content);
+      } else {
+        setReadme("# README가 없습니다.");
+      }
+    } catch (e) {
+      alert("찾을 수 없는 리포지토리입니다. (예: facebook/react)");
+      setRepoData(null);
+      setReadme("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        background: "#fff",
+      }}
+    >
+      {/* 검색창 */}
+      <div
+        style={{
+          padding: "10px",
+          borderBottom: "1px solid #eee",
+          display: "flex",
+          gap: "5px",
+          background: "#f6f8fa",
+        }}
+      >
+        <span style={{ display: "flex", alignItems: "center" }}>
+          github.com/
+        </span>
+        <input
+          value={repoInput}
+          onChange={(e) => setRepoInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && fetchRepo()}
+          placeholder="owner/repo"
+          style={{
+            flex: 1,
+            padding: "5px",
+            border: "1px solid #ddd",
+            borderRadius: "4px",
+          }}
+        />
+        <button
+          onClick={fetchRepo}
+          style={{
+            padding: "5px 10px",
+            background: "#2da44e",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          Go
+        </button>
+      </div>
+
+      {/* 로딩 표시 */}
+      {loading && (
+        <div style={{ padding: "20px", textAlign: "center", color: "#666" }}>
+          불러오는 중... ⏳
+        </div>
+      )}
+
+      {/* 결과 화면 */}
+      {!loading && repoData && (
+        <div
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          {/* 리포지토리 헤더 정보 */}
+          <div
+            style={{
+              padding: "15px",
+              borderBottom: "1px solid #eee",
+              background: "#fff",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                marginBottom: "5px",
+              }}
+            >
+              <img
+                src={repoData.owner.avatar_url}
+                alt="avatar"
+                style={{ width: "30px", borderRadius: "50%" }}
+              />
+              <h3 style={{ margin: 0, fontSize: "16px" }}>
+                {repoData.full_name}
+              </h3>
+            </div>
+            <p style={{ margin: "5px 0", fontSize: "13px", color: "#555" }}>
+              {repoData.description}
+            </p>
+            <div
+              style={{
+                display: "flex",
+                gap: "15px",
+                fontSize: "12px",
+                color: "#666",
+              }}
+            >
+              <span>
+                ⭐ Star: <b>{repoData.stargazers_count}</b>
+              </span>
+              <span>
+                🍴 Fork: <b>{repoData.forks_count}</b>
+              </span>
+              <span>
+                🐞 Issues: <b>{repoData.open_issues_count}</b>
+              </span>
+            </div>
+          </div>
+
+          {/* README 미리보기 (iframe) */}
+          <iframe
+            title="Readme Preview"
+            srcDoc={parseMarkdown(readme)}
+            style={{
+              flex: 1,
+              border: "none",
+              width: "100%",
+              background: "#fff",
+            }}
+            sandbox="allow-scripts"
+          />
+        </div>
+      )}
+    </div>
+  );
+};

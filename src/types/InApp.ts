@@ -3,7 +3,8 @@ export type ToolType =
   | "memo"
   | "timer"
   | "youtube"
-  | "code-review";
+  | "code-review"
+  | "github"; // 🔥 [추가]
 
 export interface AppWindow {
   id: number;
