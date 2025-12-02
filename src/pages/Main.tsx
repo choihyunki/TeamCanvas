@@ -42,18 +42,32 @@ const Main: React.FC = () => {
     if (!token) return;
 
     try {
-      // 1. 서비스에서 진짜 데이터 가져옴
+      // 1. 서비스에서 진짜 데이터 가져옴 (tasks 정보도 들어있음)
       const list = await ProjectService.getMyProjects(token);
 
-      // 2. MongoDB 데이터(_id)를 우리 앱 데이터(id)로 변환
-      // list 안의 각 항목(p)은 any 타입으로 취급해서 변환
-      const formattedList: ProjectCardData[] = list.map((p: any) => ({
-        id: p._id, // 🔥 _id를 id로 연결
-        name: p.name,
-        description: p.description,
-        members: p.members || [],
-        progressPercent: 0, // 진행률은 일단 0으로 고정 (나중에 로직 추가)
-      }));
+      // 2. 데이터 변환 및 진행률 계산
+      const formattedList: ProjectCardData[] = list.map((p: any) => {
+        // 🔥 [수정] 진행률 실시간 계산 로직 추가
+        const projectTasks = p.tasks || []; // 태스크 목록 가져오기
+        const totalCount = projectTasks.length;
+
+        // "DONE" 상태인 태스크 개수 세기
+        const doneCount = projectTasks.filter(
+          (t: any) => t.status === "DONE"
+        ).length;
+
+        // 퍼센트 계산 (0으로 나누기 방지)
+        const percent =
+          totalCount === 0 ? 0 : Math.round((doneCount / totalCount) * 100);
+
+        return {
+          id: p._id, // MongoDB _id
+          name: p.name,
+          description: p.description,
+          members: p.members || [],
+          progressPercent: percent, // 🔥 0 대신 계산된 percent 사용!
+        };
+      });
 
       setProjects(formattedList);
 
