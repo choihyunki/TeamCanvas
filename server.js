@@ -244,26 +244,24 @@ io.on("connection", (socket) => {
 
   // 1. 유저 로그인/접속 알림
   socket.on("register_user", (username) => {
-    // 1-1. 역추적 맵에 등록
+    // 🔥 [추가] 만약 이 유저가 방금 나가려고 해서 타이머가 돌고 있었다면? -> 취소! (안 나간 걸로 침)
+    if (disconnectTimeouts.has(username)) {
+      console.log(`♻️ 재접속 감지! 오프라인 처리 취소: ${username}`);
+      clearTimeout(disconnectTimeouts.get(username));
+      disconnectTimeouts.delete(username);
+    }
+
     socketUserMap.set(socket.id, username);
 
-    // 1-2. 유저 소켓 목록(Set)에 추가
     if (!userSockets.has(username)) {
       userSockets.set(username, new Set());
     }
     userSockets.get(username).add(socket.id);
 
-    console.log(
-      `✅ 유저 온라인: ${username} (현재 접속 기기 수: ${
-        userSockets.get(username).size
-      })`
-    );
-
-    // 🔥 [중요] "이 유저는 이제 온라인입니다" 라고 모두에게 알림
-    // Set 사이즈가 1 이상이면 무조건 온라인
+    // 온라인 알림 전송
     io.emit("user_status_change", { username: username, isOnline: true });
 
-    // 🔥 [중요] 현재 접속 중인 모든 유저 목록을 본인에게 전송
+    // 접속자 명단 전송
     const onlineList = Array.from(userSockets.keys());
     socket.emit("current_online_users", onlineList);
   });
@@ -327,27 +325,34 @@ io.on("connection", (socket) => {
     const username = socketUserMap.get(socket.id);
 
     if (username) {
-      // 7-1. 해당 소켓 ID만 Set에서 제거
       const userSocketSet = userSockets.get(username);
       if (userSocketSet) {
         userSocketSet.delete(socket.id);
 
-        // 7-2. 만약 Set이 비었다면? -> 진짜로 나간 것 (오프라인)
+        // 만약 연결된 소켓이 하나도 안 남았다면? -> 진짜 나가는 상황
         if (userSocketSet.size === 0) {
-          userSockets.delete(username);
-          io.emit("user_status_change", {
-            username: username,
-            isOnline: false,
-          });
-          console.log(`❌ 완전 종료 (오프라인 처리): ${username}`);
-        } else {
-          console.log(`⚠️ 탭 종료: ${username} (아직 다른 탭 켜져있음)`);
+          // 🔥 [핵심] 바로 끄지 말고 2초만 기다려봅니다.
+          const timeoutId = setTimeout(() => {
+            // 2초 뒤에도 여전히 소켓이 없다면 -> 그때 진짜 오프라인 처리
+            if (
+              !userSockets.has(username) ||
+              userSockets.get(username).size === 0
+            ) {
+              userSockets.delete(username);
+              io.emit("user_status_change", {
+                username: username,
+                isOnline: false,
+              });
+              console.log(`❌ 완전 종료 (오프라인 확정): ${username}`);
+            }
+            disconnectTimeouts.delete(username);
+          }, 2000); // 2초 딜레이
+
+          disconnectTimeouts.set(username, timeoutId);
         }
       }
-      // 맵 정리
       socketUserMap.delete(socket.id);
     }
-
     socket.broadcast.emit("user-disconnected", socket.id);
   });
 });
