@@ -55,13 +55,17 @@ const Project: React.FC = () => {
   const currentProjectId = projectId || "";
 
   const { token } = useAuth();
-  const guestName = token ? `User_${token.substring(0, 4)}` : "Guest";
+  const storedName = localStorage.getItem("userName"); // 로그인 때 저장한 실명
+  const myName =
+    storedName || (token ? `User_${token.substring(0, 4)}` : "Guest");
 
   const socketRef = useRef<any>(null);
 
   // Live Cursors
-  const { cursors, handleMouseMove: handleLiveMouseMove } =
-    useLiveCursors(guestName);
+  const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
+    myName,
+    currentProjectId
+  );
 
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [members, setMembers] = useState<Member[]>([]);

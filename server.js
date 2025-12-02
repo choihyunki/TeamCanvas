@@ -311,7 +311,13 @@ io.on("connection", (socket) => {
 
   // 5. 마우스 커서
   socket.on("cursor-move", (data) => {
-    socket.broadcast.emit("cursor-update", { ...data, userId: socket.id });
+    // 🔥 [수정] projectId가 있는 방에만 브로드캐스트
+    const { projectId } = data;
+    if (projectId) {
+      socket
+        .to(String(projectId))
+        .emit("cursor-update", { ...data, userId: socket.id });
+    }
   });
 
   // 6. 칸반 보드 동기화
