@@ -1,5 +1,3 @@
-// server.js (전체 코드를 이걸로 덮어씌우거나, Socket.io 부분만 수정하세요)
-
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
@@ -20,13 +18,13 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
-// MongoDB 연결 (기존과 동일)
+// MongoDB 연결
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("🔥 MongoDB Connected (Cloud)"))
   .catch((err) => console.log(err));
 
-// --- [Schemas] (기존과 동일하므로 생략 가능, 변경 없음) ---
+// --- [Schemas] ---
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -78,8 +76,7 @@ const ChatSchema = new mongoose.Schema({
 });
 const ChatMessage = mongoose.model("ChatMessage", ChatSchema);
 
-// --- [API Routes] (기존과 동일, 변경 없음) ---
-// ... (app.get, app.post 등 API 코드는 그대로 유지하세요) ...
+// --- [API Routes] ---
 app.get("/api/projects", async (req, res) => {
   const { username } = req.query;
   try {
@@ -223,7 +220,7 @@ app.delete("/api/projects/:id", async (req, res) => {
   }
 });
 
-// --- [Socket.io] 🔥 [핵심 수정 구간] ---
+// --- [Socket.io] ---
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -231,20 +228,18 @@ const io = new Server(server, {
   },
 });
 
-// 1. 유저별 연결된 소켓 ID 관리 (Set 사용) -> 여러 탭 켜도 OK
-// userSockets: { "username": Set("socketId1", "socketId2") }
-const userSockets = new Map();
-
-// 2. 소켓 ID가 어떤 유저인지 역추적
-// socketUserMap: { "socketId1": "username" }
-const socketUserMap = new Map();
+// 🔥 [여기가 중요!] 변수 선언부를 여기에 둬야 합니다.
+const disconnectTimeouts = new Map(); // 타이머 관리용
+const userSockets = new Map(); // 유저별 소켓 목록 (Set)
+const socketUserMap = new Map(); // 소켓 ID -> 유저명 매핑
+const onlineUsers = new Map(); // (구버전 호환용, 필요시 사용)
 
 io.on("connection", (socket) => {
   console.log(`🔌 사용자 접속: ${socket.id}`);
 
   // 1. 유저 로그인/접속 알림
   socket.on("register_user", (username) => {
-    // 🔥 [추가] 만약 이 유저가 방금 나가려고 해서 타이머가 돌고 있었다면? -> 취소! (안 나간 걸로 침)
+    // 재접속 시 오프라인 타이머 취소
     if (disconnectTimeouts.has(username)) {
       console.log(`♻️ 재접속 감지! 오프라인 처리 취소: ${username}`);
       clearTimeout(disconnectTimeouts.get(username));
@@ -280,9 +275,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 3. 프로젝트 초대 알림 (수정됨)
+  // 3. 프로젝트 초대 알림
   socket.on("invite_user", ({ targetUsername, projectName }) => {
-    // 해당 유저의 모든 소켓(모든 탭/기기)에 알림 전송
     if (userSockets.has(targetUsername)) {
       const targets = userSockets.get(targetUsername);
       targets.forEach((socketId) => {
@@ -304,13 +298,11 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 5. 마우스 커서 (프로젝트 격리 적용)
+  // 5. 마우스 커서 (프로젝트 격리)
   socket.on("cursor-move", (data) => {
     const { projectId } = data;
     if (projectId) {
-      socket
-        .to(String(projectId))
-        .emit("cursor-update", { ...data, userId: socket.id });
+      socket.to(String(projectId)).emit("cursor-update", { ...data, userId: socket.id });
     }
   });
 
@@ -320,7 +312,7 @@ io.on("connection", (socket) => {
     socket.broadcast.to(roomName).emit("board_updated");
   });
 
-  // 7. 🔥 [접속 종료 수정]
+  // 7. 접속 종료 (지연 처리 적용)
   socket.on("disconnect", () => {
     const username = socketUserMap.get(socket.id);
 
@@ -329,24 +321,17 @@ io.on("connection", (socket) => {
       if (userSocketSet) {
         userSocketSet.delete(socket.id);
 
-        // 만약 연결된 소켓이 하나도 안 남았다면? -> 진짜 나가는 상황
+        // 연결된 소켓이 하나도 없으면 -> 진짜 나가는 상황
         if (userSocketSet.size === 0) {
-          // 🔥 [핵심] 바로 끄지 말고 2초만 기다려봅니다.
+          // 2초 딜레이 후 오프라인 처리
           const timeoutId = setTimeout(() => {
-            // 2초 뒤에도 여전히 소켓이 없다면 -> 그때 진짜 오프라인 처리
-            if (
-              !userSockets.has(username) ||
-              userSockets.get(username).size === 0
-            ) {
+            if (!userSockets.has(username) || userSockets.get(username).size === 0) {
               userSockets.delete(username);
-              io.emit("user_status_change", {
-                username: username,
-                isOnline: false,
-              });
+              io.emit("user_status_change", { username: username, isOnline: false });
               console.log(`❌ 완전 종료 (오프라인 확정): ${username}`);
             }
             disconnectTimeouts.delete(username);
-          }, 2000); // 2초 딜레이
+          }, 2000);
 
           disconnectTimeouts.set(username, timeoutId);
         }
