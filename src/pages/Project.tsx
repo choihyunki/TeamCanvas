@@ -122,6 +122,7 @@ const Project: React.FC = () => {
       newTasks?: Task[]
     ) => {
       if (!currentProjectId) return;
+      // 🔥 [수정] newTasks가 없으면 현재 state(tasks)를 쓰는데, 이 시점이 엇갈리지 않도록 주의해야 함
       const tasksToSave = newTasks || tasks;
 
       try {
@@ -174,7 +175,18 @@ const Project: React.FC = () => {
         });
         setMembers(memberObjs);
       }
-      // ... (tasks 처리 로직 그대로) ...
+
+      // 🔥 [핵심] 태스크 ID 및 컬럼 ID를 무조건 String으로 변환
+      if (data.tasks && Array.isArray(data.tasks)) {
+        const taskObjs = data.tasks.map((t: any) => ({
+          ...t,
+          id: String(t.id),
+          columnId: String(t.columnId),
+          // 🔥 subTaskInfos가 없으면 빈 배열로 초기화 (안정성 확보)
+          subTaskInfos: t.subTaskInfos || [],
+        }));
+        setTasks(taskObjs);
+      }
     } catch (error) {
       console.error("실패", error);
     }
@@ -313,6 +325,10 @@ const Project: React.FC = () => {
     if (type === "code-review") {
       defaultW = 600;
       defaultH = 500;
+    }
+    if (type === "github") {
+      defaultW = 500;
+      defaultH = 600;
     }
 
     const newWindow: AppWindow = {
@@ -764,20 +780,19 @@ const Project: React.FC = () => {
     handleUpdateTask(updatedTask);
   };
 
-  // --- 🔥 [수정] SubTask 핸들러: 멤버 자동 생성 로직 포함 ---
+  // --- 🔥 [수정] SubTask 핸들러: Task 객체 내부 subTaskInfos 수정 ---
 
-  // 🔥 [수정] SubTask 핸들러: Task State를 업데이트하도록 변경
-  // 첫 번째 인자 이름을 columnId -> taskId로 변경했습니다. (TaskDetails.tsx와 맞춰야 함)
   const handleAddSubTask = (
-    taskId: string,
+    taskId: string, // 🔥 인자 변경 (columnId -> taskId)
     memberId: string,
     content: string
   ) => {
-    // 1. 해당 태스크가 속한 컬럼 ID 찾기 (저장용)
+    // 1. 해당 태스크 찾기
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
 
-    // 2. 해당 멤버가 컬럼에 없으면 자동 추가하는 로직 (기존 유지)
+    // 2. 해당 멤버가 컬럼에 없으면 자동 추가 (기존 로직 유지)
+    //    단, subTask 저장 위치는 이제 컬럼이 아니라 태스크 내부임
     const columnId = targetTask.columnId;
     const targetColumn = columns.find((c) => String(c.id) === String(columnId));
     let newColumns = columns;
@@ -796,7 +811,7 @@ const Project: React.FC = () => {
           username: globalMember.username,
           role: "팀원",
           status: "TODO",
-          subTasks: [], // 컬럼 쪽 subTask는 이제 안 쓰지만 형식상 유지
+          subTasks: [], // 컬럼 쪽 subTasks는 이제 안 씀 (빈 배열)
         };
         newColumns = columns.map((col) =>
           String(col.id) === String(columnId)
@@ -810,7 +825,9 @@ const Project: React.FC = () => {
       }
     }
 
-    // 3. 🔥 [핵심] Tasks 상태 업데이트
+    // 3. 🔥 [핵심] Tasks 상태 업데이트 (TaskService 이용 안함, 직접 구현)
+    //    TaskService.addSubTask 같은 함수를 만들어서 쓰는 게 더 좋지만,
+    //    여기서 바로 로직을 구현해도 됩니다. (일관성 위해 직접 구현)
     const newTasks = tasks.map((t) => {
       if (t.id !== taskId) return t;
 
@@ -828,13 +845,13 @@ const Project: React.FC = () => {
       let newInfos = [...currentInfos];
 
       if (memberInfoIndex > -1) {
-        // 이미 이 멤버의 세부작업이 있으면 push
+        // 이미 이 멤버의 세부작업이 있으면 -> 배열에 추가
         newInfos[memberInfoIndex] = {
           ...newInfos[memberInfoIndex],
           items: [...newInfos[memberInfoIndex].items, newSubItem],
         };
       } else {
-        // 없으면 새로 생성
+        // 없으면 -> 새로 생성
         newInfos.push({ memberId, items: [newSubItem] });
       }
 
@@ -842,7 +859,7 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
-    // 변경된 tasks와 columns를 모두 저장
+    // 🔥 [중요] 변수에 담긴 최신 값(newTasks)을 넘겨서 저장
     saveToServer(newColumns, members, newTasks);
   };
 
@@ -870,6 +887,7 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
+    // 🔥 최신 newTasks 저장
     saveToServer(columns, members, newTasks);
   };
 
@@ -893,6 +911,7 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
+    // 🔥 최신 newTasks 저장
     saveToServer(columns, members, newTasks);
   };
 
