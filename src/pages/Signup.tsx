@@ -76,6 +76,7 @@ const Signup: React.FC = () => {
       setError("");
 
       // 이제 newUser는 Promise가 아니라 실제 데이터이므로 .username 접근 가능!
+      localStorage.setItem("userName", newUser.name);
       login(newUser.username);
 
       setTimeout(() => {

@@ -30,6 +30,10 @@ export const useWindowSystem = () => {
       defaultW = 600;
       defaultH = 500;
     }
+    if (type === "github") {
+      defaultW = 500;
+      defaultH = 600;
+    }
 
     const newWindow: AppWindow = {
       id: Date.now(),
