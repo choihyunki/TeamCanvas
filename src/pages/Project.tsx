@@ -59,9 +59,9 @@ const Project: React.FC = () => {
 
   const socketRef = useRef<any>(null);
 
-  const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
-    guestName
-  );
+  // Live Cursors
+  const { cursors, handleMouseMove: handleLiveMouseMove } =
+    useLiveCursors(guestName);
 
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
@@ -70,11 +70,12 @@ const Project: React.FC = () => {
 
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
-
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
 
   const [activeTab, setActiveTab] = useState("taskBoard");
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+
+  // 🔥 [수정] ID 타입 string
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
   );
@@ -83,27 +84,23 @@ const Project: React.FC = () => {
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
   const [highestZIndex, setHighestZIndex] = useState(100);
 
-  const dragItem = useRef<
-    | {
-        id: number;
-        startX: number;
-        startY: number;
-        initialLeft: number;
-        initialTop: number;
-      }
-    | null
-  >(null);
-  const resizeItem = useRef<
-    | {
-        id: number;
-        startX: number;
-        startY: number;
-        initialWidth: number;
-        initialHeight: number;
-      }
-    | null
-  >(null);
+  // 드래그 앤 리사이즈 Refs
+  const dragItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialLeft: number;
+    initialTop: number;
+  } | null>(null);
+  const resizeItem = useRef<{
+    id: number;
+    startX: number;
+    startY: number;
+    initialWidth: number;
+    initialHeight: number;
+  } | null>(null);
 
+  // 사이드바 토글 함수
   const toggleLeftSidebar = () =>
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
@@ -119,8 +116,7 @@ const Project: React.FC = () => {
       newTasks?: Task[]
     ) => {
       if (!currentProjectId) return;
-      // newTasks가 제공되지 않으면 현재 tasks 상태를 사용합니다.
-      const tasksToSave = newTasks || tasks; 
+      const tasksToSave = newTasks || tasks;
 
       try {
         await ProjectService.saveProjectState(
@@ -130,6 +126,7 @@ const Project: React.FC = () => {
           tasksToSave
         );
 
+        // 소켓으로 업데이트 알림 전송
         if (socketRef.current) {
           socketRef.current.emit("update_board", String(currentProjectId));
         }
@@ -137,8 +134,7 @@ const Project: React.FC = () => {
         console.error("프로젝트 상태 저장 실패:", error);
       }
     },
-    // tasks를 의존성 배열에서 제거하여 불필요한 재생성을 막고 명시적 인수를 사용하도록 유도
-    [currentProjectId, tasks] // tasks를 유지하여 newTasks가 undefined일 때 최신 상태를 참조
+    [currentProjectId, tasks]
   );
 
   const fetchProjectData = useCallback(async () => {
@@ -146,8 +142,27 @@ const Project: React.FC = () => {
     try {
       const data = await ProjectService.getProject(currentProjectId);
       setColumns(data.columns || []);
-      setMembers(data.members || []);
-      setTasks(data.tasks || []);
+
+      // 🔥 [수정] 멤버 ID 문자열 변환 보장
+      if (data.members && Array.isArray(data.members)) {
+        const memberObjs = data.members.map((m: any, idx: number) => {
+          const safeId = m.id ? String(m.id) : String(idx + 1000);
+          if (typeof m === "string")
+            return { id: safeId, name: m, isOnline: true };
+          return { ...m, id: safeId };
+        });
+        setMembers(memberObjs);
+      }
+
+      // 🔥 [수정] 태스크 ID 문자열 변환 보장
+      if (data.tasks && Array.isArray(data.tasks)) {
+        const taskObjs = data.tasks.map((t: any) => ({
+          ...t,
+          id: String(t.id),
+          columnId: String(t.columnId),
+        }));
+        setTasks(taskObjs);
+      }
     } catch (error) {
       console.error("프로젝트 데이터 로드 실패:", error);
     }
@@ -167,7 +182,9 @@ const Project: React.FC = () => {
     if (!token) return;
     try {
       const list = await ProjectService.getMyProjects(token);
-      setMyProjects(list.map((p: any) => ({ id: String(p._id), name: p.name })));
+      setMyProjects(
+        list.map((p: any) => ({ id: String(p._id), name: p.name }))
+      );
     } catch (e) {
       console.error("내 프로젝트 로드 실패", e);
     }
@@ -184,7 +201,7 @@ const Project: React.FC = () => {
 
     socketRef.current = io(SERVER_URL, { transports: ["websocket"] });
 
-    const myUsername = localStorage.getItem("username");
+    const myUsername = localStorage.getItem("userName"); // userName으로 저장된 값 사용 권장
 
     socketRef.current.on("connect", () => {
       if (myUsername) {
@@ -199,6 +216,7 @@ const Project: React.FC = () => {
       fetchProjectData();
     });
 
+    // 실시간 상태 변경 알림
     socketRef.current.on(
       "user_status_change",
       ({ username, isOnline }: { username: string; isOnline: boolean }) => {
@@ -207,7 +225,6 @@ const Project: React.FC = () => {
             m.name === username ? { ...m, isOnline: isOnline } : m
           )
         );
-
         setFriends((prevFriends) =>
           (prevFriends as any[]).map((f) =>
             f.username === username ? { ...f, isOnline: isOnline } : f
@@ -216,28 +233,35 @@ const Project: React.FC = () => {
       }
     );
 
-    socketRef.current.on("current_online_users", (onlineUsernames: string[]) => {
-      setMembers((prev) =>
-        prev.map((m) => ({
-          ...m,
-          isOnline: onlineUsernames.includes(m.name),
-        }))
-      );
-
-      setFriends((prev) =>
-        (prev as any[]).map((f) => ({
-          ...f,
-          isOnline: onlineUsernames.includes(f.username),
-        }))
-      );
-    });
+    // 초기 온라인 목록 로드
+    socketRef.current.on(
+      "current_online_users",
+      (onlineUsernames: string[]) => {
+        setMembers((prev) =>
+          prev.map((m) => ({
+            ...m,
+            isOnline: onlineUsernames.includes(m.name),
+          }))
+        );
+        setFriends((prev) =>
+          (prev as any[]).map((f) => ({
+            ...f,
+            isOnline: onlineUsernames.includes(f.username),
+          }))
+        );
+      }
+    );
 
     return () => {
       socketRef.current.disconnect();
     };
-  }, [currentProjectId, token, fetchProjectData]);
+  }, [currentProjectId, token, fetchProjectData]); // fetchProjectData 추가
 
-  const openWindow = (type: ToolType, title: string) => {
+  // --- 인앱 툴 관리 핸들러 (그대로 유지) ---
+  // ... (openWindow, closeWindow, bringToFront, handleMouseDown... 등 기존 로직 유지)
+  // ... (간소화를 위해 생략하지 않고 모두 포함)
+
+  const handleOpenApp = (type: ToolType, title: string) => {
     let defaultW = 300;
     let defaultH = 400;
     if (type === "calculator") {
@@ -270,7 +294,7 @@ const Project: React.FC = () => {
     };
     setWindows([...windows, newWindow]);
     setActiveWindowId(newWindow.id);
-    setHighestZIndex(highestZIndex + 1);
+    setHighestZIndex((prev) => prev + 1);
   };
 
   const closeWindow = (id: number) => {
@@ -284,11 +308,6 @@ const Project: React.FC = () => {
       prev.map((w) => (w.id === id ? { ...w, zIndex: highestZIndex + 1 } : w))
     );
   };
-
-  const handleOpenApp = (type: ToolType, title: string) => {
-    openWindow(type, title);
-  };
-
   const handleMouseDownHeader = (
     e: React.MouseEvent,
     id: number,
@@ -305,7 +324,6 @@ const Project: React.FC = () => {
       initialTop: y,
     };
   };
-
   const handleMouseDownResize = (
     e: React.MouseEvent,
     id: number,
@@ -323,7 +341,6 @@ const Project: React.FC = () => {
       initialHeight: h,
     };
   };
-
   const handleWindowMouseMove = (e: React.MouseEvent) => {
     if (resizeItem.current) {
       const { id, startX, startY, initialWidth, initialHeight } =
@@ -349,18 +366,17 @@ const Project: React.FC = () => {
       const dy = e.clientY - startY;
       setWindows((prev) =>
         prev.map((w) =>
-          w.id === id
-            ? { ...w, x: initialLeft + dx, y: initialTop + dy }
-            : w
+          w.id === id ? { ...w, x: initialLeft + dx, y: initialTop + dy } : w
         )
       );
     }
   };
-
   const handleMouseUp = () => {
     dragItem.current = null;
     resizeItem.current = null;
   };
+
+  // --- 프로젝트 멤버 관리 핸들러 ---
 
   const handleAddMemberFromFriend = (
     friendId: number | string,
@@ -370,20 +386,25 @@ const Project: React.FC = () => {
       toast.success("이미 존재하는 멤버입니다.");
       return;
     }
-    const fid = typeof friendId === "string" ? Date.now() : friendId;
+    const friendInfo = friends.find((f) => f.name === friendName);
+    // 🔥 [수정] ID를 문자열로 변환
+    const fid = typeof friendId === "string" ? friendId : String(friendId);
+    // 혹은 기존 로직대로 Date.now().toString() 사용 가능
+    // const fid = Date.now().toString();
 
     const newMember: Member = {
       id: fid,
       name: friendName,
+      // username 필드는 Member 타입에 정의되어 있다면 사용
+      username: friendInfo?.username || friendName,
+      avatarInitial: friendInfo?.avatarInitial || friendName[0],
       isOnline: false,
       role: "팀원",
     };
 
-    setMembers((prev) => {
-      const updatedMembers = [...prev, newMember];
-      saveToServer(columns, updatedMembers, tasks);
-      return updatedMembers;
-    });
+    const newMembers = [...members, newMember];
+    setMembers(newMembers);
+    saveToServer(columns, newMembers, tasks);
     toast.success(`${friendName}님을 추가했습니다!`);
   };
 
@@ -408,8 +429,10 @@ const Project: React.FC = () => {
     }
 
     const newMember: Member = {
-      id: Date.now(),
+      id: Date.now().toString(), // 🔥 String ID
       name: targetFriend.name,
+      username: targetFriend.username,
+      avatarInitial: targetFriend.avatarInitial,
       isOnline: false,
       role: "팀원",
     };
@@ -420,23 +443,21 @@ const Project: React.FC = () => {
     toast.success(`${targetName}님을 추가했습니다!`);
   };
 
-  const handleDeleteMember = (memberId: number) => {
+  const handleDeleteMember = (memberId: number | string) => {
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
-    const newMembers = members.filter((m) => m.id !== memberId);
+    // 🔥 String 비교
+    const mIdStr = String(memberId);
+    const newMembers = members.filter((m) => String(m.id) !== mIdStr);
 
     const newColumns = columns.map((col) => ({
       ...col,
-      members: col.members.filter((m) => m.id !== memberId),
+      members: col.members.filter((m) => String(m.id) !== mIdStr),
     }));
 
-    const memberName = members.find((m) => m.id === memberId)?.name;
+    const memberName = members.find((m) => String(m.id) === mIdStr)?.name;
     let newTasks = tasks;
-
     if (memberName) {
-      newTasks = tasks.map((t) => ({
-        ...t,
-        members: t.members.filter((n) => n !== memberName),
-      }));
+      newTasks = TaskService.removeMemberFromTasks(tasks, memberName);
     }
 
     setMembers(newMembers);
@@ -446,8 +467,7 @@ const Project: React.FC = () => {
   };
 
   const handleAddColumn = (name: string) => {
-    const newColumnId =
-      columns.length > 0 ? Math.max(...columns.map((c) => c.id)) + 1 : 1;
+    const newColumnId = Date.now().toString(); // 🔥 String ID
     const newColumn: RoleColumn = { id: newColumnId, name: name, members: [] };
     setColumns((prev) => {
       const updatedColumns = [...prev, newColumn];
@@ -456,31 +476,40 @@ const Project: React.FC = () => {
     });
   };
 
-  const handleDeleteColumn = (columnId: number) => {
+  const handleDeleteColumn = (columnId: number | string) => {
     if (!window.confirm("삭제하시겠습니까?")) return;
-    const newColumns = columns.filter((col) => col.id !== columnId);
-    const newTasks = tasks.filter((t) => t.columnId !== columnId);
+    const cIdStr = String(columnId);
+    const newColumns = columns.filter((col) => String(col.id) !== cIdStr);
+    const newTasks = TaskService.removeTasksByColumn(tasks, cIdStr);
 
     setColumns(newColumns);
     setTasks(newTasks);
     saveToServer(newColumns, members, newTasks);
   };
 
-  const handleAddMemberToColumn = (columnId: number, memberId: number) => {
-    const destCol = columns.find((c) => c.id === columnId);
+  // --- 멤버 -> 컬럼 배정 핸들러 ---
+
+  const handleAddMemberToColumn = (
+    columnId: number | string,
+    memberId: number | string
+  ) => {
+    const cIdStr = String(columnId);
+    const mIdStr = String(memberId);
+
+    const destCol = columns.find((c) => String(c.id) === cIdStr);
     if (!destCol) return;
-    if (destCol.members.some((m) => m.id === memberId)) {
+    if (destCol.members.some((m) => String(m.id) === mIdStr)) {
       toast.success("이미 배정됨");
       return;
     }
-    const memberInfo = members.find((m) => m.id === memberId);
+    const memberInfo = members.find((m) => String(m.id) === mIdStr);
     if (!memberInfo) {
       toast.error("멤버 정보를 찾을 수 없습니다.");
       return;
     }
 
     const newProjectMember: ExtendedProjectMember = {
-      id: memberId,
+      id: mIdStr,
       name: memberInfo.name,
       role: memberInfo.role,
       status: "TODO",
@@ -489,10 +518,13 @@ const Project: React.FC = () => {
     } as ExtendedProjectMember;
 
     const newColumns = columns.map((col) =>
-      col.id === columnId
+      String(col.id) === cIdStr
         ? ({
             ...col,
-            members: [...col.members, newProjectMember] as ExtendedProjectMember[],
+            members: [
+              ...col.members,
+              newProjectMember,
+            ] as ExtendedProjectMember[],
           } as RoleColumn)
         : col
     );
@@ -500,49 +532,94 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, tasks);
   };
 
-  const handleDropMemberOnColumn = (columnId: number, memberId: number) => {
+  const handleDropMemberOnColumn = (
+    columnId: number | string,
+    memberId: number | string
+  ) => {
     handleAddMemberToColumn(columnId, memberId);
   };
 
-  const handleInviteFriendToColumn = (columnId: number, friendName: string) => {
-    const friend = friends.find((f) => f.name === friendName);
-    if (!friend) return;
+  // 친구를 바로 컬럼으로 초대
+  const handleInviteFriendToColumn = (
+    columnId: number | string,
+    friendId: string,
+    friendName: string
+  ) => {
+    const friendInfo = friends.find((f) => f.name === friendName);
+    const avatar = friendInfo?.avatarInitial || friendName[0];
+    const realUsername = friendInfo?.username || friendName;
 
-    const isAlreadyMember = members.some((m) => m.name === friendName);
-    if (!isAlreadyMember) {
-      const newMemberId =
-        members.length > 0 ? Math.max(...members.map((m) => m.id)) + 1 : 1;
-      const newMember: Member = {
-        id: newMemberId,
-        name: friendName,
-        isOnline: false,
-        role: "팀원",
-      };
+    // 🔥 String ID
+    const fid = Date.now().toString();
 
-      const newMembers = [...members, newMember];
-      setMembers(newMembers);
+    if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
+      let newMembers = [...members];
+      let targetId = fid;
 
-      toast.info(`${friendName}님을 멤버로 추가했습니다. 다시 드래그해주세요.`);
-    } else {
-      const memberId = members.find((m) => m.name === friendName)?.id;
-      if (memberId) {
-        handleDropMemberOnColumn(columnId, memberId);
-        toast.info(`${friendName}님을 보드에 배정했습니다.`);
+      if (!members.some((m) => m.name === friendName)) {
+        newMembers.push({
+          id: fid,
+          name: friendName,
+          username: realUsername,
+          avatarInitial: avatar,
+          isOnline: false,
+          role: "팀원",
+        });
+        setMembers(newMembers);
+      } else {
+        const existing = members.find((m) => m.name === friendName);
+        if (existing) targetId = existing.id;
       }
+
+      const cIdStr = String(columnId);
+      const newColumns = columns.map((col) =>
+        String(col.id) === cIdStr
+          ? {
+              ...col,
+              members: [
+                ...col.members,
+                {
+                  id: targetId,
+                  name: friendName,
+                  username: realUsername,
+                  status: "작업전",
+                  subTasks: [],
+                } as any,
+              ],
+            }
+          : col
+      );
+      setColumns(newColumns);
+      saveToServer(newColumns, newMembers, tasks);
+
+      // 초대 알림
+      if (socketRef.current) {
+        const currentProjectInfo = myProjects.find(
+          (p) => p.id === currentProjectId
+        );
+        const realProjectName = currentProjectInfo
+          ? currentProjectInfo.name
+          : "프로젝트";
+        socketRef.current.emit("invite_user", {
+          targetUsername: realUsername,
+          projectName: realProjectName,
+        });
+      }
+      toast.success("초대되었습니다!");
     }
   };
 
   const handleUpdateMemberStatus = (
-    columnId: number,
-    memberId: number,
+    columnId: number | string,
+    memberId: number | string,
     status: string
   ) => {
     const newColumns = columns.map((col) => {
-      if (col.id !== columnId) return col;
+      if (String(col.id) !== String(columnId)) return col;
       return {
         ...col,
         members: col.members.map((m) =>
-          m.id === memberId ? { ...m, status } : m
+          String(m.id) === String(memberId) ? { ...m, status } : m
         ) as ExtendedProjectMember[],
       } as RoleColumn;
     });
@@ -551,16 +628,16 @@ const Project: React.FC = () => {
   };
 
   const handleUpdateMemberMemo = (
-    columnId: number,
-    memberId: number,
+    columnId: number | string,
+    memberId: number | string,
     memo: string
   ) => {
     const newColumns = columns.map((col) => {
-      if (col.id !== columnId) return col;
+      if (String(col.id) !== String(columnId)) return col;
       return {
         ...col,
         members: col.members.map((m) =>
-          m.id === memberId ? { ...m, memo } : m
+          String(m.id) === String(memberId) ? { ...m, memo } : m
         ) as ExtendedProjectMember[],
       } as RoleColumn;
     });
@@ -569,22 +646,30 @@ const Project: React.FC = () => {
   };
 
   const handleMoveMemberBetweenColumns = (
-    memberId: number,
-    sourceColId: number,
-    destColId: number
+    memberId: number | string,
+    sourceColId: number | string,
+    destColId: number | string
   ) => {
-    const sourceCol = columns.find((c) => c.id === sourceColId);
-    const memberToMove = sourceCol?.members.find((m) => m.id === memberId);
+    const mIdStr = String(memberId);
+    const sIdStr = String(sourceColId);
+    const dIdStr = String(destColId);
+
+    const sourceCol = columns.find((c) => String(c.id) === sIdStr);
+    const memberToMove = sourceCol?.members.find(
+      (m) => String(m.id) === mIdStr
+    );
     if (!sourceCol || !memberToMove) return;
 
     const newColumns = columns.map((col) => {
-      if (col.id === sourceColId)
+      if (String(col.id) === sIdStr)
         return {
           ...col,
-          members: col.members.filter((m) => m.id !== memberId) as ExtendedProjectMember[],
+          members: col.members.filter(
+            (m) => String(m.id) !== mIdStr
+          ) as ExtendedProjectMember[],
         } as RoleColumn;
-      if (col.id === destColId) {
-        if (col.members.some((m) => m.id === memberId)) return col;
+      if (String(col.id) === dIdStr) {
+        if (col.members.some((m) => String(m.id) === mIdStr)) return col;
         return {
           ...col,
           members: [...col.members, memberToMove] as ExtendedProjectMember[],
@@ -596,76 +681,68 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, tasks);
   };
 
-  const handleAddTask = (columnId: number, status: string) => {
+  // --- Task 관련 핸들러 ---
+
+  const handleAddTask = (columnId: number | string, status: string) => {
     const title = prompt("할 일을 입력하세요:");
     if (!title) return;
-
-    const newTaskId = Date.now();
-    const newTask: Task = {
-      id: newTaskId,
-      columnId,
-      status: status.toUpperCase(),
-      title,
-      members: [],
-    };
-
-    const newTasks = [...tasks, newTask];
-    setTasks(newTasks);
-    saveToServer(columns, members, newTasks);
-  };
-
-  const handleUpdateTaskStatus = (taskId: number, newStatus: string) => {
-    const newTasks = tasks.map((t) =>
-      t.id === taskId ? { ...t, status: newStatus } : t
+    // 🔥 String ID 사용
+    const newTasks = TaskService.createTask(
+      tasks,
+      String(columnId),
+      status,
+      title
     );
     setTasks(newTasks);
     saveToServer(columns, members, newTasks);
   };
 
-  const handleDeleteTask = (taskId: number) => {
+  const handleUpdateTaskStatus = (
+    taskId: number | string,
+    newStatus: string
+  ) => {
+    const newTasks = TaskService.updateStatus(tasks, String(taskId), newStatus);
+    setTasks(newTasks);
+    saveToServer(columns, members, newTasks);
+  };
+
+  const handleDeleteTask = (taskId: number | string) => {
     if (window.confirm("삭제하시겠습니까?")) {
-      const newTasks = tasks.filter((t) => t.id !== taskId);
+      const newTasks = TaskService.deleteTask(tasks, String(taskId));
       setTasks(newTasks);
       saveToServer(columns, members, newTasks);
 
-      if (selectedTaskId === taskId) {
+      if (selectedTaskId === String(taskId)) {
         setSelectedTaskId(null);
         setActiveTab("taskBoard");
       }
     }
   };
 
-  const handleAssignMemberToTask = (taskId: number, memberId: number) => {
-    const member = members.find((m) => m.id === memberId);
+  const handleAssignMemberToTask = (
+    taskId: number | string,
+    memberId: number | string
+  ) => {
+    const member = members.find((m) => String(m.id) === String(memberId));
     if (!member) return;
 
-    const newTasks = tasks.map((t) => {
-      if (t.id !== taskId) return t;
-      const hasMember = t.members.includes(member.name);
-      return {
-        ...t,
-        members: hasMember
-          ? t.members.filter((n) => n !== member.name)
-          : [...t.members, member.name],
-      };
-    });
+    const newTasks = TaskService.toggleMemberAssignment(
+      tasks,
+      String(taskId),
+      member
+    );
 
     setTasks(newTasks);
     saveToServer(columns, members, newTasks);
   };
 
-  const handleSelectTask = (tid: number) => {
-    setSelectedTaskId(tid);
+  const handleSelectTask = (tid: number | string) => {
+    setSelectedTaskId(String(tid));
     setActiveTab("taskDetails");
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
-    const updatedScheduleTask = updatedTask as any; 
-
-    const newTasks = tasks.map((tk) =>
-        tk.id === updatedScheduleTask.id ? updatedScheduleTask : tk
-    );
-    
+    const newTasks = TaskService.updateTaskDetail(tasks, updatedTask);
     setTasks(newTasks);
     // 🔥 [핵심 수정] 변경된 newTasks 배열을 명시적으로 saveToServer에 전달
     saveToServer(columns, members, newTasks); 
@@ -676,96 +753,73 @@ const Project: React.FC = () => {
     handleUpdateTask(updatedTask);
   };
 
-  const handleAddSubTask = (
-    columnId: number,
-    memberId: number,
-    content: string
-  ) => {
-    const newSubTask: SubTask = {
-      id: Date.now(),
-      content: content,
-      completed: false,
-    };
+  // --- 🔥 SubTask 핸들러 (ID: String 적용) ---
 
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        if (col.id !== columnId) return col;
+  const handleAddSubTask = (columnId: number | string, memberId: number | string, content: string) => {
+    console.log(`➕ 세부 작업 추가 시도: Column(${columnId}), Member(${memberId}), Content(${content})`);
 
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
+    // 1. 새 컬럼 상태 만들기
+    const newColumns = columns.map((col) => {
+      // 컬럼 ID 비교 (문자열로 변환)
+      if (String(col.id) !== String(columnId)) return col;
 
-            const existingSubTasks = m.subTasks || [];
-            return {
-              ...m,
-              subTasks: [...existingSubTasks, newSubTask],
-            };
-          }) as ExtendedProjectMember[],
-        } as RoleColumn;
-      });
+      // 멤버 찾기
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          // 멤버 ID 비교 (문자열로 변환)
+          if (String(m.id) !== String(memberId)) return m;
+          
+          console.log("✅ 타겟 멤버 찾음:", m.name); 
 
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+          const newSub = { id: Date.now().toString(), content, completed: false };
+          // 기존 subTasks가 없으면 빈 배열로 처리
+          return { ...m, subTasks: [...(m.subTasks || []), newSub] };
+        }),
+      } as any; // 타입 호환성을 위해 as any 사용 (RoleColumn 구조 맞춤)
     });
+
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
 
-  const handleToggleSubTask = (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => {
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        if (col.id !== columnId) return col;
-
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-
-            return {
-              ...m,
-              subTasks: (m.subTasks || []).map((st) =>
-                st.id === subTaskId ? { ...st, completed: !st.completed } : st
-              ),
-            };
-          }) as ExtendedProjectMember[],
-        } as RoleColumn;
-      });
-
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+  const handleToggleSubTask = (columnId: number | string, memberId: number | string, subTaskId: number | string) => {
+    const newColumns = columns.map((col) => {
+      if (String(col.id) !== String(columnId)) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (String(m.id) !== String(memberId)) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.map((sub) =>
+              String(sub.id) === String(subTaskId) ? { ...sub, completed: !sub.completed } : sub
+            ),
+          };
+        }),
+      } as any;
     });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
 
-  const handleDeleteSubTask = (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
-  ) => {
-    setColumns((prevColumns) => {
-      const newColumns = prevColumns.map((col) => {
-        if (col.id !== columnId) return col;
-
-        return {
-          ...col,
-          members: col.members.map((m) => {
-            if (m.id !== memberId) return m;
-
-            return {
-              ...m,
-              subTasks: (m.subTasks || []).filter((st) => st.id !== subTaskId),
-            };
-          }) as ExtendedProjectMember[],
-        } as RoleColumn;
-      });
-
-      saveToServer(newColumns, members, tasks);
-      return newColumns;
+  const handleDeleteSubTask = (columnId: number | string, memberId: number | string, subTaskId: number | string) => {
+    const newColumns = columns.map((col) => {
+      if (String(col.id) !== String(columnId)) return col;
+      return {
+        ...col,
+        members: col.members.map((m) => {
+          if (String(m.id) !== String(memberId)) return m;
+          return {
+            ...m,
+            subTasks: m.subTasks?.filter((sub) => String(sub.id) !== String(subTaskId)),
+          };
+        }),
+      } as any;
     });
+    setColumns(newColumns);
+    saveToServer(newColumns, members, tasks);
   };
-
   return (
     <div
       className="project-layout"
@@ -840,7 +894,7 @@ const Project: React.FC = () => {
         onClose={toggleSlideout}
         projects={myProjects}
         friends={friends}
-        onRefreshFriends={fetchFriends}
+        onRefreshFriends={fetchProjectData} // loadData -> fetchProjectData
       />
 
       <div
@@ -856,9 +910,7 @@ const Project: React.FC = () => {
             members={members}
             onAddMemberClick={handleAddMember}
             onDeleteMember={handleDeleteMember}
-            onAddMemberFromFriend={(friendId, friendName) =>
-              handleAddMemberFromFriend(friendId, friendName)
-            }
+            onAddMemberFromFriend={handleAddMemberFromFriend}
           />
         </aside>
 
@@ -979,6 +1031,29 @@ const Project: React.FC = () => {
           }`}
         >
           <ChatBox projectId={currentProjectId} />
+          <button
+            className="toggle-btn"
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "-24px",
+              zIndex: 100,
+              width: "24px",
+              height: "40px",
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRight: "none",
+              borderRadius: "4px 0 0 4px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#6b7280",
+            }}
+            onClick={() => setIsRightSidebarCollapsed(!isRightSidebarCollapsed)}
+          >
+            {isRightSidebarCollapsed ? "<<" : ">>"}
+          </button>
         </aside>
         
         <button

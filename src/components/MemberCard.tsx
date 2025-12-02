@@ -5,7 +5,7 @@ import "../styles/MemberCard.css";
 interface Props {
   member: Member;
   onClick?: () => void;
-  onDelete?: (id: number) => void;
+  onDelete?: (id: string) => void;
   showDelete?: boolean;
 }
 

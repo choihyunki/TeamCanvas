@@ -61,6 +61,24 @@ const ProjectSchema = new mongoose.Schema({
   columns: { type: Array, default: [] },
   // 🔥 [수정] tasks를 TaskSubSchema 배열로 변경
   tasks: [TaskSubSchema],
+  members: { type: Array, default: [] }, // 객체 배열 저장 허용
+  columns: [
+    {
+      id: String, // 🔥 String
+      name: String,
+      members: { type: Array, default: [] },
+    },
+  ],
+  tasks: [
+    {
+      id: String, // 🔥 String
+      columnId: String, // 🔥 String
+      status: String,
+      title: String,
+      members: [String],
+      // ... 기타
+    },
+  ],
   createdAt: { type: Date, default: Date.now },
 });
 const Project = mongoose.model("Project", ProjectSchema);

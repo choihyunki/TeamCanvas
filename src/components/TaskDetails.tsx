@@ -8,19 +8,20 @@ interface Props {
   columns: RoleColumn[];
   members: Member[];
   tasks: Task[];
-  selectedTaskId: number | null;
+  selectedTaskId: string | null;
   onUpdateTask?: (updatedTask: Task) => void;
 
-  onAddSubTask: (columnId: number, memberId: number, content: string) => void;
+  // 서브 태스크 핸들러
+  onAddSubTask: (columnId: string, memberId: string, content: string) => void;
   onToggleSubTask: (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
+    columnId: string,
+    memberId: string,
+    subTaskId: string
   ) => void;
   onDeleteSubTask: (
-    columnId: number,
-    memberId: number,
-    subTaskId: number
+    columnId: string,
+    memberId: string,
+    subTaskId: string
   ) => void;
 }
 
@@ -42,7 +43,7 @@ const TaskDetails: React.FC<Props> = ({
   onDeleteSubTask,
 }) => {
   const [inputs, setInputs] = useState<{ [key: string]: string }>({});
-  const taskRefs = useRef<{ [key: number]: HTMLDivElement | null }>({});
+  const taskRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   useEffect(() => {
     if (selectedTaskId !== null && taskRefs.current[selectedTaskId]) {
@@ -53,13 +54,12 @@ const TaskDetails: React.FC<Props> = ({
     }
   }, [selectedTaskId]);
 
-  const handleInputChange = (taskId: number, memberId: number, val: string) => {
+  const handleInputChange = (taskId: string, memberId: string, val: string) => {
     setInputs((prev) => ({ ...prev, [`${taskId}-${memberId}`]: val }));
   };
 
-  // 🔥 [수정] handleAdd 함수가 realMemberId(컬럼 내부 ID)를 받도록 수정
-  const handleAdd = (columnId: number, taskId: number, realMemberId: number) => {
-    const key = `${taskId}-${realMemberId}`; 
+  const handleAdd = (columnId: string, memberId: string, taskId: string) => {
+    const key = `${taskId}-${memberId}`;
     if (!inputs[key]?.trim()) return;
 
     onAddSubTask(columnId, realMemberId, inputs[key]);
@@ -84,7 +84,10 @@ const TaskDetails: React.FC<Props> = ({
 
               const assignedProjectMembers = task.members
                 .map((memberName) => {
-                  const globalMember = members.find((m) => m.name === memberName);
+                  // 1. 전체 멤버 목록에서 정보 찾기
+                  const globalMember = members.find(
+                    (m) => m.name === memberName
+                  );
                   if (!globalMember) return null;
 
                   const existingMemberInCurrentCol = col.members.find(
@@ -117,7 +120,8 @@ const TaskDetails: React.FC<Props> = ({
                       };
                   }
                 })
-                .filter((item) => item !== null) as any[]; 
+                .filter((item) => item !== null) as any[];
+              // any[] 로 처리하여 기존 타입 호환성 문제 방지 (ProjectMember 타입 구조에 따라)
 
               return (
                 <div
@@ -131,9 +135,7 @@ const TaskDetails: React.FC<Props> = ({
                 >
                   <div className="task-header">
                     <span className="task-header-title">{task.title}</span>
-                    <span
-                      className={`task-status-badge status-${task.status}`}
-                    >
+                    <span className={`task-status-badge status-${task.status}`}>
                       {STATUS_OPTIONS.find((o) => o.value === task.status)
                         ?.label || task.status}
                     </span>
@@ -161,7 +163,8 @@ const TaskDetails: React.FC<Props> = ({
                             const globalMember = members.find(
                               (m) => m.id === pm.id
                             );
-                            const memberName = globalMember?.name || pm.name; 
+                            // 이름이 없는 경우 대비
+                            const memberName = globalMember?.name || pm.name;
                             const subTasks = pm.subTasks || [];
                             
                             // SubTask 관리 권한 확인 (현재 컬럼에 등록된 멤버만 가능)

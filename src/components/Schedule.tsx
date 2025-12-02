@@ -36,7 +36,7 @@ const calculateChartStartDate = (tasks: ScheduleTask[]): Date => {
 const DAYS_PER_PIXEL = 20;
 
 const Schedule: React.FC<Props> = ({ tasks, onUpdateTask }) => {
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newDueDate, setNewDueDate] = useState("");
   const [newStartDate, setNewStartDate] = useState(""); 
 
