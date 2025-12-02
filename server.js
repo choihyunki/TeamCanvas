@@ -52,35 +52,30 @@ const TaskSubSchema = new mongoose.Schema({
   // 필요하다면 SubTask와 memo 필드도 여기에 추가해야 합니다.
 });
 
-
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
+
+  // 멤버 배열 (객체 저장 허용)
   members: { type: Array, default: [] },
-  columns: { type: Array, default: [] },
-  // 🔥 [수정] tasks를 TaskSubSchema 배열로 변경
-  tasks: [TaskSubSchema],
-  members: { type: Array, default: [] }, // 객체 배열 저장 허용
+
+  // 컬럼 배열 (내부에 members 배열 포함 -> 여기에 subTasks가 저장됨)
   columns: [
     {
-      id: String, // 🔥 String
+      id: String,
       name: String,
+      // Mixed 타입으로 설정하여 내부 구조(subTasks 등)를 자유롭게 저장
       members: { type: Array, default: [] },
     },
   ],
-  tasks: [
-    {
-      id: String, // 🔥 String
-      columnId: String, // 🔥 String
-      status: String,
-      title: String,
-      members: [String],
-      // ... 기타
-    },
-  ],
+
+  // 태스크 배열 (스키마 적용)
+  tasks: [TaskSubSchema],
+
   createdAt: { type: Date, default: Date.now },
 });
+
 const Project = mongoose.model("Project", ProjectSchema);
 
 const ChatSchema = new mongoose.Schema({

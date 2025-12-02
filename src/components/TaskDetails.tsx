@@ -43,7 +43,6 @@ const TaskDetails: React.FC<Props> = ({
 }) => {
   const [inputs, setInputs] = useState<{ [key: string]: string }>({});
   const taskRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  // 🔥 [제거] 확장 상태 관리 로직 제거: const [expandedTasks, setExpandedTasks] = useState<{ [key: string]: boolean }>({}); 
 
   useEffect(() => {
     if (selectedTaskId !== null && taskRefs.current[selectedTaskId]) {
@@ -54,17 +53,16 @@ const TaskDetails: React.FC<Props> = ({
     }
   }, [selectedTaskId]);
 
-  // 🔥 [제거] Task 확장/축소 토글 함수 제거: const handleToggleExpand = ...
-
   const handleInputChange = (taskId: string, memberId: string, val: string) => {
     setInputs((prev) => ({ ...prev, [`${taskId}-${memberId}`]: val }));
   };
 
-  const handleAdd = (columnId: string, taskId: string, realMemberId: string) => {
-    const key = `${taskId}-${realMemberId}`; 
+  const handleAdd = (columnId: string, taskId: string, memberId: string) => {
+    const key = `${taskId}-${memberId}`;
     if (!inputs[key]?.trim()) return;
 
-    onAddSubTask(columnId, realMemberId, inputs[key]);
+    // 🔥 [수정] ID 불일치 문제 해결: 인자로 받은 memberId를 그대로 사용
+    onAddSubTask(columnId, memberId, inputs[key]);
     setInputs((prev) => ({ ...prev, [key]: "" }));
   };
 
@@ -73,7 +71,9 @@ const TaskDetails: React.FC<Props> = ({
       <h2 className="page-title">📑 전체 세부 작업 목록</h2>
 
       {columns.map((col) => {
-        const colTasks = tasks.filter((t) => String(t.columnId) === String(col.id));
+        const colTasks = tasks.filter(
+          (t) => String(t.columnId) === String(col.id)
+        );
 
         if (colTasks.length === 0) return null;
 
@@ -83,45 +83,53 @@ const TaskDetails: React.FC<Props> = ({
 
             {colTasks.map((task) => {
               const isSelected = task.id === selectedTaskId;
-              
-              // 🔥 isExpanded 상태 제거
 
               const assignedProjectMembers = task.members
                 .map((memberName) => {
-                  const globalMember = members.find((m) => m.name === memberName);
+                  const globalMember = members.find(
+                    (m) => m.name === memberName
+                  );
                   if (!globalMember) return null;
 
+                  // 1. 현재 컬럼에 이 멤버가 있는지 확인
                   const existingProjectMember = col.members.find(
                     (pm) => String(pm.id) === String(globalMember.id)
                   );
-                  
-                  // 프로젝트 전체 컬럼에서 SubTask 데이터를 찾습니다.
-                  let subTasksToDisplay: any[] = [];
-                  
-                  for (const otherCol of columns) {
-                      const foundMember = otherCol.members.find(pm => String(pm.id) === String(globalMember.id));
-                      if (foundMember && foundMember.subTasks && foundMember.subTasks.length > 0) {
-                          subTasksToDisplay = foundMember.subTasks;
-                          break; 
-                      }
-                  }
 
+                  // 🔥 [핵심 수정] 기존 멤버가 있으면 그 데이터를 그대로 씁니다. (덮어쓰기 X)
                   if (existingProjectMember) {
-                      return {
-                          ...existingProjectMember,
-                          subTasks: subTasksToDisplay, 
-                          isNotInColumn: false 
-                      };
+                    return {
+                      ...existingProjectMember,
+                      // subTasks가 없으면 빈 배열로 초기화
+                      subTasks: existingProjectMember.subTasks || [],
+                      isNotInColumn: false,
+                    };
                   } else {
-                      return {
-                          id: String(globalMember.id), 
-                          name: globalMember.name, 
-                          subTasks: subTasksToDisplay,
-                          isNotInColumn: true 
-                      };
+                    // 현재 컬럼에 없으면, 다른 컬럼에서 정보를 가져와서 보여줌 (읽기 전용)
+                    let subTasksToDisplay: any[] = [];
+                    for (const otherCol of columns) {
+                      const foundMember = otherCol.members.find(
+                        (pm) => String(pm.id) === String(globalMember.id)
+                      );
+                      if (
+                        foundMember &&
+                        foundMember.subTasks &&
+                        foundMember.subTasks.length > 0
+                      ) {
+                        subTasksToDisplay = foundMember.subTasks;
+                        break;
+                      }
+                    }
+
+                    return {
+                      id: String(globalMember.id),
+                      name: globalMember.name,
+                      subTasks: subTasksToDisplay,
+                      isNotInColumn: true, // 이 상태면 수정 불가
+                    };
                   }
                 })
-                .filter((item) => item !== null) as any[]; 
+                .filter((item) => item !== null) as any[];
 
               return (
                 <div
@@ -139,11 +147,8 @@ const TaskDetails: React.FC<Props> = ({
                       {STATUS_OPTIONS.find((o) => o.value === task.status)
                         ?.label || task.status}
                     </span>
-                    
-                    {/* 🔥 [제거] ▲/▼ 토글 버튼 제거 */}
                   </div>
 
-                  {/* SubTask 테이블은 항상 표시 */}
                   <div className="table-container">
                     <table className="custom-table">
                       <thead>
@@ -163,30 +168,21 @@ const TaskDetails: React.FC<Props> = ({
                           </tr>
                         ) : (
                           assignedProjectMembers.map((pm) => {
-                            const globalMember = members.find(
-                              (m) => String(m.id) === String(pm.id)
-                            );
-                            const memberName = globalMember?.name || pm.name; 
                             const subTasks = pm.subTasks || [];
-                            
-                            const canManageSubTasks = !pm.isNotInColumn; 
-                            
-                            const realMemberId = col.members.find(m => m.name === pm.name)?.id;
-                            const managementId = realMemberId as string;
-                            
-                            const inputKeyId = pm.id; 
+                            const canManageSubTasks = !pm.isNotInColumn;
+                            const memberId = String(pm.id); // ID 통일
 
-                            const rowCount = subTasks.length + 2; 
+                            const rowCount = subTasks.length + 2;
 
                             return (
                               <React.Fragment key={pm.id}>
                                 <tr className="member-header-row">
                                   <td
-                                    rowSpan={rowCount} 
+                                    rowSpan={rowCount}
                                     className="member-cell"
                                   >
                                     <div className="member-badge">
-                                      {memberName}
+                                      {pm.name}
                                     </div>
                                   </td>
                                 </tr>
@@ -201,7 +197,6 @@ const TaskDetails: React.FC<Props> = ({
                                         {st.content}
                                       </td>
                                       <td className="status-cell">
-                                        {/* 진행 상태 드롭다운 (관리 권한 있을 때만) */}
                                         {canManageSubTasks ? (
                                           <select
                                             className={`status-select ${currentStatus}`}
@@ -209,7 +204,7 @@ const TaskDetails: React.FC<Props> = ({
                                             onChange={() =>
                                               onToggleSubTask(
                                                 col.id,
-                                                managementId, 
+                                                memberId,
                                                 st.id
                                               )
                                             }
@@ -224,8 +219,15 @@ const TaskDetails: React.FC<Props> = ({
                                             ))}
                                           </select>
                                         ) : (
-                                          // 관리 권한이 없으면 상태 표시만 (CSS 복구 버전 사용)
-                                          <span className={`status-select ${currentStatus}`}>{STATUS_OPTIONS.find((o) => o.value === currentStatus)?.label}</span>
+                                          <span
+                                            className={`status-select ${currentStatus}`}
+                                          >
+                                            {
+                                              STATUS_OPTIONS.find(
+                                                (o) => o.value === currentStatus
+                                              )?.label
+                                            }
+                                          </span>
                                         )}
                                       </td>
                                       <td className="action-cell">
@@ -235,7 +237,7 @@ const TaskDetails: React.FC<Props> = ({
                                             onClick={() =>
                                               onDeleteSubTask(
                                                 col.id,
-                                                managementId, 
+                                                memberId,
                                                 st.id
                                               )
                                             }
@@ -249,38 +251,48 @@ const TaskDetails: React.FC<Props> = ({
                                 })}
 
                                 <tr className="input-row">
-                                    <td colSpan={3}>
-                                        <div className="input-group">
-                                            <input
-                                                type="text"
-                                                placeholder={`${memberName}의 작업 추가...`}
-                                                value={
-                                                    inputs[`${task.id}-${inputKeyId}`] || ""
-                                                }
-                                                onChange={(e) =>
-                                                    handleInputChange(
-                                                        task.id,
-                                                        inputKeyId,
-                                                        e.target.value
-                                                    )
-                                                }
-                                                onKeyDown={(e) =>
-                                                    e.key === "Enter" &&
-                                                    canManageSubTasks && handleAdd(col.id, task.id, managementId) 
-                                                }
-                                                // 입력 필드는 활성화
-                                            />
-                                            <button
-                                                onClick={() =>
-                                                    canManageSubTasks && handleAdd(col.id, task.id, managementId)
-                                                }
-                                                disabled={!canManageSubTasks}
-                                                title={!canManageSubTasks ? "역할에 멤버를 등록해야 추가 가능" : "작업 추가"}
-                                            >
-                                                추가
-                                            </button>
-                                        </div>
-                                    </td>
+                                  <td colSpan={3}>
+                                    <div className="input-group">
+                                      <input
+                                        type="text"
+                                        placeholder={
+                                          canManageSubTasks
+                                            ? `${pm.name}의 작업 추가...`
+                                            : "역할에 소속되지 않음"
+                                        }
+                                        value={
+                                          inputs[`${task.id}-${memberId}`] || ""
+                                        }
+                                        onChange={(e) =>
+                                          handleInputChange(
+                                            task.id,
+                                            memberId,
+                                            e.target.value
+                                          )
+                                        }
+                                        onKeyDown={(e) =>
+                                          e.key === "Enter" &&
+                                          canManageSubTasks &&
+                                          handleAdd(col.id, task.id, memberId)
+                                        }
+                                        disabled={!canManageSubTasks}
+                                      />
+                                      <button
+                                        onClick={() =>
+                                          canManageSubTasks &&
+                                          handleAdd(col.id, task.id, memberId)
+                                        }
+                                        disabled={!canManageSubTasks}
+                                        title={
+                                          !canManageSubTasks
+                                            ? "역할에 멤버를 등록해야 추가 가능"
+                                            : "작업 추가"
+                                        }
+                                      >
+                                        추가
+                                      </button>
+                                    </div>
+                                  </td>
                                 </tr>
                               </React.Fragment>
                             );
