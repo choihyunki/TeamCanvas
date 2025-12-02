@@ -61,8 +61,10 @@ const Project: React.FC = () => {
     storedName || (token ? `User_${token.substring(0, 4)}` : "Guest");
 
   const socketRef = useRef<any>(null);
+
+  // 🔥 접속자 명단 기억용 Ref
   const onlineUsersRef = useRef<Set<string>>(new Set());
-  // Live Cursors
+
   const { cursors, handleMouseMove: handleLiveMouseMove } = useLiveCursors(
     myName,
     currentProjectId
@@ -79,18 +81,15 @@ const Project: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState("taskBoard");
 
-  // 🔥 [핵심] ID 타입 string으로 통일
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [myProjects, setMyProjects] = useState<{ id: string; name: string }[]>(
     []
   );
 
-  // 윈도우 시스템 (윈도우 ID는 내부적으로 number 사용 유지 - useWindowSystem 등과 호환)
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
   const [highestZIndex, setHighestZIndex] = useState(100);
 
-  // 드래그 앤 리사이즈 Refs
   const dragItem = useRef<{
     id: number;
     startX: number;
@@ -106,7 +105,6 @@ const Project: React.FC = () => {
     initialHeight: number;
   } | null>(null);
 
-  // 사이드바 토글 함수
   const toggleLeftSidebar = () =>
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
@@ -122,7 +120,6 @@ const Project: React.FC = () => {
       newTasks?: Task[]
     ) => {
       if (!currentProjectId) return;
-      // 🔥 [수정] newTasks가 없으면 현재 state(tasks)를 쓰는데, 이 시점이 엇갈리지 않도록 주의해야 함
       const tasksToSave = newTasks || tasks;
 
       try {
@@ -133,7 +130,6 @@ const Project: React.FC = () => {
           tasksToSave
         );
 
-        // 소켓으로 업데이트 알림 전송
         if (socketRef.current) {
           socketRef.current.emit("update_board", String(currentProjectId));
         }
@@ -156,16 +152,13 @@ const Project: React.FC = () => {
         const memberObjs = data.members.map((m: any, idx: number) => {
           const safeId = m.id ? String(m.id) : String(Date.now() + idx);
 
-          // 이름 가져오기 (문자열인 경우 호환)
           const mName = typeof m === "string" ? m : m.name;
           const mUsername = typeof m === "string" ? m : m.username;
 
-          // 🔥 [수정] Ref에 이 사람이 있는지 확인! (없으면 false)
           const isReallyOnline =
             onlineUsersRef.current.has(mName) ||
             onlineUsersRef.current.has(mUsername);
 
-          // 나 자신은 무조건 온라인
           const finalOnline = mName === myName || isReallyOnline;
 
           if (typeof m === "string") {
@@ -176,13 +169,11 @@ const Project: React.FC = () => {
         setMembers(memberObjs);
       }
 
-      // 🔥 [핵심] 태스크 ID 및 컬럼 ID를 무조건 String으로 변환
       if (data.tasks && Array.isArray(data.tasks)) {
         const taskObjs = data.tasks.map((t: any) => ({
           ...t,
           id: String(t.id),
           columnId: String(t.columnId),
-          // 🔥 subTaskInfos가 없으면 빈 배열로 초기화 (안정성 확보)
           subTaskInfos: t.subTaskInfos || [],
         }));
         setTasks(taskObjs);
@@ -199,7 +190,6 @@ const Project: React.FC = () => {
 
       const myName = localStorage.getItem("userName") || "";
 
-      // 🔥 [수정] 친구 목록도 Ref를 보고 온라인 상태 복구
       const mergedFriends = (friendData || []).map((f: any) => ({
         ...f,
         isOnline: onlineUsersRef.current.has(f.username) || f.name === myName,
@@ -249,18 +239,15 @@ const Project: React.FC = () => {
       fetchProjectData();
     });
 
-    // 실시간 상태 변경 알림
     socketRef.current.on(
       "user_status_change",
       ({ username, isOnline }: { username: string; isOnline: boolean }) => {
-        // 🔥 Ref 업데이트 (기억하기)
         if (isOnline) {
           onlineUsersRef.current.add(username);
         } else {
           onlineUsersRef.current.delete(username);
         }
 
-        // State 업데이트 (화면 그리기)
         const finalStatus = username === myName ? true : isOnline;
 
         setMembers((prev) =>
@@ -276,14 +263,11 @@ const Project: React.FC = () => {
       }
     );
 
-    // 초기 온라인 목록 로드
     socketRef.current.on(
       "current_online_users",
       (onlineUsernames: string[]) => {
-        // 🔥 Ref 업데이트 (통째로 교체)
         onlineUsersRef.current = new Set(onlineUsernames);
 
-        // 내 이름은 무조건 추가
         if (myName) onlineUsersRef.current.add(myName);
 
         setMembers((prev) =>
@@ -306,7 +290,6 @@ const Project: React.FC = () => {
     };
   }, [currentProjectId, token, fetchProjectData]);
 
-  // --- 인앱 툴 관리 핸들러 ---
   const handleOpenApp = (type: ToolType, title: string) => {
     let defaultW = 300;
     let defaultH = 400;
@@ -426,8 +409,6 @@ const Project: React.FC = () => {
     resizeItem.current = null;
   };
 
-  // --- 프로젝트 멤버 관리 핸들러 (ID: String 적용) ---
-
   const handleAddMemberFromFriend = (
     friendId: number | string,
     friendName: string
@@ -475,7 +456,7 @@ const Project: React.FC = () => {
     }
 
     const newMember: Member = {
-      id: Date.now().toString(), // 🔥 String ID 생성
+      id: Date.now().toString(),
       name: targetFriend.name,
       username: targetFriend.username,
       avatarInitial: targetFriend.avatarInitial,
@@ -490,7 +471,6 @@ const Project: React.FC = () => {
   };
 
   const handleDeleteMember = (memberId: string) => {
-    // 🔥 ID String
     if (!window.confirm("정말 삭제하시겠습니까?")) return;
 
     const newMembers = members.filter((m) => m.id !== memberId);
@@ -513,7 +493,7 @@ const Project: React.FC = () => {
   };
 
   const handleAddColumn = (name: string) => {
-    const newColumnId = Date.now().toString(); // 🔥 String ID
+    const newColumnId = Date.now().toString();
     const newColumn: RoleColumn = { id: newColumnId, name: name, members: [] };
     setColumns((prev) => {
       const updatedColumns = [...prev, newColumn];
@@ -523,7 +503,6 @@ const Project: React.FC = () => {
   };
 
   const handleDeleteColumn = (columnId: string) => {
-    // 🔥 ID String
     if (!window.confirm("삭제하시겠습니까?")) return;
     const newColumns = columns.filter((col) => String(col.id) !== columnId);
     const newTasks = TaskService.removeTasksByColumn(tasks, columnId);
@@ -533,12 +512,7 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, newTasks);
   };
 
-  // --- 멤버 -> 컬럼 배정 핸들러 ---
-
-  const handleAddMemberToColumn = (
-    columnId: string, // 🔥 ID String
-    memberId: string // 🔥 ID String
-  ) => {
+  const handleAddMemberToColumn = (columnId: string, memberId: string) => {
     const destCol = columns.find((c) => String(c.id) === columnId);
     if (!destCol) return;
     if (destCol.members.some((m) => String(m.id) === memberId)) {
@@ -575,15 +549,12 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, tasks);
   };
 
-  const handleDropMemberOnColumn = (
-    columnId: string, // 🔥 ID String
-    memberId: string // 🔥 ID String
-  ) => {
+  const handleDropMemberOnColumn = (columnId: string, memberId: string) => {
     handleAddMemberToColumn(columnId, memberId);
   };
 
   const handleInviteFriendToColumn = (
-    columnId: string, // 🔥 ID String
+    columnId: string,
     friendId: string,
     friendName: string
   ) => {
@@ -591,7 +562,7 @@ const Project: React.FC = () => {
     const avatar = friendInfo?.avatarInitial || friendName[0];
     const realUsername = friendInfo?.username || friendName;
 
-    const fid = Date.now().toString(); // 🔥 String ID
+    const fid = Date.now().toString();
 
     if (window.confirm(`${friendName}님을 이 역할에 초대하시겠습니까?`)) {
       let newMembers = [...members];
@@ -649,8 +620,8 @@ const Project: React.FC = () => {
   };
 
   const handleUpdateMemberStatus = (
-    columnId: string, // 🔥 ID String
-    memberId: string, // 🔥 ID String
+    columnId: string,
+    memberId: string,
     status: string
   ) => {
     const newColumns = columns.map((col) => {
@@ -667,8 +638,8 @@ const Project: React.FC = () => {
   };
 
   const handleUpdateMemberMemo = (
-    columnId: string, // 🔥 ID String
-    memberId: string, // 🔥 ID String
+    columnId: string,
+    memberId: string,
     memo: string
   ) => {
     const newColumns = columns.map((col) => {
@@ -685,9 +656,9 @@ const Project: React.FC = () => {
   };
 
   const handleMoveMemberBetweenColumns = (
-    memberId: string, // 🔥 ID String
-    sourceColId: string, // 🔥 ID String
-    destColId: string // 🔥 ID String
+    memberId: string,
+    sourceColId: string,
+    destColId: string
   ) => {
     const sourceCol = columns.find((c) => String(c.id) === sourceColId);
     const memberToMove = sourceCol?.members.find(
@@ -716,10 +687,7 @@ const Project: React.FC = () => {
     saveToServer(newColumns, members, tasks);
   };
 
-  // --- Task 관련 핸들러 ---
-
   const handleAddTask = (columnId: string, status: string) => {
-    // 🔥 ID String
     const title = prompt("할 일을 입력하세요:");
     if (!title) return;
 
@@ -728,17 +696,13 @@ const Project: React.FC = () => {
     saveToServer(columns, members, newTasks);
   };
 
-  const handleUpdateTaskStatus = (
-    taskId: string, // 🔥 ID String
-    newStatus: string
-  ) => {
+  const handleUpdateTaskStatus = (taskId: string, newStatus: string) => {
     const newTasks = TaskService.updateStatus(tasks, taskId, newStatus);
     setTasks(newTasks);
     saveToServer(columns, members, newTasks);
   };
 
   const handleDeleteTask = (taskId: string) => {
-    // 🔥 ID String
     if (window.confirm("삭제하시겠습니까?")) {
       const newTasks = TaskService.deleteTask(tasks, taskId);
       setTasks(newTasks);
@@ -751,10 +715,7 @@ const Project: React.FC = () => {
     }
   };
 
-  const handleAssignMemberToTask = (
-    taskId: string, // 🔥 ID String
-    memberId: string // 🔥 ID String
-  ) => {
+  const handleAssignMemberToTask = (taskId: string, memberId: string) => {
     const member = members.find((m) => String(m.id) === memberId);
     if (!member) return;
 
@@ -765,7 +726,6 @@ const Project: React.FC = () => {
   };
 
   const handleSelectTask = (tid: string) => {
-    // 🔥 ID String
     setSelectedTaskId(tid);
     setActiveTab("taskDetails");
   };
@@ -780,10 +740,10 @@ const Project: React.FC = () => {
     handleUpdateTask(updatedTask);
   };
 
-  // --- 🔥 [수정] SubTask 핸들러: Task 객체 내부 subTaskInfos 수정 ---
-
+  // 🔥 [핵심 수정] SubTask 핸들러
+  // Task 객체 내부의 subTaskInfos를 업데이트하고, 변수에 담아 저장까지 한 번에 처리합니다.
   const handleAddSubTask = (
-    taskId: string, // 🔥 인자 변경 (columnId -> taskId)
+    taskId: string,
     memberId: string,
     content: string
   ) => {
@@ -791,8 +751,7 @@ const Project: React.FC = () => {
     const targetTask = tasks.find((t) => t.id === taskId);
     if (!targetTask) return;
 
-    // 2. 해당 멤버가 컬럼에 없으면 자동 추가 (기존 로직 유지)
-    //    단, subTask 저장 위치는 이제 컬럼이 아니라 태스크 내부임
+    // 2. 컬럼에 멤버가 없으면 자동 추가 (기존 로직 유지)
     const columnId = targetTask.columnId;
     const targetColumn = columns.find((c) => String(c.id) === String(columnId));
     let newColumns = columns;
@@ -811,7 +770,7 @@ const Project: React.FC = () => {
           username: globalMember.username,
           role: "팀원",
           status: "TODO",
-          subTasks: [], // 컬럼 쪽 subTasks는 이제 안 씀 (빈 배열)
+          subTasks: [], // 컬럼 쪽 데이터는 이제 안 쓰지만 형식상 유지
         };
         newColumns = columns.map((col) =>
           String(col.id) === String(columnId)
@@ -825,9 +784,7 @@ const Project: React.FC = () => {
       }
     }
 
-    // 3. 🔥 [핵심] Tasks 상태 업데이트 (TaskService 이용 안함, 직접 구현)
-    //    TaskService.addSubTask 같은 함수를 만들어서 쓰는 게 더 좋지만,
-    //    여기서 바로 로직을 구현해도 됩니다. (일관성 위해 직접 구현)
+    // 3. Task 내부 데이터 업데이트
     const newTasks = tasks.map((t) => {
       if (t.id !== taskId) return t;
 
@@ -845,13 +802,13 @@ const Project: React.FC = () => {
       let newInfos = [...currentInfos];
 
       if (memberInfoIndex > -1) {
-        // 이미 이 멤버의 세부작업이 있으면 -> 배열에 추가
+        // 이미 있으면 push
         newInfos[memberInfoIndex] = {
           ...newInfos[memberInfoIndex],
           items: [...newInfos[memberInfoIndex].items, newSubItem],
         };
       } else {
-        // 없으면 -> 새로 생성
+        // 없으면 새로 생성
         newInfos.push({ memberId, items: [newSubItem] });
       }
 
@@ -859,7 +816,7 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
-    // 🔥 [중요] 변수에 담긴 최신 값(newTasks)을 넘겨서 저장
+    // 🔥 [중요] 최신 데이터를 인자로 넘겨서 저장
     saveToServer(newColumns, members, newTasks);
   };
 
@@ -887,7 +844,6 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
-    // 🔥 최신 newTasks 저장
     saveToServer(columns, members, newTasks);
   };
 
@@ -911,7 +867,6 @@ const Project: React.FC = () => {
     });
 
     setTasks(newTasks);
-    // 🔥 최신 newTasks 저장
     saveToServer(columns, members, newTasks);
   };
 
@@ -1011,7 +966,6 @@ const Project: React.FC = () => {
         </aside>
 
         <main className="project-main" style={{ position: "relative" }}>
-          {/* 하단 독 (In-App Tools) */}
           <div className="in-app-dock">
             <div
               className="dock-icon"
@@ -1058,7 +1012,6 @@ const Project: React.FC = () => {
               </div>
               <span>코드리뷰</span>
             </div>
-            {/* 🔥 [추가] 깃허브 아이콘 */}
             <div
               className="dock-icon"
               onClick={() => handleOpenApp("github", "GitHub Explorer")}
