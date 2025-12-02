@@ -41,8 +41,8 @@ const User = mongoose.model("User", UserSchema);
 
 // 🔥 [추가] Task 내부 스키마 정의 (startDate 포함)
 const TaskSubSchema = new mongoose.Schema({
-  id: Number,
-  columnId: Number,
+  id: String,
+  columnId: String,
   status: String,
   title: String,
   members: { type: [String], default: [] },
