@@ -16,6 +16,7 @@ const TaskService = {
       status,
       title,
       members: [],
+      subTaskInfos: [], // 🔥 초기화 필수
     };
     return [...currentTasks, newTask];
   },
@@ -72,6 +73,83 @@ const TaskService = {
   removeTasksByColumn: (currentTasks: Task[], columnId: string): Task[] => {
     return currentTasks.filter((t) => t.columnId !== columnId);
   },
-};
 
+  addSubTask: (
+    currentTasks: Task[],
+    taskId: string,
+    memberId: string,
+    content: string
+  ): Task[] => {
+    return currentTasks.map((t) => {
+      if (t.id !== taskId) return t;
+
+      const currentInfos = t.subTaskInfos || [];
+      const infoIndex = currentInfos.findIndex(
+        (info) => String(info.memberId) === String(memberId)
+      );
+
+      const newSubItem = {
+        id: Date.now().toString(),
+        content,
+        completed: false,
+      };
+
+      let newInfos = [...currentInfos];
+
+      if (infoIndex > -1) {
+        // 이미 있으면 push
+        newInfos[infoIndex] = {
+          ...newInfos[infoIndex],
+          items: [...newInfos[infoIndex].items, newSubItem],
+        };
+      } else {
+        // 없으면 새로 생성
+        newInfos.push({ memberId, items: [newSubItem] });
+      }
+
+      return { ...t, subTaskInfos: newInfos };
+    });
+  },
+
+  toggleSubTask: (
+    currentTasks: Task[],
+    taskId: string,
+    memberId: string,
+    subTaskId: string
+  ): Task[] => {
+    return currentTasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const newInfos = (t.subTaskInfos || []).map((info) => {
+        if (String(info.memberId) !== String(memberId)) return info;
+        return {
+          ...info,
+          items: info.items.map((item) =>
+            item.id === subTaskId
+              ? { ...item, completed: !item.completed }
+              : item
+          ),
+        };
+      });
+      return { ...t, subTaskInfos: newInfos };
+    });
+  },
+  deleteSubTask: (
+    currentTasks: Task[],
+    taskId: string,
+    memberId: string,
+    subTaskId: string
+  ): Task[] => {
+    return currentTasks.map((t) => {
+      if (t.id !== taskId) return t;
+      const newInfos = (t.subTaskInfos || []).map((info) => {
+        if (String(info.memberId) !== String(memberId)) return info;
+        return {
+          ...info,
+          items: info.items.filter((item) => item.id !== subTaskId),
+        };
+      });
+      return { ...t, subTaskInfos: newInfos };
+    });
+  },
+};
 export default TaskService;
