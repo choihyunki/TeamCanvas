@@ -1,80 +1,189 @@
+/* src/styles/Schedule.css */
+
 .schedule-container {
-  padding: 20px;
-  height: 100%;
-  overflow: hidden; /* 내부 스크롤 사용 */
+    padding: 20px;
+    height: 100%;
+    overflow: hidden; 
+    display: flex;
+    flex-direction: column;
 }
 
 .schedule-title {
-  margin-bottom: 20px;
+    margin-bottom: 20px;
 }
 
 .schedule-layout {
-  display: flex;
-  gap: 20px;
-  height: calc(100% - 60px);
+    display: flex;
+    gap: 20px;
+    height: calc(100% - 60px); 
+    flex: 1; 
+    min-width: 0; 
 }
 
+/* 왼쪽 - 작업 목록 패널 */
 .schedule-list-panel {
-  width: 40%;
-  border-right: 1px solid #eee;
-  padding-right: 10px;
-  overflow-y: auto;
+    width: 250px; 
+    border-right: 1px solid #eee;
+    padding-right: 10px;
+    overflow-y: auto;
+    flex-shrink: 0;
 }
 
+/* 오른쪽 - 상세 설정 패널 */
 .schedule-detail-panel {
-  width: 60%;
-  padding-left: 10px;
-  overflow-y: auto;
+    flex: 0 0 250px; 
+    padding-left: 10px;
+    overflow-y: auto;
+    flex-shrink: 0;
 }
+
+/* 중앙 - 간트 차트 뷰 (시각화 영역) */
+.schedule-gantt-view {
+    flex: 1; 
+    overflow-x: auto; 
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fff;
+    flex-direction: column;
+    min-width: 400px; 
+}
+
+/* 간트 차트 - 시간 축 (날짜 헤더) */
+.gantt-time-axis {
+    display: flex;
+    height: 30px;
+    border-bottom: 1px solid #aaa;
+    margin-bottom: 10px;
+    position: relative; 
+    padding-left: 150px;
+}
+
+.time-marker {
+    flex-shrink: 0;
+    width: 20px; 
+    font-size: 11px;
+    text-align: center;
+    line-height: 28px;
+    border-left: 1px solid #eee; 
+    box-sizing: border-box;
+}
+
+.time-marker.month-start {
+    font-weight: bold;
+    color: #4f46e5;
+    border-left: 1px solid #aaa; 
+}
+
+/* 🔥 [추가] 현재 날짜 마커 스타일 */
+.time-marker.today {
+    background-color: #fce8e8; 
+    color: #cc0000;             
+    font-weight: bold;
+    border-left: 1px solid #cc0000; 
+}
+
+/* 간트 차트 - 작업 영역 */
+.gantt-tasks-area {
+    display: flex;
+    flex-direction: column;
+    position: relative; 
+}
+
+.gantt-task-row {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    border-bottom: 1px dashed #eee;
+    position: relative;
+    min-width: 100%; 
+}
+
+.gantt-task-name {
+    width: 150px; 
+    flex-shrink: 0;
+    font-size: 14px;
+    padding-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    z-index: 10;
+    background: #fff;
+}
+
+/* 간트 막대 스타일 */
+.gantt-bar {
+    height: 20px;
+    background-color: #4f46e5; 
+    border-radius: 4px;
+    opacity: 0.8;
+    color: white;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+    padding: 0 5px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    white-space: nowrap;
+    
+    position: absolute; 
+    transform: translateY(-50%);
+    top: 50%;
+}
+
 
 .schedule-task-item {
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid #ddd;
-  margin-bottom: 8px;
-  cursor: pointer;
-  background: white;
-  transition: background 0.2s;
+    padding: 12px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    margin-bottom: 8px;
+    cursor: pointer;
+    background: white;
+    transition: background 0.2s;
 }
 
 .schedule-task-item:hover {
-  background: #f9fafb;
+    background: #f9fafb;
 }
 
 .schedule-task-item.selected {
-  background: #eef2ff;
-  border-color: #4f46e5;
+    background: #eef2ff;
+    border-color: #4f46e5;
 }
 
 .task-meta {
-  font-size: 13px;
-  color: #555;
-  margin-top: 4px;
+    font-size: 13px;
+    color: #555;
+    margin-top: 4px;
 }
 
 .date-input {
-  margin-left: 10px;
-  padding: 6px;
-  border-radius: 6px;
-  border: 1px solid #ccc;
+    margin-left: 10px;
+    padding: 6px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    display: block;
+    width: calc(100% - 10px);
+    box-sizing: border-box;
 }
 
 .date-save-btn {
-  margin-left: 12px;
-  padding: 8px 12px;
-  background: #4f46e5;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
+    margin-top: 15px;
+    padding: 8px 12px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
 }
 
 .date-save-btn:hover {
-  background: #4338ca;
+    background: #4338ca;
 }
 
 .divider {
-  margin: 20px 0;
-  border: 0;
-  border-top: 1px solid #eee;
+    margin: 20px 0;
+    border: 0;
+    border-top: 1px solid #eee;
 }

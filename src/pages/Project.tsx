@@ -43,7 +43,6 @@ interface Friend {
   avatarInitial: string;
 }
 
-// 🔥 [타입 정의] ProjectMember와 Member의 속성을 병합한 타입
 type ExtendedProjectMember = ProjectMember & {
   name?: string;
   role?: string;
@@ -64,13 +63,11 @@ const Project: React.FC = () => {
   const { cursors, handleMouseMove: handleLiveMouseMove } =
     useLiveCursors(guestName);
 
-  // --- 상태 관리 ---
   const [columns, setColumns] = useState<RoleColumn[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
 
-  // 사이드바 및 UI 상태
   const [isSlideoutOpen, setIsSlideoutOpen] = useState(false);
   const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
   const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
@@ -83,7 +80,6 @@ const Project: React.FC = () => {
     []
   );
 
-  // 인앱 툴 상태
   const [windows, setWindows] = useState<AppWindow[]>([]);
   const [activeWindowId, setActiveWindowId] = useState<number | null>(null);
   const [highestZIndex, setHighestZIndex] = useState(100);
@@ -109,7 +105,10 @@ const Project: React.FC = () => {
     setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
   const toggleSlideout = () => setIsSlideoutOpen(!isSlideoutOpen);
 
-  // --- 서버 저장 함수 ---
+  const toggleRightSidebar = useCallback(() => {
+    setIsRightSidebarCollapsed((prev) => !prev);
+  }, []);
+
   const saveToServer = useCallback(
     async (
       newColumns: RoleColumn[],
@@ -138,7 +137,6 @@ const Project: React.FC = () => {
     [currentProjectId, tasks]
   );
 
-  // --- 데이터 로드 함수 ---
   const fetchProjectData = useCallback(async () => {
     if (!currentProjectId) return;
     try {
@@ -198,7 +196,6 @@ const Project: React.FC = () => {
     loadMyProjects();
   }, [fetchProjectData, fetchFriends, loadMyProjects]);
 
-  // --- 소켓 연결 ---
   useEffect(() => {
     if (!currentProjectId || !token) return;
 
@@ -468,8 +465,6 @@ const Project: React.FC = () => {
     setTasks(newTasks);
     saveToServer(newColumns, newMembers, newTasks);
   };
-
-  // --- 컬럼(역할) 관리 핸들러 ---
 
   const handleAddColumn = (name: string) => {
     const newColumnId = Date.now().toString(); // 🔥 String ID
@@ -749,8 +744,10 @@ const Project: React.FC = () => {
   const handleUpdateTask = (updatedTask: Task) => {
     const newTasks = TaskService.updateTaskDetail(tasks, updatedTask);
     setTasks(newTasks);
-    saveToServer(columns, members, newTasks);
-  };
+    // 🔥 [핵심 수정] 변경된 newTasks 배열을 명시적으로 saveToServer에 전달
+    saveToServer(columns, members, newTasks); 
+};
+
 
   const handleUpdateTaskFromObject = (updatedTask: Task) => {
     handleUpdateTask(updatedTask);
@@ -851,7 +848,7 @@ const Project: React.FC = () => {
             boxShadow:
               activeWindowId === win.id
                 ? "0 10px 30px rgba(79, 70, 229, 0.2)"
-                : "0 5px 15px rgba(0,0,0,0.1)",
+                : "0 5px 15px rgba(0, 0, 0, 0.1)",
           }}
           onMouseDown={() => bringToFront(win.id)}
         >
@@ -1023,10 +1020,7 @@ const Project: React.FC = () => {
               />
             )}
             {activeTab === "schedule" && (
-              <Schedule
-                tasks={tasks}
-                onUpdateTask={handleUpdateTaskFromObject}
-              />
+              <Schedule tasks={tasks} onUpdateTask={handleUpdateTaskFromObject} />
             )}
           </div>
         </main>
@@ -1061,6 +1055,14 @@ const Project: React.FC = () => {
             {isRightSidebarCollapsed ? "<<" : ">>"}
           </button>
         </aside>
+        
+        <button
+          className={`toggle-btn right`}
+          onClick={toggleRightSidebar}
+          title={isRightSidebarCollapsed ? "채팅 열기" : "채팅 닫기"}
+        >
+          {isRightSidebarCollapsed ? "▶" : "◀"} 
+        </button>
       </div>
       <Footer />
     </div>
