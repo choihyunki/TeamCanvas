@@ -111,7 +111,7 @@ const Signup: React.FC = () => {
       <div className="signup-card">
         {/* 로고 */}
         <img
-          src={process.env.PUBLIC_URL + "/DropInLogo.png"}
+          src={process.env.PUBLIC_URL + "/DropIn Logo.png"}
           alt="Drop In Logo"
           className="signup-logo"
         />
