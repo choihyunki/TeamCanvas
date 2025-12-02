@@ -149,19 +149,37 @@ const Project: React.FC = () => {
       const data = await ProjectService.getProject(currentProjectId);
       setColumns(data.columns || []);
 
-      // 🔥 [핵심] 멤버 ID를 무조건 String으로 변환하여 저장
+      // 🔥 [현재 로그인한 내 이름 가져오기]
+      const myName = localStorage.getItem("userName") || "";
+
+      // 멤버 ID 문자열 변환 및 "내 상태 강제 온라인" 처리
       if (data.members && Array.isArray(data.members)) {
         const memberObjs = data.members.map((m: any, idx: number) => {
-          // ID가 없으면 임시 생성, 있으면 String 변환
           const safeId = m.id ? String(m.id) : String(Date.now() + idx);
-          if (typeof m === "string")
-            return { id: safeId, name: m, isOnline: true };
-          return { ...m, id: safeId };
+
+          // 🔥 [핵심 수정] 이 멤버가 '나'라면 무조건 온라인(true)으로 설정!
+          const isMe = m.name === myName || m.username === myName;
+
+          if (typeof m === "string") {
+            // 문자열로 저장된 경우 (예전 데이터 호환)
+            return {
+              id: safeId,
+              name: m,
+              isOnline: m === myName ? true : true, // 기본 true로 두되, 나중에 소켓으로 갱신
+            };
+          }
+
+          return {
+            ...m,
+            id: safeId,
+            // 👇 여기가 수정된 부분입니다!
+            isOnline: isMe ? true : m.isOnline,
+          };
         });
         setMembers(memberObjs);
       }
 
-      // 🔥 [핵심] 태스크 ID 및 컬럼 ID를 무조건 String으로 변환
+      // 태스크 ID 문자열 변환
       if (data.tasks && Array.isArray(data.tasks)) {
         const taskObjs = data.tasks.map((t: any) => ({
           ...t,
@@ -227,14 +245,17 @@ const Project: React.FC = () => {
     socketRef.current.on(
       "user_status_change",
       ({ username, isOnline }: { username: string; isOnline: boolean }) => {
+        // 🔥 나 자신("박건일")에 대한 정보라면 무조건 true(온라인)로 고정!
+        const finalStatus = username === myName ? true : isOnline;
+
         setMembers((prevMembers) =>
           prevMembers.map((m) =>
-            m.name === username ? { ...m, isOnline: isOnline } : m
+            m.name === username ? { ...m, isOnline: finalStatus } : m
           )
         );
         setFriends((prevFriends) =>
           (prevFriends as any[]).map((f) =>
-            f.username === username ? { ...f, isOnline: isOnline } : f
+            f.username === username ? { ...f, isOnline: finalStatus } : f
           )
         );
       }
@@ -245,16 +266,23 @@ const Project: React.FC = () => {
       "current_online_users",
       (onlineUsernames: string[]) => {
         setMembers((prev) =>
-          prev.map((m) => ({
-            ...m,
-            isOnline: onlineUsernames.includes(m.name),
-          }))
+          prev.map((m) => {
+            // 🔥 나 자신이면 무조건 true, 아니면 명단 확인
+            const isMe = m.name === myName;
+            return {
+              ...m,
+              isOnline: isMe ? true : onlineUsernames.includes(m.name),
+            };
+          })
         );
         setFriends((prev) =>
-          (prev as any[]).map((f) => ({
-            ...f,
-            isOnline: onlineUsernames.includes(f.username),
-          }))
+          (prev as any[]).map((f) => {
+            const isMe = f.name === myName; // 친구 목록에도 내가 있을 수 있음
+            return {
+              ...f,
+              isOnline: isMe ? true : onlineUsernames.includes(f.name),
+            };
+          })
         );
       }
     );
