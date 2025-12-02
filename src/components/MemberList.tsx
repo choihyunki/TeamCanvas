@@ -5,11 +5,9 @@ import styles from "../styles/MemberList.module.css";
 interface Props {
   members: Member[];
   onAddMemberClick: () => void;
+  // 🔥 [수정] ID 타입 String으로 통일
   onDeleteMember: (memberId: string) => void;
-  onAddMemberFromFriend: (
-    friendId: number | string,
-    friendName: string
-  ) => void;
+  onAddMemberFromFriend: (friendId: string, friendName: string) => void;
 }
 
 const MemberList: React.FC<Props> = ({
@@ -18,12 +16,10 @@ const MemberList: React.FC<Props> = ({
   onDeleteMember,
   onAddMemberFromFriend,
 }) => {
-  // 친구 목록에서 드롭되었을 때 처리하는 핸들러
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
 
-    // 1. 드래그 데이터 추출
     const friendName = e.dataTransfer.getData("friendName");
     const friendIdStr = e.dataTransfer.getData("friendId");
 
@@ -36,17 +32,15 @@ const MemberList: React.FC<Props> = ({
     }
   };
 
-  // 드래그 시작 (TaskBoard로 이동용)
   const handleDragStart = (
     e: React.DragEvent<HTMLLIElement>,
     memberId: string
   ) => {
-    e.dataTransfer.setData("memberId", memberId.toString());
+    e.dataTransfer.setData("memberId", memberId);
     e.dataTransfer.setData("type", "MEMBER");
     e.dataTransfer.effectAllowed = "move";
   };
 
-  // 드롭 허용 및 시각적 강조
   const handleDragOver = (e: React.DragEvent) => {
     if (
       e.dataTransfer.types.includes("friendName") ||
@@ -58,7 +52,6 @@ const MemberList: React.FC<Props> = ({
     }
   };
 
-  // 드래그 이탈
   const handleDragLeave = (e: React.DragEvent) => {
     (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
   };
@@ -95,12 +88,10 @@ const MemberList: React.FC<Props> = ({
             draggable
             onDragStart={(e) => handleDragStart(e, m.id)}
           >
-            {/* 🔥 [수정] 아바타 및 상태 점 (CSS Module 적용) */}
             <div className={styles.avatarWrapper}>
               <div className={styles.avatar}>
                 {m.avatarInitial || m.name.charAt(0)}
               </div>
-              {/* 상태 점: 온라인이면 green, 아니면 gray */}
               <div
                 className={`${styles.statusDot} ${
                   m.isOnline ? styles.online : styles.offline
@@ -108,7 +99,6 @@ const MemberList: React.FC<Props> = ({
               />
             </div>
 
-            {/* 🔥 [수정] 멤버 정보 및 텍스트 상태 */}
             <div className={styles.memberInfo}>
               <div className={styles.memberName}>{m.name}</div>
               <div

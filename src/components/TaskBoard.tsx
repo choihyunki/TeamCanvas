@@ -10,47 +10,27 @@ interface Props {
   members: Member[];
 
   onAddColumn: (name: string) => void;
-  // 🔥 [수정] ID 타입을 string으로 변경
-  onDeleteColumn: (columnId: number | string) => void;
+  // 🔥 [수정] 모든 ID 타입을 string으로 통일
+  onDeleteColumn: (columnId: string) => void;
 
-  onAddTask: (roleId: number | string, status: string) => void;
-  onUpdateTaskStatus: (taskId: number | string, newStatus: string) => void;
-  onDeleteTask: (taskId: number | string) => void;
-  onSelectTask: (taskId: number | string) => void;
-  onAssignMemberToTask: (
-    taskId: number | string,
-    memberId: number | string
-  ) => void;
+  onAddTask: (roleId: string, status: string) => void;
+  onUpdateTaskStatus: (taskId: string, newStatus: string) => void;
+  onDeleteTask: (taskId: string) => void;
+  onSelectTask: (taskId: string) => void;
+  onAssignMemberToTask: (taskId: string, memberId: string) => void;
 
-  onAddMemberToColumn: (
-    columnId: number | string,
-    memberId: number | string
-  ) => void;
-  onDeleteMember: (
-    columnId: number | string,
-    memberId: number | string
-  ) => void;
-  onDropMemberOnColumn: (
-    columnId: number | string,
-    memberId: number | string
-  ) => void;
-  onMoveMember: (
-    memberId: number | string,
-    from: number | string,
-    to: number | string
-  ) => void;
-  onUpdateStatus: (
-    columnId: number | string,
-    memberId: number | string,
-    status: string
-  ) => void;
+  onAddMemberToColumn: (columnId: string, memberId: string) => void;
+  onDeleteMember: (columnId: string, memberId: string) => void;
+  onDropMemberOnColumn: (columnId: string, memberId: string) => void;
+  onMoveMember: (memberId: string, from: string, to: string) => void;
+  onUpdateStatus: (columnId: string, memberId: string, status: string) => void;
   onUpdateMemberMemo: (
-    columnId: number | string,
-    memberId: number | string,
+    columnId: string,
+    memberId: string,
     memo: string
   ) => void;
   onInviteFriend: (
-    columnId: number | string,
+    columnId: string,
     friendId: string,
     friendName: string
   ) => void;
@@ -87,8 +67,9 @@ const TaskBoard: React.FC<Props> = ({
     members.find((m) => m.name === name);
 
   // --- 드래그 핸들러 (Task) ---
-  const handleDragStart = (e: React.DragEvent, taskId: number | string) => {
-    e.dataTransfer.setData("taskId", String(taskId)); // 🔥 String 변환
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    // 🔥 string
+    e.dataTransfer.setData("taskId", taskId);
     e.dataTransfer.setData("type", "TASK");
     const target = e.currentTarget as HTMLElement;
     setTimeout(() => {
@@ -102,11 +83,9 @@ const TaskBoard: React.FC<Props> = ({
   };
 
   // --- 드래그 핸들러 (Member) ---
-  const handleMemberDragStart = (
-    e: React.DragEvent,
-    memberId: number | string
-  ) => {
-    e.dataTransfer.setData("memberId", String(memberId)); // 🔥 String 변환
+  const handleMemberDragStart = (e: React.DragEvent, memberId: string) => {
+    // 🔥 string
+    e.dataTransfer.setData("memberId", memberId);
     e.dataTransfer.setData("type", "MEMBER");
 
     const target = e.currentTarget as HTMLElement;
@@ -126,7 +105,6 @@ const TaskBoard: React.FC<Props> = ({
     if (dataType === "MEMBER" || dataType === "TASK" || dataType === "FRIEND") {
       e.dataTransfer.dropEffect = "move";
     }
-    // 시각적 강조
     if (
       (e.currentTarget as HTMLElement).classList.contains("role-delete-area")
     ) {
@@ -139,14 +117,14 @@ const TaskBoard: React.FC<Props> = ({
   // Task Status 변경 드롭 핸들러
   const handleDrop = (
     e: React.DragEvent,
-    roleId: number | string,
+    roleId: string, // 🔥 string
     status: string
   ) => {
     e.preventDefault();
     const dataType = e.dataTransfer.getData("type");
 
     if (dataType === "TASK") {
-      const taskId = e.dataTransfer.getData("taskId"); // 🔥 String 그대로 받음
+      const taskId = e.dataTransfer.getData("taskId");
       if (taskId) {
         onUpdateTaskStatus(taskId, status);
       }
@@ -156,7 +134,7 @@ const TaskBoard: React.FC<Props> = ({
   // 역할(컬럼)에 멤버 드롭 시 처리 (Role Header)
   const handleDropMemberOnRoleHeader = (
     e: React.DragEvent,
-    roleId: number | string
+    roleId: string // 🔥 string
   ) => {
     e.preventDefault();
     (e.currentTarget as HTMLElement).style.backgroundColor = "transparent";
@@ -164,7 +142,7 @@ const TaskBoard: React.FC<Props> = ({
     const dataType = e.dataTransfer.getData("type");
 
     if (dataType === "MEMBER") {
-      const memberId = e.dataTransfer.getData("memberId"); // 🔥 String 그대로 받음
+      const memberId = e.dataTransfer.getData("memberId");
       if (memberId) {
         onAddMemberToColumn(roleId, memberId);
       }
@@ -188,10 +166,10 @@ const TaskBoard: React.FC<Props> = ({
   // Task Card에 멤버 드롭 시 담당자 할당
   const handleDropMemberOnTaskCard = (
     e: React.DragEvent,
-    taskId: number | string
+    taskId: string // 🔥 string
   ) => {
     e.preventDefault();
-    const memberId = e.dataTransfer.getData("memberId"); // 🔥 String 그대로 받음
+    const memberId = e.dataTransfer.getData("memberId");
 
     if (memberId) {
       onAssignMemberToTask(taskId, memberId);
@@ -221,15 +199,13 @@ const TaskBoard: React.FC<Props> = ({
       </div>
       <div className="swimlane-body">
         {columns.map((role) => {
-          // ID 비교 시 String으로 변환하여 안전하게 비교
           const assignedMembersInRole = tasks
-            .filter((t) => String(t.columnId) === String(role.id))
+            .filter((t) => t.columnId === role.id)
             .flatMap((t) => t.members)
             .filter((v, i, a) => a.indexOf(v) === i);
 
           return (
             <div key={role.id} className="swimlane-row">
-              {/* 역할 이름 (왼쪽 헤더) */}
               <div
                 className="row-header role-delete-area"
                 onDragOver={handleDragOver}
@@ -270,12 +246,9 @@ const TaskBoard: React.FC<Props> = ({
                 </button>
               </div>
 
-              {/* 상태별 칸 (셀) */}
               {STATUSES.map((status) => {
                 const cellTasks = tasks.filter(
-                  (t) =>
-                    String(t.columnId) === String(role.id) &&
-                    t.status === status.key
+                  (t) => t.columnId === role.id && t.status === status.key
                 );
 
                 return (
@@ -305,7 +278,6 @@ const TaskBoard: React.FC<Props> = ({
                             <div className="task-assignee-container">
                               {assigneeNames.map((name) => {
                                 const assignee = getMemberByName(name);
-                                // assignee가 없어도 이름만 표시하도록 (안전장치)
                                 return (
                                   <div
                                     key={name}

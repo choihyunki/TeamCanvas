@@ -1,16 +1,17 @@
 import axiosInstance from "./axiosInstance";
 
-export const getTasksByProject = async (projectId: number) => {
+// 🔥 [수정] projectId와 taskId를 string으로 변경
+export const getTasksByProject = async (projectId: string) => {
   const res = await axiosInstance.get(`/api/tasks/project/${projectId}`);
   return res.data;
 };
 
-export const createTask = async (projectId: number, title: string) => {
+export const createTask = async (projectId: string, title: string) => {
   const res = await axiosInstance.post(`/api/tasks/${projectId}`, { title });
   return res.data;
 };
 
-export const updateTaskStatus = async (taskId: number, status: string) => {
+export const updateTaskStatus = async (taskId: string, status: string) => {
   const res = await axiosInstance.put(`/api/tasks/${taskId}/status`, {
     status,
   });
