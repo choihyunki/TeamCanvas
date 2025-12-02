@@ -2,7 +2,7 @@
 
 /* === 윈도우 프레임 === */
 .window-frame {
-  position: absolute;
+  position: fixed;
   background: white;
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
@@ -13,6 +13,7 @@
   min-width: 300px; /* 최소 크기 증가 */
   min-height: 200px;
   user-select: none;
+  z-index: 9999;
 }
 
 .window-header {

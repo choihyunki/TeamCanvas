@@ -61,6 +61,8 @@ const Login: React.FC = () => {
 
       setIsDropped(true);
       setErrorMsg("");
+      localStorage.setItem("userName", user.name);
+
       login(user.username);
 
       setTimeout(() => {

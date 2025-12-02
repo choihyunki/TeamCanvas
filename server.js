@@ -1,3 +1,5 @@
+// server.js (전체 코드를 이걸로 덮어씌우거나, Socket.io 부분만 수정하세요)
+
 require("dotenv").config();
 const express = require("express");
 const http = require("http");
@@ -18,13 +20,13 @@ app.use(express.json());
 
 const server = http.createServer(app);
 
-// MongoDB 연결
+// MongoDB 연결 (기존과 동일)
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("🔥 MongoDB Connected (Cloud)"))
   .catch((err) => console.log(err));
 
-// --- [Schemas] ---
+// --- [Schemas] (기존과 동일하므로 생략 가능, 변경 없음) ---
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -39,7 +41,6 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", UserSchema);
 
-// 🔥 [추가] Task 내부 스키마 정의 (startDate 포함)
 const TaskSubSchema = new mongoose.Schema({
   id: String,
   columnId: String,
@@ -47,35 +48,25 @@ const TaskSubSchema = new mongoose.Schema({
   title: String,
   members: { type: [String], default: [] },
   dueDate: String,
-  startDate: String, // 🔥 시작일 필드 추가
+  startDate: String,
   description: String,
-  // 필요하다면 SubTask와 memo 필드도 여기에 추가해야 합니다.
 });
 
 const ProjectSchema = new mongoose.Schema({
   name: String,
   description: String,
   ownerUsername: String,
-
-  // 멤버 배열 (객체 저장 허용)
   members: { type: Array, default: [] },
-
-  // 컬럼 배열 (내부에 members 배열 포함 -> 여기에 subTasks가 저장됨)
   columns: [
     {
       id: String,
       name: String,
-      // Mixed 타입으로 설정하여 내부 구조(subTasks 등)를 자유롭게 저장
-      members: { type: Array, default: [] },
+      members: { type: Array, default: [] }, // Mixed
     },
   ],
-
-  // 태스크 배열 (스키마 적용)
   tasks: [TaskSubSchema],
-
   createdAt: { type: Date, default: Date.now },
 });
-
 const Project = mongoose.model("Project", ProjectSchema);
 
 const ChatSchema = new mongoose.Schema({
@@ -87,9 +78,8 @@ const ChatSchema = new mongoose.Schema({
 });
 const ChatMessage = mongoose.model("ChatMessage", ChatSchema);
 
-// --- [API Routes] ---
-
-// 1. 내 프로젝트 목록
+// --- [API Routes] (기존과 동일, 변경 없음) ---
+// ... (app.get, app.post 등 API 코드는 그대로 유지하세요) ...
 app.get("/api/projects", async (req, res) => {
   const { username } = req.query;
   try {
@@ -107,7 +97,6 @@ app.get("/api/projects", async (req, res) => {
   }
 });
 
-// 2. 회원가입
 app.post("/api/auth/register", async (req, res) => {
   try {
     const { username, password, name } = req.body;
@@ -123,7 +112,6 @@ app.post("/api/auth/register", async (req, res) => {
   }
 });
 
-// 3. 로그인
 app.post("/api/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -138,7 +126,6 @@ app.post("/api/auth/login", async (req, res) => {
   }
 });
 
-// 4. 새 프로젝트 생성
 app.post("/api/projects", async (req, res) => {
   try {
     const { name, description, ownerUsername } = req.body;
@@ -164,7 +151,6 @@ app.post("/api/projects", async (req, res) => {
   }
 });
 
-// 5. 프로젝트 상세 & 저장
 app.get("/api/projects/:id", async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
@@ -188,7 +174,6 @@ app.put("/api/projects/:id", async (req, res) => {
   }
 });
 
-// 6. 친구 추가
 app.post("/api/friends/add", async (req, res) => {
   const { myUsername, targetUsername } = req.body;
   try {
@@ -219,7 +204,6 @@ app.post("/api/friends/add", async (req, res) => {
   }
 });
 
-// 7. 친구 목록 가져오기
 app.get("/api/friends/:username", async (req, res) => {
   try {
     const user = await User.findOne({ username: req.params.username });
@@ -230,7 +214,6 @@ app.get("/api/friends/:username", async (req, res) => {
   }
 });
 
-// 8. 프로젝트 삭제
 app.delete("/api/projects/:id", async (req, res) => {
   try {
     await Project.findByIdAndDelete(req.params.id);
@@ -240,7 +223,7 @@ app.delete("/api/projects/:id", async (req, res) => {
   }
 });
 
-// --- [Socket.io] ---
+// --- [Socket.io] 🔥 [핵심 수정 구간] ---
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -248,29 +231,40 @@ const io = new Server(server, {
   },
 });
 
-// 🔥 [통합] 유저 소켓 관리 (Socket ID <-> Username)
-// userSockets: 초대 기능용 (Username -> Socket ID)
+// 1. 유저별 연결된 소켓 ID 관리 (Set 사용) -> 여러 탭 켜도 OK
+// userSockets: { "username": Set("socketId1", "socketId2") }
 const userSockets = new Map();
-// onlineUsers: 온라인 상태 확인용 (Socket ID -> Username)
-const onlineUsers = new Map();
+
+// 2. 소켓 ID가 어떤 유저인지 역추적
+// socketUserMap: { "socketId1": "username" }
+const socketUserMap = new Map();
 
 io.on("connection", (socket) => {
   console.log(`🔌 사용자 접속: ${socket.id}`);
 
-  // 1. 유저 로그인/접속 알림 (Project.tsx에서 보내줘야 함)
+  // 1. 유저 로그인/접속 알림
   socket.on("register_user", (username) => {
-    // 초대용 매핑
-    userSockets.set(username, socket.id);
-    // 온라인 상태용 매핑
-    onlineUsers.set(socket.id, username);
+    // 1-1. 역추적 맵에 등록
+    socketUserMap.set(socket.id, username);
 
-    console.log(`✅ 유저 온라인: ${username}`);
+    // 1-2. 유저 소켓 목록(Set)에 추가
+    if (!userSockets.has(username)) {
+      userSockets.set(username, new Set());
+    }
+    userSockets.get(username).add(socket.id);
 
-    // 나 접속했다고 모두에게 알림 (Username 기준)
+    console.log(
+      `✅ 유저 온라인: ${username} (현재 접속 기기 수: ${
+        userSockets.get(username).size
+      })`
+    );
+
+    // 🔥 [중요] "이 유저는 이제 온라인입니다" 라고 모두에게 알림
+    // Set 사이즈가 1 이상이면 무조건 온라인
     io.emit("user_status_change", { username: username, isOnline: true });
 
-    // 현재 접속자 리스트를 본인에게 전송
-    const onlineList = Array.from(onlineUsers.values());
+    // 🔥 [중요] 현재 접속 중인 모든 유저 목록을 본인에게 전송
+    const onlineList = Array.from(userSockets.keys());
     socket.emit("current_online_users", onlineList);
   });
 
@@ -288,11 +282,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 3. 프로젝트 초대 알림
+  // 3. 프로젝트 초대 알림 (수정됨)
   socket.on("invite_user", ({ targetUsername, projectName }) => {
-    const targetSocketId = userSockets.get(targetUsername);
-    if (targetSocketId) {
-      io.to(targetSocketId).emit("project_invited", { projectName });
+    // 해당 유저의 모든 소켓(모든 탭/기기)에 알림 전송
+    if (userSockets.has(targetUsername)) {
+      const targets = userSockets.get(targetUsername);
+      targets.forEach((socketId) => {
+        io.to(socketId).emit("project_invited", { projectName });
+      });
     }
   });
 
@@ -309,9 +306,14 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 5. 마우스 커서
+  // 5. 마우스 커서 (프로젝트 격리 적용)
   socket.on("cursor-move", (data) => {
-    socket.broadcast.emit("cursor-update", { ...data, userId: socket.id });
+    const { projectId } = data;
+    if (projectId) {
+      socket
+        .to(String(projectId))
+        .emit("cursor-update", { ...data, userId: socket.id });
+    }
   });
 
   // 6. 칸반 보드 동기화
@@ -320,25 +322,30 @@ io.on("connection", (socket) => {
     socket.broadcast.to(roomName).emit("board_updated");
   });
 
-  // 7. 🔥 [통합] 접속 종료 (하나의 핸들러에서 모두 처리)
+  // 7. 🔥 [접속 종료 수정]
   socket.on("disconnect", () => {
-    const disconnectedUser = onlineUsers.get(socket.id);
+    const username = socketUserMap.get(socket.id);
 
-    if (disconnectedUser) {
-      // 1. 온라인 맵에서 제거
-      onlineUsers.delete(socket.id);
-      // 2. 초대용 맵에서도 제거
-      userSockets.delete(disconnectedUser);
+    if (username) {
+      // 7-1. 해당 소켓 ID만 Set에서 제거
+      const userSocketSet = userSockets.get(username);
+      if (userSocketSet) {
+        userSocketSet.delete(socket.id);
 
-      // 3. 모두에게 오프라인 알림 전송
-      io.emit("user_status_change", {
-        username: disconnectedUser,
-        isOnline: false,
-      });
-
-      console.log(`❌ 접속 종료: ${disconnectedUser}`);
-    } else {
-      console.log(`❌ 접속 종료 (비로그인): ${socket.id}`);
+        // 7-2. 만약 Set이 비었다면? -> 진짜로 나간 것 (오프라인)
+        if (userSocketSet.size === 0) {
+          userSockets.delete(username);
+          io.emit("user_status_change", {
+            username: username,
+            isOnline: false,
+          });
+          console.log(`❌ 완전 종료 (오프라인 처리): ${username}`);
+        } else {
+          console.log(`⚠️ 탭 종료: ${username} (아직 다른 탭 켜져있음)`);
+        }
+      }
+      // 맵 정리
+      socketUserMap.delete(socket.id);
     }
 
     socket.broadcast.emit("user-disconnected", socket.id);

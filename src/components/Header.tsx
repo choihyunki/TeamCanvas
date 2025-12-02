@@ -1,15 +1,12 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Header.css";
-import { ToolType } from "../types/InApp";
 
 interface HeaderProps {
   onMenuClick: () => void;
-  // ?를 붙여서 선택적 Props로 변경 (Main 페이지 오류 방지)
-  onOpenWindow?: (type: ToolType, title: string) => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick, onOpenWindow }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   const navigate = useNavigate();
 
   const getPublicPath = (filename: string, extension: string = "png") =>
@@ -50,52 +47,6 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, onOpenWindow }) => {
           style={{ cursor: "pointer", objectFit: "contain" }}
         />
       </div>
-
-      {/* 🔥 [수정] onOpenWindow가 있을 때만(Project 페이지) 버튼 표시 */}
-      {onOpenWindow && (
-        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-          <button
-            className="icon-btn"
-            onClick={() => onOpenWindow("calculator", "계산기")}  
-            title="계산기"
-            style={toolBtnStyle} // 스타일 적용
-          >
-            🧮
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => onOpenWindow("memo", "메모장")}
-            title="메모장"
-            style={toolBtnStyle}
-          >
-            📝
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => onOpenWindow("timer", "타이머")}
-            title="타이머"
-            style={toolBtnStyle}
-          >
-            ⏱️
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => onOpenWindow("youtube", "유튜브")}
-            title="유튜브"
-            style={toolBtnStyle}
-          >
-            ▶️
-          </button>
-          <button
-            className="icon-btn"
-            onClick={() => onOpenWindow("code-review", "코드리뷰")}
-            title="코드리뷰"
-            style={toolBtnStyle}
-          >
-            💻
-          </button>
-        </div>
-      )}
 
       {/* 오른쪽 영역: 기존 아이콘 */}
       <nav className="nav-container" style={{ marginLeft: "20px" }}>
