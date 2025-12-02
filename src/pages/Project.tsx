@@ -150,16 +150,25 @@ const Project: React.FC = () => {
 
       if (data.members && Array.isArray(data.members)) {
         const memberObjs = data.members.map((m: any, idx: number) => {
-          const safeId = m.id ? String(m.id) : String(Date.now() + idx);
+          // 🔥 [핵심 수정] ID가 없으면 '이름'을 ID로 써서, 모든 유저가 똑같은 ID를 갖게 함!
+          // (Date.now()를 쓰면 서로 다른 ID가 생겨서 데이터가 안 보임)
+          let safeId = "";
+
+          if (typeof m === "string") {
+            safeId = m; // 이름이 곧 ID
+          } else {
+            // 객체인데 ID가 없으면 이름, 있으면 기존 ID 사용
+            safeId = m.id ? String(m.id) : m.name;
+          }
 
           const mName = typeof m === "string" ? m : m.name;
           const mUsername = typeof m === "string" ? m : m.username;
 
-          const isReallyOnline =
+          // 소켓 명단 확인 (온라인 상태)
+          const isOnlineSocket =
             onlineUsersRef.current.has(mName) ||
             onlineUsersRef.current.has(mUsername);
-
-          const finalOnline = mName === myName || isReallyOnline;
+          const finalOnline = mName === myName || isOnlineSocket;
 
           if (typeof m === "string") {
             return { id: safeId, name: m, isOnline: finalOnline };
