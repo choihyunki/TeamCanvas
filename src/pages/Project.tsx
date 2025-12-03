@@ -164,25 +164,25 @@ const Project: React.FC = () => {
 
       if (data.members && Array.isArray(data.members)) {
         const memberObjs = data.members.map((m: any, idx: number) => {
-          // 🔥 [핵심 수정] ID가 없으면 '이름'을 ID로 써서, 모든 유저가 똑같은 ID를 갖게 함!
-          // (Date.now()를 쓰면 서로 다른 ID가 생겨서 데이터가 안 보임)
           let safeId = "";
-
           if (typeof m === "string") {
-            safeId = m; // 이름이 곧 ID
+            safeId = m;
           } else {
-            // 객체인데 ID가 없으면 이름, 있으면 기존 ID 사용
             safeId = m.id ? String(m.id) : m.name;
           }
 
           const mName = typeof m === "string" ? m : m.name;
           const mUsername = typeof m === "string" ? m : m.username;
 
-          // 소켓 명단 확인 (온라인 상태)
+          // 소켓 명단 확인
           const isOnlineSocket =
             onlineUsersRef.current.has(mName) ||
             onlineUsersRef.current.has(mUsername);
-          const finalOnline = mName === myName || isOnlineSocket;
+
+          // 🔥 [핵심 수정] 이름이 같거나, OR 아이디(token)가 같으면 '나'로 인정!
+          const isMe = mName === myName || mUsername === token;
+
+          const finalOnline = isMe || isOnlineSocket;
 
           if (typeof m === "string") {
             return { id: safeId, name: m, isOnline: finalOnline };
@@ -271,11 +271,16 @@ const Project: React.FC = () => {
           onlineUsersRef.current.delete(username);
         }
 
-        const finalStatus = username === myName ? true : isOnline;
+        // 🔥 [수정] 내 이름이거나 내 아이디면 무조건 true
+        const isMeTarget = username === myName || username === token;
+        const finalStatus = isMeTarget ? true : isOnline;
 
         setMembers((prev) =>
           prev.map((m) =>
-            m.name === username ? { ...m, isOnline: finalStatus } : m
+            // 이름이나 아이디가 일치하는 멤버 찾기
+            m.name === username || m.username === username
+              ? { ...m, isOnline: finalStatus }
+              : m
           )
         );
         setFriends((prev) =>
@@ -294,10 +299,18 @@ const Project: React.FC = () => {
         if (myName) onlineUsersRef.current.add(myName);
 
         setMembers((prev) =>
-          prev.map((m) => ({
-            ...m,
-            isOnline: onlineUsersRef.current.has(m.name),
-          }))
+          prev.map((m) => {
+            // 🔥 [수정] 나 자신이거나, 소켓 명단에 있거나
+            const isMe = m.name === myName || m.username === token;
+            const isSocketOnline =
+              onlineUsersRef.current.has(m.name) ||
+              onlineUsersRef.current.has(m.username || "");
+
+            return {
+              ...m,
+              isOnline: isMe || isSocketOnline,
+            };
+          })
         );
         setFriends((prev) =>
           prev.map((f) => ({
