@@ -143,17 +143,26 @@ app.post("/api/friends/add", async (req, res) => {
   try {
     const me = await User.findOne({ username: myUsername });
     const target = await User.findOne({ username: targetUsername });
-    if (!target || !me) return res.status(404).json({ message: "유저 없음" });
 
-    if (me.friends.some((f) => f.username === targetUsername)) {
-      return res.status(400).json({ message: "이미 친구" });
-    }
+    if (!target)
+      return res.status(404).json({ message: "존재하지 않는 아이디입니다." });
+    if (myUsername === targetUsername)
+      return res.status(400).json({ message: "나 자신은 추가할 수 없습니다." });
 
+    const isAlreadyFriend = me.friends.some(
+      (f) => f.username === targetUsername
+    );
+    if (isAlreadyFriend)
+      return res.status(400).json({ message: "이미 등록된 친구입니다." });
+
+    // 1. 내 목록에 상대방 추가
     me.friends.push({
       username: target.username,
       name: target.name,
       avatarInitial: target.name.charAt(0),
     });
+
+    // 🔥 [추가] 상대방 목록에도 나를 추가 (양방향)
     target.friends.push({
       username: me.username,
       name: me.name,
@@ -161,10 +170,11 @@ app.post("/api/friends/add", async (req, res) => {
     });
 
     await me.save();
-    await target.save();
+    await target.save(); // 상대방 데이터도 저장 필수
+
     res.json(me.friends);
   } catch (err) {
-    res.status(500).json({ message: "실패" });
+    res.status(500).json({ message: "친구 추가 실패" });
   }
 });
 
@@ -217,11 +227,11 @@ io.on("connection", (socket) => {
 
     // 🔥 [중요] "나 온라인이야!" 라고 전체 방송
     io.emit("user_status_change", { username: username, isOnline: true });
-    
+
     // 현재 접속자 명단 보내주기
     const onlineList = Array.from(userSockets.keys());
     socket.emit("current_online_users", onlineList);
-    
+
     console.log(`✅ 유저 온라인: ${username}`);
   });
 
@@ -233,7 +243,9 @@ io.on("connection", (socket) => {
         createdAt: 1,
       });
       socket.emit("load_messages", history);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   });
 
   // 초대 알림 (수정됨: Set 대응)
@@ -253,13 +265,17 @@ io.on("connection", (socket) => {
       const newMsg = new ChatMessage(saveData);
       await newMsg.save();
       io.to(String(data.projectId)).emit("receive_message", saveData);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   });
 
   // 커서 (수정됨: projectId 체크)
   socket.on("cursor-move", (data) => {
     if (data.projectId) {
-      socket.to(String(data.projectId)).emit("cursor-update", { ...data, userId: socket.id });
+      socket
+        .to(String(data.projectId))
+        .emit("cursor-update", { ...data, userId: socket.id });
     }
   });
 
@@ -273,7 +289,7 @@ io.on("connection", (socket) => {
 
     if (username) {
       const userSocketSet = userSockets.get(username);
-      
+
       if (userSocketSet) {
         userSocketSet.delete(socket.id);
 
